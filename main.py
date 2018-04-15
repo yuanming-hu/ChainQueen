@@ -14,8 +14,8 @@ dx
 batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
-dt = 1e-1
-total_steps = 10
+dt = 0.05
+total_steps = 100
 res = 20
 dim = 2
 
@@ -62,8 +62,8 @@ class UpdatedState(State):
   def __init__(self, previous_state):
     super().__init__()
     # Rotational velocity field
-    self.velocity = (previous_state.position - res / 2) * np.array(
-        (1, -1))[None, None, ::-1]
+    self.velocity = (previous_state.position) * 0 + 1
+
     # Advection
 
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
@@ -111,13 +111,12 @@ class Simulation:
     self.states = [self.initial_state] + self.updated_states
 
   def run(self):
-    #positions = [self.initial_state.position]
     results = [s.get_evaluated() for s in self.states]
 
     feed_dict = {
         self.initial_state.position: [[[
-            random.random() * res / 2,
-            random.random() * res / 2
+            random.uniform(0.3, 0.4) * res,
+            random.uniform(0.3, 0.4) * res
         ] for i in range(particle_count)]],
         self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
         self.initial_state.deformation_gradient:
@@ -133,21 +132,24 @@ class Simulation:
   def visualize(self, r):
     pos = r['position'][0]
     mass = r['mass'][0]
-    scale = 10
+    scale = 20
 
     # Pure-white background
     img = np.ones((scale * res, scale * res, 3), dtype=np.float)
 
     for p in pos:
+      print(p)
       x, y = tuple(map(lambda x: math.ceil(x * scale), p))
-      if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
-        img[x, y] = (0, 0, 1)
+      #if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
+      #  img[x, y] = (0, 0, 1)
+      cv2.circle(img, (y, x), scale, color=(0, 0, 1), thickness=-1)
 
-    img = img.swapaxes(0, 1)[:, :, ::-1]
-    mass = mass.swapaxes(0, 1)[:, :, ::-1]
+    img = img.swapaxes(0, 1)[::-1, :, ::-1]
+    mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
+    mass = cv2.resize(mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
 
     cv2.imshow('Particles', img)
-    cv2.imshow('Mass', mass)
+    cv2.imshow('Mass', mass/ 10)
     cv2.waitKey(0)
 
 
