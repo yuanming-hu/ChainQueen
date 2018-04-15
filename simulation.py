@@ -15,12 +15,12 @@ batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
 dt = 0.05
-total_steps = 20
+total_steps = 50
 res = 30
 dim = 2
 
 # Lame parameters
-youngs = 100
+youngs = 20
 mu = youngs
 lam = youngs
 
