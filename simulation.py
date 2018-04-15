@@ -19,7 +19,12 @@ total_steps = 5
 res = 30
 dim = 2
 
+# Lame parameters
+mu = 1
+lam = 1
+
 identity_matrix = np.array([[1, 0], [0, 1]])[None, None, :, :]
+
 
 class State:
 
@@ -96,6 +101,16 @@ class UpdatedState(State):
     # print('base indices', base_indices.shape)
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
 
+    # Compute stress tensor (First Piola-Kirchhoff stress)
+    self.deformation_gradient = previous_state.deformation_gradient
+
+    self.stress_tensor1 = mu * (
+        transpose(self.deformation_gradient) + self.deformation_gradient -
+        2 * identity_matrix)
+    self.stress_tensor2 = lam * identity_matrix * (trace(self.deformation_gradient)[:, :, None, None] - dim)
+
+    self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
+
     # Rasterize momentum and velocity
     # ... and apply gravity
 
@@ -144,14 +159,16 @@ class UpdatedState(State):
                  tf.cast(delta_node_position, tf.float32)
         assert offset.shape == previous_state.position.shape
         weighted_node_velocity = tf.gather_nd(
-          params=self.grid,
-          indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
-        self.affine = self.affine + outer_product(weighted_node_velocity, offset)
+            params=self.grid,
+            indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
+        self.affine = self.affine + outer_product(weighted_node_velocity,
+                                                  offset)
 
     dg_change = identity_matrix - (4 * dt) * self.affine
     #print(dg_change.shape)
     #print(previous_state.deformation_gradient)
-    self.deformation_gradient = matmatmul(dg_change, previous_state.deformation_gradient)
+    self.deformation_gradient = matmatmul(dg_change,
+                                          previous_state.deformation_gradient)
 
     # Advection
     self.position = previous_state.position + self.velocity * dt
@@ -221,7 +238,11 @@ class Simulation:
       x, y = tuple(map(lambda x: math.ceil(x * scale), p))
       #if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
       #  img[x, y] = (0, 0, 1)
-      cv2.circle(img, (y, x), radius=scale // 3, color=(1, 0, float(J[i])), thickness=-1)
+      cv2.circle(
+          img, (y, x),
+          radius=scale // 3,
+          color=(1, 0, float(J[i])),
+          thickness=-1)
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]

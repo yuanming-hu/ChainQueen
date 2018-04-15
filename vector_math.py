@@ -24,6 +24,20 @@ def matmatmul(a, b):
   return C
 
 
+def transpose(a):
+  assert len(a.shape) == 4  # Batch, particles, row, column
+  dim = 2
+  c = [[None for i in range(dim)] for j in range(dim)]
+  for i in range(dim):
+    for j in range(dim):
+      c[i][j] = a[:, :, i, j]
+  c[0][1], c[1][0] = c[1][0], c[0][1]
+  row0 = tf.stack([c[0][0], c[0][1]], axis=2)
+  row1 = tf.stack([c[1][0], c[1][1]], axis=2)
+  C = tf.stack([row0, row1], axis=2)
+  return C
+
+
 def matvecmul(a, b):
   assert len(a.shape) == 4  # Batch, particles, row, column
   assert len(b.shape) == 3  # Batch, particles, row
@@ -52,9 +66,16 @@ def outer_product(a, b):
   C = tf.stack([row0, row1], axis=2)
   return C
 
+
 def determinant(a):
   assert len(a.shape) == 4  # Batch, particles, row, column
   return a[:, :, 0, 0] * a[:, :, 1, 1] - a[:, :, 1, 0] * a[:, :, 0, 1]
+
+
+def trace(a):
+  assert len(a.shape) == 4  # Batch, particles, row, column
+  return a[:, :, 0, 0] + a[:, :, 1, 1]
+
 
 if __name__ == '__main__':
   a = np.random.randn(2, 2)
@@ -75,6 +96,12 @@ if __name__ == '__main__':
         tf.constant(a[None, None, :, :]), tf.constant(c[None, None, :, 0]))
     prod2 = sess.run(prod2)[0, 0]
     np.testing.assert_array_almost_equal(prod1[:, 0], prod2)
+
+    # transpose
+    prod1 = np.transpose(a)
+    prod2 = transpose(tf.constant(a[None, None, :, :]))
+    prod2 = sess.run(prod2)[0, 0]
+    np.testing.assert_array_almost_equal(prod1, prod2)
 
     # outer_product
     prod2 = outer_product(
