@@ -9,7 +9,8 @@ def main(sess):
   sim = Simulation(sess)
   print("Building time: {:.4f}s".format(time.time() - t))
   t = time.time()
-  sim.run()
+  #sim.run()
+  sim.optimize()
   print("Running time: {:.4f}s".format(time.time() - t))
 
 
