@@ -14,16 +14,17 @@ dx
 batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
-dt = 0.05
+dt = 0.15
 total_steps = 10
-res = 20
+res = 40
 dim = 2
 
 
 
 class State:
 
-  def __init__(self):
+  def __init__(self, sim):
+    self.sim = sim
     pass
 
   def get_evaluated(self):
@@ -55,8 +56,8 @@ class State:
 # Initial State
 class InitialState(State):
 
-  def __init__(self):
-    super().__init__()
+  def __init__(self, sim):
+    super().__init__(sim)
     self.position = tf.placeholder(
       tf.float32, [batch_size, particle_count, dim], name='position')
     self.velocity = tf.placeholder(
@@ -75,8 +76,8 @@ class InitialState(State):
 # Updated state
 class UpdatedState(State):
 
-  def __init__(self, previous_state):
-    super().__init__()
+  def __init__(self, sim, previous_state):
+    super().__init__(sim)
     # Rotational velocity field
     self.velocity = (previous_state.position) * 0 + 1
 
@@ -98,7 +99,7 @@ class UpdatedState(State):
     # print('base indices', base_indices.shape)
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
 
-    # Momentum and velocity
+    # Rasterize momentum and velocity
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
 
     self.kernels = self.compute_kernels(previous_state.position)
@@ -115,6 +116,7 @@ class UpdatedState(State):
           updates=self.kernels[:, :, i, j])
 
 
+        self.velocity += np.array(gravity)[None, None, :] * dt
         grid_velocity_contributions = self.kernels[:, :, i, j] * self.velocity
         self.grid = self.grid + tf.scatter_nd(
           shape=(batch_size, res, res, dim),
@@ -123,11 +125,16 @@ class UpdatedState(State):
     assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(self.mass.shape)
     self.grid = self.grid / tf.maximum(1e-5, self.mass)
 
-    # Resample
+    # Gravity
+
+    # Boundary conditions
+    self.grid = self.grid * self.sim.bc
+
+    # Resample velocity
+
 
     self.deformation_gradient = previous_state.deformation_gradient
 
-    # Boundary conditions
 
     self.position = previous_state.position + self.velocity * dt
 
@@ -136,12 +143,17 @@ class Simulation:
 
   def __init__(self, sess):
     self.sess = sess
-    self.initial_state = InitialState()
+    self.initial_state = InitialState(self)
     self.updated_states = []
+
+    # Boundary condition
+    self.bc = np.ones((1, res, res, 1))
+    self.bc[:, 3:res-3, 3:res-3] = 0
+
     previous_state = self.initial_state
 
     for i in range(total_steps):
-      new_state = UpdatedState(previous_state)
+      new_state = UpdatedState(self, previous_state)
       self.updated_states.append(new_state)
       previous_state = new_state
 
@@ -152,7 +164,7 @@ class Simulation:
 
     feed_dict = {
       self.initial_state.position: [[[
-        random.uniform(0.3, 0.4) * res,
+        random.uniform(0.3, 0.5) * res,
         random.uniform(0.3, 0.5) * res
       ] for i in range(particle_count)]],
       self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
@@ -172,7 +184,7 @@ class Simulation:
     mass = r['mass'][0]
     grid = r['grid'][0]
     kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
-    if i > 0:
+    if 0 < i < 3:
       np.testing.assert_array_almost_equal(kernel_sum, 1, decimal=3)
       np.testing.assert_array_almost_equal(mass.sum(), particle_count, decimal=3)
 
