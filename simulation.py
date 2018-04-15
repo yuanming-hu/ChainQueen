@@ -143,7 +143,8 @@ class UpdatedState(State):
         offset = previous_state.position - tf.floor(previous_state.position - 0.5) - \
                  tf.cast(delta_node_position, tf.float32)
 
-        grid_velocity_contributions = self.kernels[:, :, i, j] * self.velocity
+        grid_velocity_contributions = self.kernels[:, :, i, j] * (
+          self.velocity + matvecmul(self.affine, offset))
         grid_force_contributions = self.kernels[:, :, i, j] * (
             matvecmul(self.stress_tensor, offset) * (-4 * dt))
         self.grid = self.grid + tf.scatter_nd(
