@@ -20,7 +20,6 @@ res = 40
 dim = 2
 
 
-
 class State:
 
   def __init__(self, sim):
@@ -29,12 +28,12 @@ class State:
 
   def get_evaluated(self):
     return {
-      'position': self.position,
-      'velocity': self.velocity,
-      'mass': self.mass,
-      'grid': self.grid,
-      'deformation_gradient': self.deformation_gradient,
-      'kernels': self.kernels,
+        'position': self.position,
+        'velocity': self.velocity,
+        'mass': self.mass,
+        'grid': self.grid,
+        'deformation_gradient': self.deformation_gradient,
+        'kernels': self.kernels,
     }
 
   @staticmethod
@@ -47,11 +46,12 @@ class State:
     #print('x', x.shape)
 
     mask = tf.cast(x < 0.5, tf.float32)
-    y = mask * (0.75 - x * x) + (1 - mask) * (0.5 * (1.5 - x) ** 2)
+    y = mask * (0.75 - x * x) + (1 - mask) * (0.5 * (1.5 - x)**2)
     #print('y', y.shape)
     y = tf.reduce_prod(y, axis=4, keepdims=True)
     #print('y', y.shape)
     return y
+
 
 # Initial State
 class InitialState(State):
@@ -59,11 +59,11 @@ class InitialState(State):
   def __init__(self, sim):
     super().__init__(sim)
     self.position = tf.placeholder(
-      tf.float32, [batch_size, particle_count, dim], name='position')
+        tf.float32, [batch_size, particle_count, dim], name='position')
     self.velocity = tf.placeholder(
-      tf.float32, [batch_size, particle_count, dim], name='velocity')
+        tf.float32, [batch_size, particle_count, dim], name='velocity')
     self.deformation_gradient = tf.placeholder(
-      tf.float32, [batch_size, particle_count, dim * dim], name='dg')
+        tf.float32, [batch_size, particle_count, dim * dim], name='dg')
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
     self.kernels = tf.zeros(shape=(batch_size, res, res, 3, 3))
@@ -87,14 +87,13 @@ class UpdatedState(State):
     # print('base indices', base_indices.shape)
     # Add the batch size indices
     base_indices = tf.concat(
-      [
-        tf.zeros(shape=(batch_size, particle_count, 1), dtype=tf.int32),
-        base_indices
-      ],
-      axis=2)
+        [
+            tf.zeros(shape=(batch_size, particle_count, 1), dtype=tf.int32),
+            base_indices
+        ],
+        axis=2)
     # print('base indices', base_indices.shape)
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
-
 
     # Rasterize momentum and velocity
     # ... and apply gravity
@@ -112,19 +111,18 @@ class UpdatedState(State):
         delta_indices = np.array([0, i, j])[None, None, :]
         #print((base_indices + delta_indices).shape)
         self.mass = self.mass + tf.scatter_nd(
-          shape=(batch_size, res, res, 1),
-          indices=base_indices + delta_indices,
-          updates=self.kernels[:, :, i, j])
-
+            shape=(batch_size, res, res, 1),
+            indices=base_indices + delta_indices,
+            updates=self.kernels[:, :, i, j])
 
         grid_velocity_contributions = self.kernels[:, :, i, j] * self.velocity
         self.grid = self.grid + tf.scatter_nd(
-          shape=(batch_size, res, res, dim),
-          indices=base_indices + delta_indices,
-          updates=grid_velocity_contributions)
-    assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(self.mass.shape)
+            shape=(batch_size, res, res, dim),
+            indices=base_indices + delta_indices,
+            updates=grid_velocity_contributions)
+    assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(
+        self.mass.shape)
     self.grid = self.grid / tf.maximum(1e-5, self.mass)
-
 
     # Boundary conditions
     self.grid = self.grid * self.sim.bc
@@ -136,8 +134,8 @@ class UpdatedState(State):
         assert batch_size == 1
         delta_indices = np.array([0, i, j])[None, None, :]
         self.velocity = self.velocity + tf.gather_nd(
-          params=self.grid,
-          indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
+            params=self.grid,
+            indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
 
     self.deformation_gradient = previous_state.deformation_gradient
 
@@ -154,7 +152,7 @@ class Simulation:
 
     # Boundary condition
     self.bc = np.zeros((1, res, res, 1))
-    self.bc[:, 4:res-4, 4:res-4] = 1
+    self.bc[:, 4:res - 4, 4:res - 4] = 1
 
     previous_state = self.initial_state
 
@@ -169,14 +167,14 @@ class Simulation:
     results = [s.get_evaluated() for s in self.states]
 
     feed_dict = {
-      self.initial_state.position: [[[
-        random.uniform(0.3, 0.5) * res,
-        random.uniform(0.3, 0.5) * res
-      ] for i in range(particle_count)]],
-      self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
-      self.initial_state.deformation_gradient:
-        np.array([1, 0, 0, 1])[None, None, :] +
-        np.zeros(shape=(batch_size, particle_count, 1))
+        self.initial_state.position: [[[
+            random.uniform(0.3, 0.5) * res,
+            random.uniform(0.3, 0.5) * res
+        ] for i in range(particle_count)]],
+        self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
+        self.initial_state.deformation_gradient:
+            np.array([1, 0, 0, 1])[None, None, :] +
+            np.zeros(shape=(batch_size, particle_count, 1))
     }
 
     results = self.sess.run(results, feed_dict=feed_dict)
@@ -194,7 +192,8 @@ class Simulation:
     kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
     if 0 < i < 3:
       np.testing.assert_array_almost_equal(kernel_sum, 1, decimal=3)
-      np.testing.assert_array_almost_equal(mass.sum(), particle_count, decimal=3)
+      np.testing.assert_array_almost_equal(
+          mass.sum(), particle_count, decimal=3)
 
     scale = 20
 
@@ -211,7 +210,8 @@ class Simulation:
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
     grid = grid.swapaxes(0, 1)[::-1, :, ::-1]
     grid = np.concatenate([grid, grid[:, :, 0:1] * 0], axis=2)
-    mass = cv2.resize(mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+    mass = cv2.resize(
+        mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
 
     cv2.imshow('Particles', img)
     cv2.imshow('Mass', mass / 10)
