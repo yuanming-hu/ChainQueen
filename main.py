@@ -24,9 +24,21 @@ dim = 2
 def polar_decomposition(m):
   assert False
 
-# Initial State
-class InitialState:
+class State:
   def __init__(self):
+    pass
+
+  def get_evaluated(self):
+    return {
+      'position': self.position,
+      'velocity': self.velocity,
+      'deformation_gradient': self.deformation_gradient
+    }
+
+# Initial State
+class InitialState(State):
+  def __init__(self):
+    super().__init__()
     self.position = tf.placeholder(tf.float32, [batch_size, particle_count, dim], name='position')
     self.velocity = tf.placeholder(tf.float32, [batch_size, particle_count, dim], name='velocity')
     self.deformation_gradient = tf.placeholder(tf.float32, [batch_size, particle_count, dim * dim], name='dg')
@@ -37,8 +49,9 @@ class InitialState:
     '''
 
 # Updated state
-class UpdatedState:
+class UpdatedState(State):
   def __init__(self, previous_state):
+    super().__init__()
     # Rotational velocity field
     self.velocity = (previous_state.position - res / 2) * np.array((1, -1))[None, None, ::-1]
     # Advection
@@ -57,6 +70,8 @@ class UpdatedState:
 
     # Resample
 
+    self.deformation_gradient = previous_state.deformation_gradient
+
     # Boundary conditions
 
     self.position = previous_state.position + self.velocity * dt
@@ -74,23 +89,22 @@ class Simulation:
       self.updated_states.append(new_state)
       previous_state = new_state
 
+    self.states = [self.initial_state] + self.updated_states
+
   def run(self):
-    positions = [self.initial_state.position]
-    for i in range(total_steps):
-      positions.append(self.updated_states[i].position)
+    #positions = [self.initial_state.position]
+    results = [s.get_evaluated() for s in self.states]
 
     feed_dict = {
       self.initial_state.position: [[[random.random() * res / 2, random.random() * res / 2] for i in range(particle_count)]],
-      self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]]
+      self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
+      self.initial_state.deformation_gradient: np.array([1, 0, 0, 1])[None, None, :] + np.zeros(shape=(batch_size, particle_count, 1))
     }
 
-    eval_positions = self.sess.run(positions, feed_dict=feed_dict)
+    results = self.sess.run(results, feed_dict=feed_dict)
 
-    for pos in eval_positions:
-      # Visualize the first trajectory on the whole batch only
-      print("Visualizing...", pos[0])
-
-      self.visualize(pos[0])
+    for i, r in enumerate(results):
+      self.visualize(r['position'][0])
 
 
   def visualize(self, pos):
@@ -98,6 +112,7 @@ class Simulation:
 
     # Pure-white background
     img = np.ones((scale * res, scale * res, 3), dtype=np.float)
+
     for p in pos:
       x, y = tuple(map(lambda x: math.ceil(x * scale), p))
       if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
