@@ -110,7 +110,7 @@ class UpdatedState(State):
         self.mass = self.mass + tf.scatter_nd(
             shape=(batch_size, res, res, 1),
             indices=base_indices + delta_indices,
-            updates=tf.ones(shape=(batch_size, particle_count, 1)))
+            updates=self.kernels[:, :, i, j])
     assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(self.mass.shape)
 
     # Resample
@@ -162,8 +162,8 @@ class Simulation:
     mass = r['mass'][0]
     kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
     if i > 0:
-      print(r['kernels'][0])
       np.testing.assert_array_almost_equal(kernel_sum, 1, decimal=3)
+      np.testing.assert_array_almost_equal(mass.sum(), particle_count, decimal=3)
 
     scale = 20
 
