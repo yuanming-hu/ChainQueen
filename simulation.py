@@ -68,7 +68,8 @@ class InitialState(State):
     super().__init__(sim)
     self.position = tf.placeholder(
         tf.float32, [batch_size, particle_count, dim], name='position')
-    self.velocity = tf.ones(shape=[batch_size, particle_count, dim]) * initial_velocity[None, None, :]
+    self.velocity = tf.ones(shape=[batch_size, particle_count, dim
+                                  ]) * initial_velocity[None, None, :]
     '''
     self.velocity = tf.placeholder(
         tf.float32, [batch_size, particle_count, dim], name='velocity')
@@ -112,7 +113,8 @@ class UpdatedState(State):
     self.stress_tensor1 = mu * (
         transpose(self.deformation_gradient) + self.deformation_gradient -
         2 * identity_matrix)
-    self.stress_tensor2 = lam * identity_matrix * (trace(self.deformation_gradient)[:, :, None, None] - dim)
+    self.stress_tensor2 = lam * identity_matrix * (
+        trace(self.deformation_gradient)[:, :, None, None] - dim)
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
     self.stress_tensor = -1 * self.stress_tensor
@@ -142,7 +144,8 @@ class UpdatedState(State):
                  tf.cast(delta_node_position, tf.float32)
 
         grid_velocity_contributions = self.kernels[:, :, i, j] * self.velocity
-        grid_force_contributions = self.kernels[:, :, i, j] * (matvecmul(self.stress_tensor, offset) * (-4 * dt))
+        grid_force_contributions = self.kernels[:, :, i, j] * (
+            matvecmul(self.stress_tensor, offset) * (-4 * dt))
         self.grid = self.grid + tf.scatter_nd(
             shape=(batch_size, res, res, dim),
             indices=base_indices + delta_indices,
@@ -159,7 +162,6 @@ class UpdatedState(State):
       mask = np.zeros((1, res, res, 2))
       mask[:, :, :4, 1] = 1
       self.grid = self.grid * (1 - mask) + mask * tf.maximum(self.grid, 0)
-
 
     # Resample velocity and local affine velocity field
     self.velocity *= 0
@@ -193,22 +195,24 @@ class UpdatedState(State):
 
 
 class Simulation:
+
   def __init__(self, sess):
     self.sess = sess
     self.initial_velocity = tf.placeholder(shape=(2,), dtype=tf.float32)
-    self.initial_state = InitialState(self, initial_velocity=self.initial_velocity)
+    self.initial_state = InitialState(
+        self, initial_velocity=self.initial_velocity)
     self.updated_states = []
 
     # Boundary condition
     if sticky:
       self.bc = np.zeros((1, res, res, 2))
-      self.bc[:, 4:res-4, 4:res - 4] = 1
+      self.bc[:, 4:res - 4, 4:res - 4] = 1
     else:
       self.bc = np.zeros((1, res, res, 2, 2))
       self.bc[:, :, 4:, 1, 0] = 1
-      self.bc[:, :, :res-4, 1, 1] = 1
+      self.bc[:, :, :res - 4, 1, 1] = 1
       self.bc[:, 4:, :, 1, 0] = 1
-      self.bc[:, :res-4, :, 1, 1] = 1
+      self.bc[:, :res - 4, :, 1, 1] = 1
 
     previous_state = self.initial_state
 
@@ -240,8 +244,10 @@ class Simulation:
         self.visualize(i, r)
 
   def optimize(self):
-    final_velocity = tf.reduce_mean(self.states[-1].velocity[:, :], keepdims=False, axis=(0, 1))
-    final_position = tf.reduce_mean(self.states[-1].position[:, :], keepdims=False, axis=(0, 1))
+    final_velocity = tf.reduce_mean(
+        self.states[-1].velocity[:, :], keepdims=False, axis=(0, 1))
+    final_position = tf.reduce_mean(
+        self.states[-1].position[:, :], keepdims=False, axis=(0, 1))
     #loss = final_position[0] ** 2 + final_position[1] ** 2
     loss = -final_position[0]
     #loss = tf.reduce_mean(self.states[1].position[:, :, 0], keepdims=False)
@@ -251,18 +257,18 @@ class Simulation:
     for i in range(10):
       print('velocity', current_velocity)
       feed_dict = {
-        self.initial_state.position: [[[
-          random.uniform(0.3, 0.5) * res,
-          random.uniform(0.2, 0.4) * res
-        ] for i in range(particle_count)]],
-        self.initial_velocity: current_velocity,
-        self.initial_state.deformation_gradient:
-          identity_matrix +
-          np.zeros(shape=(batch_size, particle_count, 1, 1))
+          self.initial_state.position: [[[
+              random.uniform(0.3, 0.5) * res,
+              random.uniform(0.2, 0.4) * res
+          ] for i in range(particle_count)]],
+          self.initial_velocity:
+              current_velocity,
+          self.initial_state.deformation_gradient:
+              identity_matrix +
+              np.zeros(shape=(batch_size, particle_count, 1, 1))
       }
       print('    gradient', grad.eval(feed_dict))
       current_velocity -= grad.eval(feed_dict) * 0.1
-
 
   def visualize(self, i, r):
     pos = r['position'][0]

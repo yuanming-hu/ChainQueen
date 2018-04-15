@@ -4,6 +4,7 @@ from simulation import Simulation
 import time
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+
 def main(sess):
   t = time.time()
   sim = Simulation(sess)
