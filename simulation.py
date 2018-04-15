@@ -39,7 +39,7 @@ class State:
 
   @staticmethod
   def compute_kernels(positions):
-    grid_node_coord = [[(i, j) for j in range(-1, 2)] for i in range(-1, 2)]
+    grid_node_coord = [[(i, j) for j in range(3)] for i in range(3)]
     grid_node_coord = np.array(grid_node_coord)[None, None, :, :]
     frac = (positions - tf.floor(positions - 0.5))[:, :, None, None, :]
 
@@ -183,7 +183,7 @@ class Simulation:
     feed_dict = {
         self.initial_state.position: [[[
             random.uniform(0.3, 0.5) * res,
-            random.uniform(0.3, 0.5) * res
+            random.uniform(0.1, 0.3) * res
         ] for i in range(particle_count)]],
         self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
         self.initial_state.deformation_gradient:
