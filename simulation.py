@@ -121,6 +121,7 @@ class UpdatedState(State):
           indices=base_indices + delta_indices,
           updates=grid_velocity_contributions)
     assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(self.mass.shape)
+    self.grid = self.grid / tf.maximum(1e-5, self.mass)
 
     # Resample
 
