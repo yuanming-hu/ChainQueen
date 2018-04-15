@@ -249,33 +249,46 @@ class Simulation:
     final_position = tf.reduce_mean(
         self.states[-1].position[:, :], keepdims=False, axis=(0, 1))
     #loss = final_position[0] ** 2 + final_position[1] ** 2
-    loss = -final_position[0]
+    loss = (final_position[0] - res / 2)**2
     #loss = tf.reduce_mean(self.states[1].position[:, :, 0], keepdims=False)
     grad = tf.gradients(loss, [self.initial_velocity])[0]
 
+    learning_rate = 0.3
+
     current_velocity = np.array([0, 0], dtype=np.float32)
-    for i in range(10):
+    results = [s.get_evaluated() for s in self.states]
+
+    particles = [[[
+        random.uniform(0.3, 0.5) * res,
+        random.uniform(0.2, 0.4) * res
+    ] for i in range(particle_count)]]
+    for i in range(20):
       print('velocity', current_velocity)
       feed_dict = {
-          self.initial_state.position: [[[
-              random.uniform(0.3, 0.5) * res,
-              random.uniform(0.2, 0.4) * res
-          ] for i in range(particle_count)]],
+          self.initial_state.position:
+              particles,
           self.initial_velocity:
               current_velocity,
           self.initial_state.deformation_gradient:
               identity_matrix +
               np.zeros(shape=(batch_size, particle_count, 1, 1))
       }
-      print('    gradient', grad.eval(feed_dict))
-      current_velocity -= grad.eval(feed_dict) * 0.1
+      l, gradient, evaluated = self.sess.run([loss, grad, results], feed_dict=feed_dict)
+      print('    grad', gradient)
+      print('    ** loss', l)
+      current_velocity -= learning_rate * gradient
 
-  def visualize(self, i, r):
+      for j, r in enumerate(evaluated):
+        frame = i * (total_steps + 1) + j
+        self.visualize(
+            i=frame, r=r, output_fn='outputs/{:04d}.png'.format(frame))
+
+  def visualize(self, i, r, output_fn=None):
     pos = r['position'][0]
     mass = r['mass'][0]
     grid = r['grid'][0]
     J = determinant(r['deformation_gradient'])[0]
-    # print(grid.min(), grid.max())
+    #5 print(grid.min(), grid.max())
     grid = grid / (1e-5 + np.abs(grid).max()) / 2 + 0.5
     kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
     if 0 < i < 3:
@@ -309,4 +322,6 @@ class Simulation:
     cv2.imshow('Particles', img)
     cv2.imshow('Mass', mass / 10)
     cv2.imshow('Velocity', grid)
+    if output_fn is not None:
+      cv2.imwrite(output_fn, img * 255)
     cv2.waitKey(1)
