@@ -71,7 +71,7 @@ class UpdatedState(State):
     # Rasterize mass and velocity
     base_indices = tf.cast(tf.floor(previous_state.position - 0.5), tf.int32)
     assert batch_size == 1
-    print('base indices', base_indices.shape)
+    # print('base indices', base_indices.shape)
     # Add the batch size indices
     base_indices = tf.concat(
         [
@@ -79,12 +79,18 @@ class UpdatedState(State):
             base_indices
         ],
         axis=2)
-    print('base indices', base_indices.shape)
-    self.mass = tf.scatter_nd(
-        shape=(batch_size, res, res, 1),
-        indices=base_indices,
-        updates=tf.ones(shape=(batch_size, particle_count, 1)))
-    assert self.mass.shape == (batch_size, res, res, 1)
+    # print('base indices', base_indices.shape)
+    self.mass = tf.zeros(shape=(batch_size, res, res, 1))
+    for i in range(3):
+      for j in range(3):
+        assert batch_size == 1
+        delta_indices = np.array([0, i, j])[None, None, :]
+        print((base_indices + delta_indices).shape)
+        self.mass = self.mass + tf.scatter_nd(
+            shape=(batch_size, res, res, 1),
+            indices=base_indices + delta_indices,
+            updates=tf.ones(shape=(batch_size, particle_count, 1)))
+    assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(self.mass.shape)
 
     # Resample
 
@@ -116,7 +122,7 @@ class Simulation:
     feed_dict = {
         self.initial_state.position: [[[
             random.uniform(0.3, 0.4) * res,
-            random.uniform(0.3, 0.4) * res
+            random.uniform(0.3, 0.5) * res
         ] for i in range(particle_count)]],
         self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
         self.initial_state.deformation_gradient:
@@ -126,8 +132,9 @@ class Simulation:
 
     results = self.sess.run(results, feed_dict=feed_dict)
 
-    for i, r in enumerate(results):
-      self.visualize(r)
+    while True:
+      for i, r in enumerate(results):
+        self.visualize(r)
 
   def visualize(self, r):
     pos = r['position'][0]
@@ -138,19 +145,18 @@ class Simulation:
     img = np.ones((scale * res, scale * res, 3), dtype=np.float)
 
     for p in pos:
-      print(p)
       x, y = tuple(map(lambda x: math.ceil(x * scale), p))
       #if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
       #  img[x, y] = (0, 0, 1)
-      cv2.circle(img, (y, x), scale, color=(0, 0, 1), thickness=-1)
+      cv2.circle(img, (y, x), radius=scale // 3, color=(0, 0, 1), thickness=-1)
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
     mass = cv2.resize(mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
 
     cv2.imshow('Particles', img)
-    cv2.imshow('Mass', mass/ 10)
-    cv2.waitKey(0)
+    cv2.imshow('Mass', mass / 10)
+    cv2.waitKey(1)
 
 
 def main(sess):
