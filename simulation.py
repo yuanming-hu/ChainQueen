@@ -31,6 +31,7 @@ class State:
       'position': self.position,
       'velocity': self.velocity,
       'mass': self.mass,
+      'grid': self.grid,
       'deformation_gradient': self.deformation_gradient,
       'kernels': self.kernels,
     }
@@ -63,6 +64,7 @@ class InitialState(State):
     self.deformation_gradient = tf.placeholder(
       tf.float32, [batch_size, particle_count, dim * dim], name='dg')
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
+    self.grid = tf.zeros(shape=(batch_size, res, res, dim))
     self.kernels = tf.zeros(shape=(batch_size, res, res, 3, 3))
     '''
     TODO:
@@ -96,6 +98,9 @@ class UpdatedState(State):
     # print('base indices', base_indices.shape)
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
 
+    # Momentum and velocity
+    self.grid = tf.zeros(shape=(batch_size, res, res, dim))
+
     self.kernels = self.compute_kernels(previous_state.position)
     assert self.kernels.shape == (batch_size, particle_count, 3, 3, 1)
 
@@ -108,6 +113,13 @@ class UpdatedState(State):
           shape=(batch_size, res, res, 1),
           indices=base_indices + delta_indices,
           updates=self.kernels[:, :, i, j])
+
+
+        grid_velocity_contributions = self.kernels[:, :, i, j] * self.velocity
+        self.grid = self.grid + tf.scatter_nd(
+          shape=(batch_size, res, res, dim),
+          indices=base_indices + delta_indices,
+          updates=grid_velocity_contributions)
     assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(self.mass.shape)
 
     # Resample
@@ -157,6 +169,7 @@ class Simulation:
   def visualize(self, i, r):
     pos = r['position'][0]
     mass = r['mass'][0]
+    grid = r['grid'][0]
     kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
     if i > 0:
       np.testing.assert_array_almost_equal(kernel_sum, 1, decimal=3)
@@ -175,8 +188,11 @@ class Simulation:
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
+    grid = grid.swapaxes(0, 1)[::-1, :, ::-1]
+    grid = np.concatenate([grid, grid[:, :, 0:1] * 0], axis=2)
     mass = cv2.resize(mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
 
     cv2.imshow('Particles', img)
     cv2.imshow('Mass', mass / 10)
+    cv2.imshow('Velocity', grid)
     cv2.waitKey(1)
