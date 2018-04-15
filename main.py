@@ -15,7 +15,7 @@ dx
 batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
-dt = 1e-2
+dt = 1e-1
 total_steps = 10
 res = 20
 
@@ -39,7 +39,7 @@ class InitialState:
 class UpdatedState:
   def __init__(self, previous_state):
     # Rotational velocity field
-    self.velocity = (previous_state.position - res / 2) * np.array((-1, 1))[None, None, :]
+    self.velocity = (previous_state.position - res / 2) * np.array((1, -1))[None, None, ::-1]
     # Advection
     self.position = previous_state.position + self.velocity * dt
 
@@ -56,16 +56,22 @@ class Simulation:
       previous_state = new_state
 
   def run(self):
-    positiosn = [self.initial_state.position]
+    positions = [self.initial_state.position]
     for i in range(total_steps):
-      positions = [self.updated_states[i].position]
+      positions.append(self.updated_states[i].position)
 
     feed_dict = {
-      self.initial_state.position: [[[random.random() * 5, random.random() * 5] for i in range(particle_count)]]
+      self.initial_state.position: [[[random.random() * res / 2, random.random() * res / 2] for i in range(particle_count)]],
       self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]]
     }
 
-    pos = self.sess.eval(positions, feed_dict=feed_dict)
+    eval_positions = self.sess.run(positions, feed_dict=feed_dict)
+
+    for pos in eval_positions:
+      # Visualize the first trajectory on the whole batch only
+      print("Visualizing...", pos[0])
+
+      self.visualize(pos[0])
 
 
   def visualize(self, pos):
@@ -75,15 +81,18 @@ class Simulation:
     img = np.ones((scale * res, scale * res, 3), dtype=np.float)
     for p in pos:
       x, y = tuple(map(lambda x: math.ceil(x * scale), p))
-      if 0 <= x < img.shape[0] && 0 <= y < img.shape[1]:
+      if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
         img[x, y] = (0, 0, 1)
 
+
+    img = img.swapaxes(0, 1)[:, :, ::-1]
     cv2.imshow('img', img)
     cv2.waitKey(0)
 
 
 def main(sess):
   sim = Simulation(sess)
+  sim.run()
 
 
 if __name__ == '__main__':
@@ -91,5 +100,5 @@ if __name__ == '__main__':
   sess_config.gpu_options.allow_growth = True
   sess_config.gpu_options.per_process_gpu_memory_fraction = 0.4
 
-  with tf.Session(config=sess_config):
-    main()
+  with tf.Session(config=sess_config) as sess:
+    main(sess=sess)
