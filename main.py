@@ -18,6 +18,7 @@ gravity = (0, -9.8)
 dt = 1e-1
 total_steps = 10
 res = 20
+dim = 2
 
 
 def polar_decomposition(m):
@@ -26,9 +27,9 @@ def polar_decomposition(m):
 # Initial State
 class InitialState:
   def __init__(self):
-    self.position = tf.placeholder(tf.float32, [batch_size, particle_count, 2], name='position')
-    self.velocity = tf.placeholder(tf.float32, [batch_size, particle_count, 2], name='velocity')
-    self.deformation_gradient = tf.placeholder(tf.float32, [batch_size, particle_count, 4], name='dg')
+    self.position = tf.placeholder(tf.float32, [batch_size, particle_count, dim], name='position')
+    self.velocity = tf.placeholder(tf.float32, [batch_size, particle_count, dim], name='velocity')
+    self.deformation_gradient = tf.placeholder(tf.float32, [batch_size, particle_count, dim * dim], name='dg')
 
     '''
     TODO:
@@ -41,7 +42,25 @@ class UpdatedState:
     # Rotational velocity field
     self.velocity = (previous_state.position - res / 2) * np.array((1, -1))[None, None, ::-1]
     # Advection
+
+    self.grid = tf.zeros(shape=(batch_size, res, res, dim))
+
+    # Rasterize mass and velocity
+    base_indices = tf.cast(tf.floor(previous_state.position - 0.5), tf.int32)
+    assert batch_size == 1
+    print('base indices', base_indices.shape)
+    # Add the batch size indices
+    base_indices = tf.concat([tf.zeros(shape=(batch_size, particle_count, 1), dtype=tf.int32), base_indices], axis=2)
+    print('base indices', base_indices.shape)
+    self.mass = tf.scatter_nd(shape=(batch_size, res, res, 1), indices=base_indices, updates=tf.ones(shape=(batch_size, particle_count, 1)))
+    assert self.mass.shape == (batch_size, res, res, 1)
+
+    # Resample
+
+    # Boundary conditions
+
     self.position = previous_state.position + self.velocity * dt
+
 
 class Simulation:
   def __init__(self, sess):
