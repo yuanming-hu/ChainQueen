@@ -2,14 +2,22 @@ import tensorflow as tf
 import cv2
 import os
 import numpy as np
+import random
+import math
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+'''
+TODO:
+dx
+'''
 
 batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
 dt = 1e-2
 total_steps = 10
+res = 20
 
 
 def polar_decomposition(m):
@@ -31,12 +39,13 @@ class InitialState:
 class UpdatedState:
   def __init__(self, previous_state):
     # Rotational velocity field
-    self.velocity = previous_state.position * np.array((-1, 1))[None, None, :]
+    self.velocity = (previous_state.position - res / 2) * np.array((-1, 1))[None, None, :]
     # Advection
     self.position = previous_state.position + self.velocity * dt
 
 class Simulation:
-  def __init__(self):
+  def __init__(self, sess):
+    self.sess = sess
     self.initial_state = InitialState()
     self.updated_states = []
     previous_state = self.initial_state
@@ -46,21 +55,41 @@ class Simulation:
       self.updated_states.append(new_state)
       previous_state = new_state
 
+  def run(self):
+    positiosn = [self.initial_state.position]
+    for i in range(total_steps):
+      positions = [self.updated_states[i].position]
+
+    feed_dict = {
+      self.initial_state.position: [[[random.random() * 5, random.random() * 5] for i in range(particle_count)]]
+      self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]]
+    }
+
+    pos = self.sess.eval(positions, feed_dict=feed_dict)
 
 
-def main():
+  def visualize(self, pos):
+    scale = 10
+
+    # Pure-white background
+    img = np.ones((scale * res, scale * res, 3), dtype=np.float)
+    for p in pos:
+      x, y = tuple(map(lambda x: math.ceil(x * scale), p))
+      if 0 <= x < img.shape[0] && 0 <= y < img.shape[1]:
+        img[x, y] = (0, 0, 1)
+
+    cv2.imshow('img', img)
+    cv2.waitKey(0)
+
+
+def main(sess):
+  sim = Simulation(sess)
+
+
+if __name__ == '__main__':
   sess_config = tf.ConfigProto(allow_soft_placement=True)
   sess_config.gpu_options.allow_growth = True
   sess_config.gpu_options.per_process_gpu_memory_fraction = 0.4
 
-  sess = tf.Session(config=sess_config)
-
-  x = tf.placeholder(tf.float32, [batch_size, 1], name='x')
-  y0 = tf.placeholder(tf.float32, [batch_size, 1], name='y0')
-
-  sim = Simulation()
-
-
-
-if __name__ == '__main__':
-  main()
+  with tf.Session(config=sess_config):
+    main()
