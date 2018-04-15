@@ -25,11 +25,14 @@ def matvecmul(a, b):
   assert len(a.shape) == 4 # Batch, particles, row, column
   assert len(b.shape) == 3 # Batch, particles, row
   dim = 2
-  c = tf.zeros_like(b)
+  c = [None for i in range(dim)]
   for i in range(dim):
     for k in range(dim):
-      c[:, :, i] += a[:, :, i, k] * b[:, :, k]
-  return c
+      if k == 0:
+        c[i] = a[:, :, i, k] * b[:, :, k]
+      else:
+        c[i] += a[:, :, i, k] * b[:, :, k]
+  return tf.stack(c, axis=2)
 
 
 # a is column, b is row
@@ -46,9 +49,17 @@ def outer_product(a, b):
 if __name__ ==  '__main__':
   a = np.random.randn(2, 2)
   b = np.random.randn(2, 2)
+  c = np.random.randn(2, 1)
   with tf.Session() as sess:
+    # Matmatmul
     prod1 = np.matmul(a, b)
     prod2 = matmatmul(tf.constant(a[None, None, :, :]), tf.constant(b[None, None, :, :]))
     prod2 = sess.run(prod2)[0, 0]
     np.testing.assert_array_almost_equal(prod1, prod2)
+
+    # Matvecmul
+    prod1 = np.matmul(a, c)
+    prod2 = matvecmul(tf.constant(a[None, None, :, :]), tf.constant(c[None, None, :, 0]))
+    prod2 = sess.run(prod2)[0, 0]
+    np.testing.assert_array_almost_equal(prod1[:, 0], prod2)
   print("All tests passed.")
