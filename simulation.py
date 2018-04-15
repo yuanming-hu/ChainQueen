@@ -23,6 +23,7 @@ dim = 2
 youngs = 20
 mu = youngs
 lam = youngs
+sticky = False
 
 identity_matrix = np.array([[1, 0], [0, 1]])[None, None, :, :]
 
@@ -148,7 +149,14 @@ class UpdatedState(State):
     self.grid = self.grid / tf.maximum(1e-5, self.mass)
 
     # Boundary conditions
-    self.grid = self.grid * self.sim.bc
+    if sticky:
+      self.grid = self.grid * self.sim.bc
+    else:
+      # TODO: use sim.bc
+      mask = np.zeros((1, res, res, 2))
+      mask[:, :, 4:, 1] = 1
+      self.grid = self.grid * mask + (1 - mask) * tf.maximum(self.grid, 0)
+
 
     # Resample velocity and local affine velocity field
     self.velocity *= 0
@@ -189,8 +197,15 @@ class Simulation:
     self.updated_states = []
 
     # Boundary condition
-    self.bc = np.zeros((1, res, res, 1))
-    self.bc[:, 4:res - 4, 4:res - 4] = 1
+    if sticky:
+      self.bc = np.zeros((1, res, res, 2))
+      self.bc[:, 4:res-4, 4:res - 4] = 1
+    else:
+      self.bc = np.zeros((1, res, res, 2, 2))
+      self.bc[:, :, 4:, 1, 0] = 1
+      self.bc[:, :, :res-4, 1, 1] = 1
+      self.bc[:, 4:, :, 1, 0] = 1
+      self.bc[:, :res-4, :, 1, 1] = 1
 
     previous_state = self.initial_state
 
