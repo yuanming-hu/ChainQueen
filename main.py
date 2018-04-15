@@ -15,7 +15,7 @@ batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
 dt = 0.05
-total_steps = 100
+total_steps = 10
 res = 20
 dim = 2
 
@@ -34,9 +34,25 @@ class State:
         'position': self.position,
         'velocity': self.velocity,
         'mass': self.mass,
-        'deformation_gradient': self.deformation_gradient
+        'deformation_gradient': self.deformation_gradient,
+        'kernels': self.kernels,
     }
 
+  @staticmethod
+  def compute_kernels(positions):
+    grid_node_coord = [[(i, j) for j in range(-1, 2)] for i in range(-1, 2)]
+    grid_node_coord = np.array(grid_node_coord)[None, None, :, :]
+    frac = (positions - tf.floor(positions))[:, :, None, None, :]
+
+    x = tf.abs(frac - grid_node_coord)
+    #print('x', x.shape)
+
+    mask = tf.cast(x < 0.5, tf.float32)
+    y = mask * (0.75 - x * x) + (1 - mask) * (0.5 * (1.5 - x) ** 2)
+    #print('y', y.shape)
+    y = tf.reduce_prod(y, axis=4, keepdims=True)
+    #print('y', y.shape)
+    return y
 
 # Initial State
 class InitialState(State):
@@ -50,6 +66,7 @@ class InitialState(State):
     self.deformation_gradient = tf.placeholder(
         tf.float32, [batch_size, particle_count, dim * dim], name='dg')
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
+    self.kernels = tf.zeros(shape=(batch_size, res, res, 3, 3))
     '''
     TODO:
     mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
@@ -81,6 +98,10 @@ class UpdatedState(State):
         axis=2)
     # print('base indices', base_indices.shape)
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
+
+    self.kernels = self.compute_kernels(previous_state.position)
+    assert self.kernels.shape == (batch_size, particle_count, 3, 3, 1)
+
     for i in range(3):
       for j in range(3):
         assert batch_size == 1
@@ -134,11 +155,16 @@ class Simulation:
 
     while True:
       for i, r in enumerate(results):
-        self.visualize(r)
+        self.visualize(i, r)
 
-  def visualize(self, r):
+  def visualize(self, i, r):
     pos = r['position'][0]
     mass = r['mass'][0]
+    kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
+    if i > 0:
+      print(r['kernels'][0])
+      np.testing.assert_array_almost_equal(kernel_sum, 1, decimal=3)
+
     scale = 20
 
     # Pure-white background
