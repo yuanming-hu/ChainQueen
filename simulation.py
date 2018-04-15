@@ -15,7 +15,7 @@ batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
 dt = 0.15
-total_steps = 10
+total_steps = 20
 res = 40
 dim = 2
 
@@ -78,10 +78,6 @@ class UpdatedState(State):
 
   def __init__(self, sim, previous_state):
     super().__init__(sim)
-    # Rotational velocity field
-    self.velocity = (previous_state.position) * 0 + 1
-
-    # Advection
 
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
 
@@ -99,12 +95,17 @@ class UpdatedState(State):
     # print('base indices', base_indices.shape)
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
 
+
     # Rasterize momentum and velocity
+    # ... and apply gravity
+
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
 
     self.kernels = self.compute_kernels(previous_state.position)
     assert self.kernels.shape == (batch_size, particle_count, 3, 3, 1)
 
+    self.velocity = previous_state.velocity
+    self.velocity += np.array(gravity)[None, None, :] * dt
     for i in range(3):
       for j in range(3):
         assert batch_size == 1
@@ -116,7 +117,6 @@ class UpdatedState(State):
           updates=self.kernels[:, :, i, j])
 
 
-        self.velocity += np.array(gravity)[None, None, :] * dt
         grid_velocity_contributions = self.kernels[:, :, i, j] * self.velocity
         self.grid = self.grid + tf.scatter_nd(
           shape=(batch_size, res, res, dim),
@@ -125,17 +125,23 @@ class UpdatedState(State):
     assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(self.mass.shape)
     self.grid = self.grid / tf.maximum(1e-5, self.mass)
 
-    # Gravity
 
     # Boundary conditions
     self.grid = self.grid * self.sim.bc
 
     # Resample velocity
-
+    self.velocity *= 0
+    for i in range(3):
+      for j in range(3):
+        assert batch_size == 1
+        delta_indices = np.array([0, i, j])[None, None, :]
+        self.velocity = self.velocity + tf.gather_nd(
+          params=self.grid,
+          indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
 
     self.deformation_gradient = previous_state.deformation_gradient
 
-
+    # Advection
     self.position = previous_state.position + self.velocity * dt
 
 
@@ -147,8 +153,8 @@ class Simulation:
     self.updated_states = []
 
     # Boundary condition
-    self.bc = np.ones((1, res, res, 1))
-    self.bc[:, 3:res-3, 3:res-3] = 0
+    self.bc = np.zeros((1, res, res, 1))
+    self.bc[:, 4:res-4, 4:res-4] = 1
 
     previous_state = self.initial_state
 
@@ -183,6 +189,8 @@ class Simulation:
     pos = r['position'][0]
     mass = r['mass'][0]
     grid = r['grid'][0]
+    # print(grid.min(), grid.max())
+    grid = grid / (1e-5 + np.abs(grid).max()) / 2 + 0.5
     kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
     if 0 < i < 3:
       np.testing.assert_array_almost_equal(kernel_sum, 1, decimal=3)
