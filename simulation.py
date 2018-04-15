@@ -14,17 +14,18 @@ dx
 batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
-dt = 0.15
-total_steps = 20
-res = 40
+dt = 0.25
+total_steps = 5
+res = 30
 dim = 2
 
+identity_matrix = np.array([[1, 0], [0, 1]])[None, None, :, :]
 
 class State:
 
   def __init__(self, sim):
     self.sim = sim
-    pass
+    self.affine = tf.zeros(shape=(batch_size, particle_count, 2, 2))
 
   def get_evaluated(self):
     return {
@@ -40,7 +41,7 @@ class State:
   def compute_kernels(positions):
     grid_node_coord = [[(i, j) for j in range(-1, 2)] for i in range(-1, 2)]
     grid_node_coord = np.array(grid_node_coord)[None, None, :, :]
-    frac = (positions - tf.floor(positions))[:, :, None, None, :]
+    frac = (positions - tf.floor(positions - 0.5))[:, :, None, None, :]
 
     x = tf.abs(frac - grid_node_coord)
     #print('x', x.shape)
@@ -63,7 +64,7 @@ class InitialState(State):
     self.velocity = tf.placeholder(
         tf.float32, [batch_size, particle_count, dim], name='velocity')
     self.deformation_gradient = tf.placeholder(
-        tf.float32, [batch_size, particle_count, dim * dim], name='dg')
+        tf.float32, [batch_size, particle_count, dim, dim], name='dg')
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
     self.kernels = tf.zeros(shape=(batch_size, res, res, 3, 3))
@@ -127,7 +128,7 @@ class UpdatedState(State):
     # Boundary conditions
     self.grid = self.grid * self.sim.bc
 
-    # Resample velocity
+    # Resample velocity and local affine velocity field
     self.velocity *= 0
     for i in range(3):
       for j in range(3):
@@ -137,7 +138,20 @@ class UpdatedState(State):
             params=self.grid,
             indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
 
-    self.deformation_gradient = previous_state.deformation_gradient
+        delta_node_position = np.array([i, j])[None, None, :]
+
+        offset = previous_state.position - tf.floor(previous_state.position - 0.5) - \
+                 tf.cast(delta_node_position, tf.float32)
+        assert offset.shape == previous_state.position.shape
+        weighted_node_velocity = tf.gather_nd(
+          params=self.grid,
+          indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
+        self.affine = self.affine + outer_product(weighted_node_velocity, offset)
+
+    dg_change = identity_matrix - (4 * dt) * self.affine
+    #print(dg_change.shape)
+    #print(previous_state.deformation_gradient)
+    self.deformation_gradient = matmatmul(dg_change, previous_state.deformation_gradient)
 
     # Advection
     self.position = previous_state.position + self.velocity * dt
@@ -173,8 +187,8 @@ class Simulation:
         ] for i in range(particle_count)]],
         self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
         self.initial_state.deformation_gradient:
-            np.array([1, 0, 0, 1])[None, None, :] +
-            np.zeros(shape=(batch_size, particle_count, 1))
+            identity_matrix +
+            np.zeros(shape=(batch_size, particle_count, 1, 1))
     }
 
     results = self.sess.run(results, feed_dict=feed_dict)
@@ -187,6 +201,8 @@ class Simulation:
     pos = r['position'][0]
     mass = r['mass'][0]
     grid = r['grid'][0]
+    J = determinant(r['deformation_gradient'])[0]
+    print(J)
     # print(grid.min(), grid.max())
     grid = grid / (1e-5 + np.abs(grid).max()) / 2 + 0.5
     kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
@@ -200,11 +216,12 @@ class Simulation:
     # Pure-white background
     img = np.ones((scale * res, scale * res, 3), dtype=np.float)
 
-    for p in pos:
+    for i in range(len(pos)):
+      p = pos[i]
       x, y = tuple(map(lambda x: math.ceil(x * scale), p))
       #if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
       #  img[x, y] = (0, 0, 1)
-      cv2.circle(img, (y, x), radius=scale // 3, color=(0, 0, 1), thickness=-1)
+      cv2.circle(img, (y, x), radius=scale // 3, color=(1, 0, float(J[i])), thickness=-1)
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
@@ -216,4 +233,4 @@ class Simulation:
     cv2.imshow('Particles', img)
     cv2.imshow('Mass', mass / 10)
     cv2.imshow('Velocity', grid)
-    cv2.waitKey(1)
+    cv2.waitKey(0)

@@ -52,6 +52,9 @@ def outer_product(a, b):
   C = tf.stack([row0, row1], axis=2)
   return C
 
+def determinant(a):
+  assert len(a.shape) == 4  # Batch, particles, row, column
+  return a[:, :, 0, 0] * a[:, :, 1, 1] - a[:, :, 1, 0] * a[:, :, 0, 1]
 
 if __name__ == '__main__':
   a = np.random.randn(2, 2)
