@@ -6,7 +6,6 @@ import random
 import math
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 '''
 TODO:
 dx
@@ -24,36 +23,45 @@ dim = 2
 def polar_decomposition(m):
   assert False
 
+
 class State:
+
   def __init__(self):
     pass
 
   def get_evaluated(self):
     return {
-      'position': self.position,
-      'velocity': self.velocity,
-      'deformation_gradient': self.deformation_gradient
+        'position': self.position,
+        'velocity': self.velocity,
+        'deformation_gradient': self.deformation_gradient
     }
+
 
 # Initial State
 class InitialState(State):
+
   def __init__(self):
     super().__init__()
-    self.position = tf.placeholder(tf.float32, [batch_size, particle_count, dim], name='position')
-    self.velocity = tf.placeholder(tf.float32, [batch_size, particle_count, dim], name='velocity')
-    self.deformation_gradient = tf.placeholder(tf.float32, [batch_size, particle_count, dim * dim], name='dg')
-
+    self.position = tf.placeholder(
+        tf.float32, [batch_size, particle_count, dim], name='position')
+    self.velocity = tf.placeholder(
+        tf.float32, [batch_size, particle_count, dim], name='velocity')
+    self.deformation_gradient = tf.placeholder(
+        tf.float32, [batch_size, particle_count, dim * dim], name='dg')
     '''
     TODO:
     mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
     '''
 
+
 # Updated state
 class UpdatedState(State):
+
   def __init__(self, previous_state):
     super().__init__()
     # Rotational velocity field
-    self.velocity = (previous_state.position - res / 2) * np.array((1, -1))[None, None, ::-1]
+    self.velocity = (previous_state.position - res / 2) * np.array(
+        (1, -1))[None, None, ::-1]
     # Advection
 
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
@@ -63,9 +71,17 @@ class UpdatedState(State):
     assert batch_size == 1
     print('base indices', base_indices.shape)
     # Add the batch size indices
-    base_indices = tf.concat([tf.zeros(shape=(batch_size, particle_count, 1), dtype=tf.int32), base_indices], axis=2)
+    base_indices = tf.concat(
+        [
+            tf.zeros(shape=(batch_size, particle_count, 1), dtype=tf.int32),
+            base_indices
+        ],
+        axis=2)
     print('base indices', base_indices.shape)
-    self.mass = tf.scatter_nd(shape=(batch_size, res, res, 1), indices=base_indices, updates=tf.ones(shape=(batch_size, particle_count, 1)))
+    self.mass = tf.scatter_nd(
+        shape=(batch_size, res, res, 1),
+        indices=base_indices,
+        updates=tf.ones(shape=(batch_size, particle_count, 1)))
     assert self.mass.shape == (batch_size, res, res, 1)
 
     # Resample
@@ -78,6 +94,7 @@ class UpdatedState(State):
 
 
 class Simulation:
+
   def __init__(self, sess):
     self.sess = sess
     self.initial_state = InitialState()
@@ -96,16 +113,20 @@ class Simulation:
     results = [s.get_evaluated() for s in self.states]
 
     feed_dict = {
-      self.initial_state.position: [[[random.random() * res / 2, random.random() * res / 2] for i in range(particle_count)]],
-      self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
-      self.initial_state.deformation_gradient: np.array([1, 0, 0, 1])[None, None, :] + np.zeros(shape=(batch_size, particle_count, 1))
+        self.initial_state.position: [[[
+            random.random() * res / 2,
+            random.random() * res / 2
+        ] for i in range(particle_count)]],
+        self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
+        self.initial_state.deformation_gradient:
+            np.array([1, 0, 0, 1])[None, None, :] +
+            np.zeros(shape=(batch_size, particle_count, 1))
     }
 
     results = self.sess.run(results, feed_dict=feed_dict)
 
     for i, r in enumerate(results):
       self.visualize(r['position'][0])
-
 
   def visualize(self, pos):
     scale = 10
@@ -117,7 +138,6 @@ class Simulation:
       x, y = tuple(map(lambda x: math.ceil(x * scale), p))
       if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
         img[x, y] = (0, 0, 1)
-
 
     img = img.swapaxes(0, 1)[:, :, ::-1]
     cv2.imshow('img', img)
