@@ -15,12 +15,12 @@ batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
 dt = 0.05
-total_steps = 5
+total_steps = 50
 res = 30
 dim = 2
 
 # Lame parameters
-youngs = 20
+youngs = 40
 mu = youngs
 lam = youngs
 sticky = False
@@ -249,18 +249,19 @@ class Simulation:
     final_position = tf.reduce_mean(
         self.states[-1].position[:, :], keepdims=False, axis=(0, 1))
     #loss = final_position[0] ** 2 + final_position[1] ** 2
-    loss = (final_position[0] - res / 2)**2
+    loss = (final_position[0] - res * 0.7)**2 + (final_position[1] - res * 0.5)**2
     #loss = tf.reduce_mean(self.states[1].position[:, :, 0], keepdims=False)
     grad = tf.gradients(loss, [self.initial_velocity])[0]
 
-    learning_rate = 0.3
+    learning_rate = 0.03
 
     current_velocity = np.array([0, 0], dtype=np.float32)
     results = [s.get_evaluated() for s in self.states]
 
+    p = int(math.sqrt(particle_count))
+    assert particle_count == p * p
     particles = [[[
-        random.uniform(0.3, 0.5) * res,
-        random.uniform(0.2, 0.4) * res
+      res * (i % p // p * 0.1 + 0.2), res * (i // p / p * 0.1 + 0.5)
     ] for i in range(particle_count)]]
     for i in range(20):
       print('velocity', current_velocity)
@@ -282,6 +283,9 @@ class Simulation:
         frame = i * (total_steps + 1) + j
         self.visualize(
             i=frame, r=r, output_fn='outputs/{:04d}.png'.format(frame))
+
+    os.system('cd outputs && ti video')
+    os.system('cp outputs/video.mp4 .')
 
   def visualize(self, i, r, output_fn=None):
     pos = r['position'][0]
