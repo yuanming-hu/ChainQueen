@@ -14,14 +14,15 @@ dx
 batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
-dt = 0.25
-total_steps = 5
+dt = 0.05
+total_steps = 20
 res = 30
 dim = 2
 
 # Lame parameters
-mu = 1
-lam = 1
+youngs = 100
+mu = youngs
+lam = youngs
 
 identity_matrix = np.array([[1, 0], [0, 1]])[None, None, :, :]
 
@@ -110,6 +111,7 @@ class UpdatedState(State):
     self.stress_tensor2 = lam * identity_matrix * (trace(self.deformation_gradient)[:, :, None, None] - dim)
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
+    self.stress_tensor = -1 * self.stress_tensor
 
     # Rasterize momentum and velocity
     # ... and apply gravity
@@ -131,11 +133,16 @@ class UpdatedState(State):
             indices=base_indices + delta_indices,
             updates=self.kernels[:, :, i, j])
 
+        delta_node_position = np.array([i, j])[None, None, :]
+        offset = previous_state.position - tf.floor(previous_state.position - 0.5) - \
+                 tf.cast(delta_node_position, tf.float32)
+
         grid_velocity_contributions = self.kernels[:, :, i, j] * self.velocity
+        grid_force_contributions = self.kernels[:, :, i, j] * (matvecmul(self.stress_tensor, offset) * (-4 * dt))
         self.grid = self.grid + tf.scatter_nd(
             shape=(batch_size, res, res, dim),
             indices=base_indices + delta_indices,
-            updates=grid_velocity_contributions)
+            updates=grid_velocity_contributions + grid_force_contributions)
     assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(
         self.mass.shape)
     self.grid = self.grid / tf.maximum(1e-5, self.mass)
@@ -200,9 +207,9 @@ class Simulation:
     feed_dict = {
         self.initial_state.position: [[[
             random.uniform(0.3, 0.5) * res,
-            random.uniform(0.1, 0.3) * res
+            random.uniform(0.2, 0.4) * res
         ] for i in range(particle_count)]],
-        self.initial_state.velocity: [[[0, 0] for i in range(particle_count)]],
+        self.initial_state.velocity: [[[1, 0] for i in range(particle_count)]],
         self.initial_state.deformation_gradient:
             identity_matrix +
             np.zeros(shape=(batch_size, particle_count, 1, 1))
@@ -219,7 +226,6 @@ class Simulation:
     mass = r['mass'][0]
     grid = r['grid'][0]
     J = determinant(r['deformation_gradient'])[0]
-    print(J)
     # print(grid.min(), grid.max())
     grid = grid / (1e-5 + np.abs(grid).max()) / 2 + 0.5
     kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
@@ -254,4 +260,4 @@ class Simulation:
     cv2.imshow('Particles', img)
     cv2.imshow('Mass', mass / 10)
     cv2.imshow('Velocity', grid)
-    cv2.waitKey(0)
+    cv2.waitKey(1)
