@@ -33,6 +33,7 @@ class State:
     return {
         'position': self.position,
         'velocity': self.velocity,
+        'mass': self.mass,
         'deformation_gradient': self.deformation_gradient
     }
 
@@ -48,6 +49,7 @@ class InitialState(State):
         tf.float32, [batch_size, particle_count, dim], name='velocity')
     self.deformation_gradient = tf.placeholder(
         tf.float32, [batch_size, particle_count, dim * dim], name='dg')
+    self.mass = tf.zeros(shape=(batch_size, res, res, 1))
     '''
     TODO:
     mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
@@ -126,9 +128,11 @@ class Simulation:
     results = self.sess.run(results, feed_dict=feed_dict)
 
     for i, r in enumerate(results):
-      self.visualize(r['position'][0])
+      self.visualize(r)
 
-  def visualize(self, pos):
+  def visualize(self, r):
+    pos = r['position'][0]
+    mass = r['mass'][0]
     scale = 10
 
     # Pure-white background
@@ -140,7 +144,10 @@ class Simulation:
         img[x, y] = (0, 0, 1)
 
     img = img.swapaxes(0, 1)[:, :, ::-1]
-    cv2.imshow('img', img)
+    mass = mass.swapaxes(0, 1)[:, :, ::-1]
+
+    cv2.imshow('Particles', img)
+    cv2.imshow('Mass', mass)
     cv2.waitKey(0)
 
 
