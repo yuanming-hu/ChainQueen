@@ -13,14 +13,15 @@ dx
 
 batch_size = 1
 particle_count = 256
-gravity = (0, -9.8)
-dt = 0.05
-total_steps = 50
+#gravity = (0, -9.8)
+gravity = (0, 0)
+dt = 0.03
+total_steps = 40
 res = 30
 dim = 2
 
 # Lame parameters
-E = 80
+E = 200
 nu = 0.3
 mu = E / (2 * (1 + nu))
 lam = E * nu / ((1 + nu) * (1 - 2 * nu))
@@ -175,7 +176,7 @@ class UpdatedState(State):
       mask[:, :, :4, 1] = 1
       self.grid = self.grid * (1 - mask) + mask * tf.maximum(self.grid, 0)
       mask = np.zeros((1, res, res, 2))
-      mask[:, 4:res-4, :res-4, 1] = 1
+      mask[:, 4:res-4, :res-4] = 1
       self.grid = self.grid * mask
 
     # Resample velocity and local affine velocity field
@@ -246,7 +247,7 @@ class Simulation:
             random.uniform(0.3, 0.5) * res,
             random.uniform(0.2, 0.4) * res
         ] for i in range(particle_count)]],
-        self.initial_velocity: [1, 0],
+        self.initial_velocity: [0, 0],
         self.initial_state.deformation_gradient:
             identity_matrix +
             np.zeros(shape=(batch_size, particle_count, 1, 1))
@@ -259,24 +260,25 @@ class Simulation:
         self.visualize(i, r)
 
   def optimize(self):
+    os.system('cd outputs && rm *.png')
     final_velocity = tf.reduce_mean(
         self.states[-1].velocity[:, :], keepdims=False, axis=(0, 1))
     final_position = tf.reduce_mean(
         self.states[-1].position[:, :], keepdims=False, axis=(0, 1))
     #loss = final_position[0] ** 2 + final_position[1] ** 2
-    loss = (final_position[0] - res * 0.7)**2 + (final_position[1] - res * 0.5)**2
+    loss = (final_position[0] - res * 0.8)**2 + (final_position[1] - res * 0.3)**2
     #loss = tf.reduce_mean(self.states[1].position[:, :, 0], keepdims=False)
     grad = tf.gradients(loss, [self.initial_velocity])[0]
 
-    learning_rate = 0.03
+    learning_rate = 0.07
 
-    current_velocity = np.array([0, 0], dtype=np.float32)
+    current_velocity = np.array([0, -20], dtype=np.float32)
     results = [s.get_evaluated() for s in self.states]
 
     p = int(math.sqrt(particle_count))
     assert particle_count == p * p
     particles = [[[
-      res * (i % p // p * 0.1 + 0.2), res * (i // p / p * 0.1 + 0.5)
+      res * (i % p / p * 0.1 + 0.2), res * (i // p / p * 0.1 + 0.3)
     ] for i in range(particle_count)]]
     for i in range(20):
       print('velocity', current_velocity)
