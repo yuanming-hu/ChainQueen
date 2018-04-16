@@ -12,15 +12,15 @@ dx
 '''
 
 batch_size = 1
-particle_count = 100
+particle_count = 256
 gravity = (0, -9.8)
 dt = 0.05
-total_steps = 40
+total_steps = 50
 res = 30
 dim = 2
 
 # Lame parameters
-E = 40
+E = 80
 nu = 0.3
 mu = E / (2 * (1 + nu))
 lam = E * nu / ((1 + nu) * (1 - 2 * nu))
@@ -137,7 +137,6 @@ class UpdatedState(State):
     assert self.kernels.shape == (batch_size, particle_count, 3, 3, 1)
 
     self.velocity = previous_state.velocity
-    self.velocity += np.array(gravity)[None, None, :] * dt
     for i in range(3):
       for j in range(3):
         assert batch_size == 1
@@ -162,7 +161,10 @@ class UpdatedState(State):
             updates=grid_velocity_contributions + grid_force_contributions)
     assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(
         self.mass.shape)
-    self.grid = self.grid / tf.maximum(1e-5, self.mass)
+
+    # self.velocity += np.array(gravity)[None, None, :] * dt
+    self.grid += self.mass * np.array(gravity)[None, None, None, :] * dt
+    self.grid = self.grid / tf.maximum(1e-30, self.mass)
 
     # Boundary conditions
     if sticky:
@@ -303,10 +305,11 @@ class Simulation:
   def visualize(self, i, r, output_fn=None):
     pos = r['position'][0]
     mass = r['mass'][0]
-    grid = r['grid'][0]
+    grid = r['grid'][0][:,:, 1:2]
     J = determinant(r['deformation_gradient'])[0]
     #5 print(grid.min(), grid.max())
-    grid = grid / (1e-5 + np.abs(grid).max()) / 2 + 0.5
+    grid = grid / (1e-5 + np.abs(grid).max()) * 4 + 0.5
+    grid = np.clip(grid, 0, 1)
     kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
     if 0 < i < 3:
       np.testing.assert_array_almost_equal(kernel_sum, 1, decimal=3)
@@ -332,9 +335,11 @@ class Simulation:
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
     grid = grid.swapaxes(0, 1)[::-1, :, ::-1]
-    grid = np.concatenate([grid, grid[:, :, 0:1] * 0], axis=2)
+    #grid = np.concatenate([grid, grid[:, :, 0:1] * 0], axis=2)
     mass = cv2.resize(
         mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+    grid = cv2.resize(
+      grid, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
 
     cv2.imshow('Particles', img)
     cv2.imshow('Mass', mass / 10)
