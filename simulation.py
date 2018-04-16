@@ -12,16 +12,16 @@ dx
 '''
 
 batch_size = 1
-particle_count = 169
+particle_count = 169 * 2
 #gravity = (0, -9.8)
 gravity = (0, 0)
 dt = 0.03
-total_steps = 40
+total_steps = 50
 res = 30
 dim = 2
 
 # Lame parameters
-E = 200
+E = 500
 nu = 0.3
 mu = E / (2 * (1 + nu))
 lam = E * nu / ((1 + nu) * (1 - 2 * nu))
@@ -71,8 +71,10 @@ class InitialState(State):
     super().__init__(sim)
     self.position = tf.placeholder(
         tf.float32, [batch_size, particle_count, dim], name='position')
-    self.velocity = tf.ones(shape=[batch_size, particle_count, dim
-                                  ]) * initial_velocity[None, None, :]
+
+    broadcaster = [int(i > particle_count // 2) for i in range(particle_count)]
+    self.velocity = np.array(broadcaster)[None, :, None] * initial_velocity[None, None, :]
+    print(self.velocity.shape)
     '''
     self.velocity = tf.placeholder(
         tf.float32, [batch_size, particle_count, dim], name='velocity')
@@ -149,8 +151,8 @@ class UpdatedState(State):
             updates=self.kernels[:, :, i, j])
 
         delta_node_position = np.array([i, j])[None, None, :]
-        offset = previous_state.position - tf.floor(previous_state.position - 0.5) - \
-                 tf.cast(delta_node_position, tf.float32)
+        offset = -(previous_state.position - tf.floor(previous_state.position - 0.5) - \
+                 tf.cast(delta_node_position, tf.float32))
 
         grid_velocity_contributions = self.kernels[:, :, i, j] * (
           self.velocity + matvecmul(self.affine, offset) * 4)
@@ -176,7 +178,7 @@ class UpdatedState(State):
       mask[:, :, :4, 1] = 1
       self.grid = self.grid * (1 - mask) + mask * tf.maximum(self.grid, 0)
       mask = np.zeros((1, res, res, 2))
-      mask[:, 4:res-4, :res-4] = 1
+      mask[:, 3:res-3, :res-3] = 1
       self.grid = self.grid * mask
 
     # Resample velocity and local affine velocity field
@@ -191,8 +193,8 @@ class UpdatedState(State):
 
         delta_node_position = np.array([i, j])[None, None, :]
 
-        offset = previous_state.position - tf.floor(previous_state.position - 0.5) - \
-                 tf.cast(delta_node_position, tf.float32)
+        offset = -(previous_state.position - tf.floor(previous_state.position - 0.5) - \
+                 tf.cast(delta_node_position, tf.float32))
         assert offset.shape == previous_state.position.shape
         weighted_node_velocity = tf.gather_nd(
             params=self.grid,
@@ -263,24 +265,40 @@ class Simulation:
     os.system('cd outputs && rm *.png')
     final_velocity = tf.reduce_mean(
         self.states[-1].velocity[:, :], keepdims=False, axis=(0, 1))
+    # Note: taking the first half only
     final_position = tf.reduce_mean(
-        self.states[-1].position[:, :], keepdims=False, axis=(0, 1))
+        self.states[-1].position[:, :particle_count//2], keepdims=False, axis=(0, 1))
     #loss = final_position[0] ** 2 + final_position[1] ** 2
-    loss = (final_position[0] - res * 0.8)**2 + (final_position[1] - res * 0.3)**2
+    loss = (final_position[0] - res * 0.8)**2 + (final_position[1] - res * 0.45)**2
     #loss = tf.reduce_mean(self.states[1].position[:, :, 0], keepdims=False)
     grad = tf.gradients(loss, [self.initial_velocity])[0]
 
-    learning_rate = 0.07
+    learning_rate = 0.2
 
-    current_velocity = np.array([0, -20], dtype=np.float32)
+    current_velocity = np.array([6, 1.5], dtype=np.float32)
     results = [s.get_evaluated() for s in self.states]
 
-    p = int(math.sqrt(particle_count))
-    assert particle_count == p * p
+    p = int(math.sqrt(particle_count // 2))
+    assert particle_count // 2 == p * p
     particles = [[[
-      res * (i % p / p * 0.1 + 0.2), res * (i // p / p * 0.1 + 0.3)
-    ] for i in range(particle_count)]]
-    for i in range(30):
+      res * (i % p / p * 0.1 + 0.5), res * (i // p / p * 0.15 + 0.4)
+    ] for i in range(0 * particle_count // 2)]]
+
+    for i in range(particle_count // 2):
+      while True:
+        x, y = random.random() - 0.5, random.random() - 0.5
+        if x * x + y * y < 0.25:
+          break
+      particles[0].append([res * (x * 0.1 + 0.44), res * (y * 0.1 + 0.5)])
+
+    for i in range(particle_count // 2):
+      while True:
+        x, y = random.random() - 0.5, random.random() - 0.5
+        if x * x + y * y < 0.25:
+          break
+      particles[0].append([res * (x * 0.1 + 0.2), res * (y * 0.1 + 0.5)])
+
+    for i in range(40):
       print('velocity', current_velocity)
       feed_dict = {
           self.initial_state.position:
@@ -336,7 +354,7 @@ class Simulation:
           thickness=-1)
 
     cv2.line(img, (int(res * scale*0.102), 0), (int(res *scale* 0.102), res * scale), color=(0, 0, 0))
-    cv2.circle(img, (int(res *scale * 0.3), int(res *scale* 0.8)), radius=8, color=(0.5, 0.5, 0.5), thickness=-1)
+    cv2.circle(img, (int(res *scale * 0.45), int(res *scale* 0.8)), radius=8, color=(0.5, 0.5, 0.5), thickness=-1)
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
