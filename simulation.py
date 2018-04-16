@@ -14,13 +14,13 @@ dx
 batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
-dt = 0.01
-total_steps = 250
+dt = 0.05
+total_steps = 40
 res = 30
 dim = 2
 
 # Lame parameters
-E = 400
+E = 40
 nu = 0.3
 mu = E / (2 * (1 + nu))
 lam = E * nu / ((1 + nu) * (1 - 2 * nu))
@@ -119,11 +119,11 @@ class UpdatedState(State):
       self.stress_tensor2 = lam * identity_matrix * (
         trace(self.deformation_gradient)[:, :, None, None] - dim)
     else:
-      self.stress_tensor1 = mu * (
-          transpose(self.deformation_gradient) + self.deformation_gradient -
-          2 * identity_matrix)
-      self.stress_tensor2 = lam * identity_matrix * (
-          trace(self.deformation_gradient)[:, :, None, None] - dim)
+      # Corotated elasticity
+      r, s = polar_decomposition(self.deformation_gradient)
+      j = determinant(self.deformation_gradient)[:, :, None, None]
+      self.stress_tensor1 = 2 * mu * (self.deformation_gradient - r)
+      self.stress_tensor2 = lam * (j - 1) * j * inverse(transpose(self.deformation_gradient))
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
     self.stress_tensor = -1 * self.stress_tensor
@@ -172,6 +172,9 @@ class UpdatedState(State):
       mask = np.zeros((1, res, res, 2))
       mask[:, :, :4, 1] = 1
       self.grid = self.grid * (1 - mask) + mask * tf.maximum(self.grid, 0)
+      mask = np.zeros((1, res, res, 2))
+      mask[:, 4:res-4, :res-4, 1] = 1
+      self.grid = self.grid * mask
 
     # Resample velocity and local affine velocity field
     self.velocity *= 0

@@ -3,7 +3,10 @@ import numpy as np
 
 
 def make_matrix2d(m00, m01, m10, m11):
-  assert len(a.shape) == 2  # Batch, particles
+  assert len(m00.shape) == 2  # Batch, particles
+  assert len(m01.shape) == 2  # Batch, particles
+  assert len(m10.shape) == 2  # Batch, particles
+  assert len(m11.shape) == 2  # Batch, particles
   row0 = tf.stack([m00, m01], axis=2)
   row1 = tf.stack([m10, m11], axis=2)
   return tf.stack([row0, row1], axis=2)
