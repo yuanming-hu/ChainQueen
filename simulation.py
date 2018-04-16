@@ -14,16 +14,18 @@ dx
 batch_size = 1
 particle_count = 100
 gravity = (0, -9.8)
-dt = 0.05
-total_steps = 50
+dt = 0.01
+total_steps = 250
 res = 30
 dim = 2
 
 # Lame parameters
-youngs = 40
-mu = youngs
-lam = youngs
+E = 400
+nu = 0.3
+mu = E / (2 * (1 + nu))
+lam = E * nu / ((1 + nu) * (1 - 2 * nu))
 sticky = False
+linear = False
 
 identity_matrix = np.array([[1, 0], [0, 1]])[None, None, :, :]
 
@@ -110,11 +112,18 @@ class UpdatedState(State):
     # Compute stress tensor (First Piola-Kirchhoff stress)
     self.deformation_gradient = previous_state.deformation_gradient
 
-    self.stress_tensor1 = mu * (
+    if linear:
+      self.stress_tensor1 = mu * (
         transpose(self.deformation_gradient) + self.deformation_gradient -
         2 * identity_matrix)
-    self.stress_tensor2 = lam * identity_matrix * (
+      self.stress_tensor2 = lam * identity_matrix * (
         trace(self.deformation_gradient)[:, :, None, None] - dim)
+    else:
+      self.stress_tensor1 = mu * (
+          transpose(self.deformation_gradient) + self.deformation_gradient -
+          2 * identity_matrix)
+      self.stress_tensor2 = lam * identity_matrix * (
+          trace(self.deformation_gradient)[:, :, None, None] - dim)
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
     self.stress_tensor = -1 * self.stress_tensor
@@ -144,7 +153,7 @@ class UpdatedState(State):
                  tf.cast(delta_node_position, tf.float32)
 
         grid_velocity_contributions = self.kernels[:, :, i, j] * (
-          self.velocity + matvecmul(self.affine, offset))
+          self.velocity + matvecmul(self.affine, offset) * 4)
         grid_force_contributions = self.kernels[:, :, i, j] * (
             matvecmul(self.stress_tensor, offset) * (-4 * dt))
         self.grid = self.grid + tf.scatter_nd(

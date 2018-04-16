@@ -2,8 +2,29 @@ import tensorflow as tf
 import numpy as np
 
 
+def make_matrix2d(m00, m01, m10, m11):
+  assert len(a.shape) == 2  # Batch, particles
+  row0 = tf.stack([m00, m01], axis=2)
+  row1 = tf.stack([m10, m11], axis=2)
+  return tf.stack([row0, row1], axis=2)
+
+
 def polar_decomposition(m):
-  assert False
+  # Reference: http://www.cs.cornell.edu/courses/cs4620/2014fa/lectures/polarnotes.pdf
+  assert len(m.shape) == 4  # Batch, particles, row, column
+  x = m[:, :, 0, 0] + m[:, :, 1, 1]
+  y = m[:, :, 1, 0] - m[:, :, 0, 1]
+  scale = 1.0 / tf.sqrt(x ** 2 + y ** 2)
+  c = x * scale
+  s = y * scale
+  r = make_matrix2d(c, -s, s, c)
+  return r, matmatmul(transpose(r), m)
+
+def inverse(m):
+  # Reference: http://www.cs.cornell.edu/courses/cs4620/2014fa/lectures/polarnotes.pdf
+  assert len(m.shape) == 4  # Batch, particles, row, column
+  Jinv = 1.0 / determinant(m)
+  return Jinv[:, :, None, None] * make_matrix2d(m[:, :,1, 1], -m[:, :, 0, 1], -m[:, :, 1, 0], m[:, :, 0, 0])
 
 
 def matmatmul(a, b):
@@ -18,10 +39,7 @@ def matmatmul(a, b):
           c[i][j] = a[:, :, i, k] * b[:, :, k, j]
         else:
           c[i][j] += a[:, :, i, k] * b[:, :, k, j]
-  row0 = tf.stack([c[0][0], c[0][1]], axis=2)
-  row1 = tf.stack([c[1][0], c[1][1]], axis=2)
-  C = tf.stack([row0, row1], axis=2)
-  return C
+  return make_matrix2d(c[0][0], c[0][1], c[1][0], c[1][1])
 
 
 def transpose(a):
@@ -83,6 +101,20 @@ if __name__ == '__main__':
   c = np.random.randn(2, 1)
   d = np.random.randn(2, 1)
   with tf.Session() as sess:
+    # Polar decomposition
+    R, S = polar_decomposition(tf.constant(a[None, None, :, :]))
+    r, s = sess.run([R, S])
+    r = r[0, 0]
+    s = s[0, 0]
+    np.testing.assert_array_almost_equal(np.matmul(r, s), a)
+    np.testing.assert_array_almost_equal(np.matmul(r, np.transpose(r)), [[1, 0], [0, 1]])
+    np.testing.assert_array_almost_equal(s, np.transpose(s))
+
+    # Inverse
+    prod2 = inverse(tf.constant(a[None, None, :, :]))
+    prod2 = sess.run(prod2)[0, 0]
+    np.testing.assert_array_almost_equal(np.matmul(prod2, a), [[1, 0], [0, 1]])
+
     # Matmatmul
     prod1 = np.matmul(a, b)
     prod2 = matmatmul(
