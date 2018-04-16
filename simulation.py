@@ -12,7 +12,7 @@ dx
 '''
 
 batch_size = 1
-particle_count = 256
+particle_count = 169
 #gravity = (0, -9.8)
 gravity = (0, 0)
 dt = 0.03
@@ -280,7 +280,7 @@ class Simulation:
     particles = [[[
       res * (i % p / p * 0.1 + 0.2), res * (i // p / p * 0.1 + 0.3)
     ] for i in range(particle_count)]]
-    for i in range(20):
+    for i in range(30):
       print('velocity', current_velocity)
       feed_dict = {
           self.initial_state.position:
@@ -318,7 +318,7 @@ class Simulation:
       np.testing.assert_array_almost_equal(
           mass.sum(), particle_count, decimal=3)
 
-    scale = 20
+    scale = 30
 
     # Pure-white background
     img = np.ones((scale * res, scale * res, 3), dtype=np.float)
@@ -330,9 +330,13 @@ class Simulation:
       #  img[x, y] = (0, 0, 1)
       cv2.circle(
           img, (y, x),
-          radius=scale // 3,
-          color=(1, 0, float(J[i])),
+          radius=1,
+          #color=(1, 1, float(J[i])),
+          color=(0.2, 0.2, 0.2),
           thickness=-1)
+
+    cv2.line(img, (int(res * scale*0.102), 0), (int(res *scale* 0.102), res * scale), color=(0, 0, 0))
+    cv2.circle(img, (int(res *scale * 0.3), int(res *scale* 0.8)), radius=8, color=(0.5, 0.5, 0.5), thickness=-1)
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
