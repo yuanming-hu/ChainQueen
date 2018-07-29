@@ -16,7 +16,7 @@ particle_count = 100 * 2
 gravity = (0, -9.8)
 #gravity = (0, 0)
 dt = 0.03
-total_steps = 20
+total_steps = 10
 res = 25
 dim = 2
 
@@ -69,6 +69,7 @@ class InitialState(State):
 
   def __init__(self, sim, initial_velocity):
     super().__init__(sim)
+    self.t = 0
     self.position = tf.placeholder(
         tf.float32, [batch_size, particle_count, dim], name='position')
 
@@ -96,6 +97,7 @@ class UpdatedState(State):
   def __init__(self, sim, previous_state, actuation=None):
     super().__init__(sim)
 
+    self.t = previous_state.t + dt
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
 
     # Rasterize mass and velocity
@@ -131,6 +133,9 @@ class UpdatedState(State):
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
     if actuation is not None:
       self.stress_tensor += actuation
+    else:
+      # TODO make acutation a NN output
+      self.stress_tensor += make_matrix2d_from_scalar(1, 0, 0, -1) * self.t * E
     self.stress_tensor = -1 * self.stress_tensor
 
     # Rasterize momentum and velocity
