@@ -1,4 +1,6 @@
 import tensorflow as tf
+import tensorflow.contrib.layers as ly
+from functools import partial
 import cv2
 import os
 import numpy as np
@@ -11,16 +13,17 @@ TODO:
 dx
 '''
 
+lr = 1e-2
 batch_size = 1
 num_groups = 5
-sample_density = 5
+sample_density = 10
 group_size = sample_density ** 2
 particle_count = group_size * num_groups
 group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
 gravity = (0, -9.8)
 #gravity = (0, 0)
 dt = 0.03
-total_steps = 10
+total_steps = 5
 res = 25
 dim = 2
 
@@ -98,6 +101,10 @@ def particle_mask(start, end):
   r = tf.range(0, particle_count)
   return tf.cast(tf.logical_and(start <= r, r < end), tf.float32)[None, :, None]
 
+# hidden_size = 10
+W1 = tf.Variable(0.1 * tf.random_normal(shape=(2, 20)), trainable=True)
+b1 = tf.Variable([[0.0, 0.0]], trainable=True)
+
 # Updated state
 class UpdatedState(State):
 
@@ -119,6 +126,10 @@ class UpdatedState(State):
     super().__init__(sim)
 
     self.controller_states = self.get_centroids(previous_state)
+
+    self.actuation = tf.tanh(tf.matmul(W1, self.controller_states[0, 0, :, None])[0] + b1)
+    self.actuation = self.actuation[0]
+    print(self.actuation.shape)
 
     self.t = previous_state.t + dt
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
@@ -160,7 +171,7 @@ class UpdatedState(State):
       self.stress_tensor += actuation
     else:
       # TODO make acutation a NN output
-      self.stress_tensor += make_matrix2d_from_scalar(1, 0, 0, -1) * self.t * E
+      self.stress_tensor += make_matrix2d_from_scalar(0, 0, 0, self.actuation[0]) * self.t * E
     self.stress_tensor = -1 * self.stress_tensor
 
     # Rasterize momentum and velocity
@@ -299,15 +310,12 @@ class Simulation:
         self.states[-1].velocity[:, :], keepdims=False, axis=(0, 1))
     # Note: taking the first half only
     final_position = tf.reduce_mean(
-        self.states[-1].position[:, :particle_count//2], keepdims=False, axis=(0, 1))
-    #loss = final_position[0] ** 2 + final_position[1] ** 2
-    loss = (final_position[0] - res * 0.8)**2 + (final_position[1] - res * 0.45)**2
+        self.states[-1].position[:, :], keepdims=False, axis=(0, 1))
+    loss = (final_position[0] - res * 0.5)**2 + (final_position[1] - res * 0.85)**2
     #loss = tf.reduce_mean(self.states[1].position[:, :, 0], keepdims=False)
     grad = tf.gradients(loss, [self.initial_velocity])[0]
 
-    learning_rate = 0.2
-
-    current_velocity = np.array([6, 1.5], dtype=np.float32)
+    current_velocity = np.array([0, 0], dtype=np.float32)
     results = [s.get_evaluated() for s in self.states]
 
     # Initial particle samples
@@ -316,12 +324,19 @@ class Simulation:
     for i, offset in enumerate(group_offsets):
       for x in range(sample_density):
         for y in range(sample_density):
-          scale = 0.15
-          u = (x / sample_density + offset[0]) * scale + 0.2
-          v = (y / sample_density + offset[1]) * scale + 0.2
+          scale = 0.2
+          u = ((x + 0.5) / sample_density + offset[0]) * scale + 0.2
+          v = ((y + 0.5) / sample_density + offset[1]) * scale + 0.1
           particles[0].append([res * u, res * v])
     assert len(particles[0]) == particle_count
 
+    counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)
+    trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+    opt = ly.optimize_loss(loss=loss, learning_rate=lr,
+                             optimizer=partial(tf.train.AdamOptimizer, beta1=0.5, beta2=0.9),
+                             variables=trainables, global_step=counter)
+
+    '''
     for i in range(40):
       print('velocity', current_velocity)
       feed_dict = {
@@ -337,7 +352,22 @@ class Simulation:
       print('    grad', gradient)
       print('    ** loss', l)
       current_velocity -= learning_rate * gradient
+      '''
+    self.sess.run(tf.global_variables_initializer())
 
+    while True:
+      print('velocity', current_velocity)
+      feed_dict = {
+        self.initial_state.position:
+          particles,
+        self.initial_velocity:
+          current_velocity,
+        self.initial_state.deformation_gradient:
+          identity_matrix +
+          np.zeros(shape=(batch_size, particle_count, 1, 1))
+      }
+      l, _, evaluated = self.sess.run([loss, opt, results], feed_dict=feed_dict)
+      print('    ** loss', l)
       for j, r in enumerate(evaluated):
         frame = i * (total_steps + 1) + j
         self.visualize(
