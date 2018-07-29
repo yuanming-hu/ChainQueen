@@ -14,7 +14,8 @@ dx
 batch_size = 1
 num_groups = 5
 sample_density = 5
-particle_count = sample_density ** 2 * num_groups
+group_size = sample_density ** 2
+particle_count = group_size * num_groups
 group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
 gravity = (0, -9.8)
 #gravity = (0, 0)
@@ -93,15 +94,36 @@ class InitialState(State):
     mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
     '''
 
+def particle_mask(start, end):
+  r = tf.range(0, particle_count)
+  return tf.cast(tf.logical_and(start <= r, r < end), tf.float32)[None, :, None]
 
 # Updated state
 class UpdatedState(State):
 
+  def get_centroids(self, previous_state):
+    # return centroid positions and velocities
+    states = []
+    for i in range(num_groups):
+      mask = particle_mask(i * group_size, (i + 1) * group_size) * (1.0 / group_size)
+      pos = tf.reduce_sum(mask * previous_state.position, axis=1, keepdims=True)
+      vel = tf.reduce_sum(mask * previous_state.velocity, axis=1, keepdims=True)
+      states.append(pos)
+      states.append(vel)
+    states = tf.concat(states, axis=2)
+    print('states', states.shape)
+    return states
+
+
   def __init__(self, sim, previous_state, actuation=None):
     super().__init__(sim)
 
+    self.controller_states = self.get_centroids(previous_state)
+
     self.t = previous_state.t + dt
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
+
+    self.get_centroids(previous_state)
 
     # Rasterize mass and velocity
     base_indices = tf.cast(tf.floor(previous_state.position - 0.5), tf.int32)
