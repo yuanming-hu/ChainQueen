@@ -12,12 +12,12 @@ dx
 '''
 
 batch_size = 1
-particle_count = 169 * 2
-#gravity = (0, -9.8)
-gravity = (0, 0)
+particle_count = 100 * 2
+gravity = (0, -9.8)
+#gravity = (0, 0)
 dt = 0.03
-total_steps = 50
-res = 30
+total_steps = 20
+res = 25
 dim = 2
 
 # Lame parameters
@@ -93,7 +93,7 @@ class InitialState(State):
 # Updated state
 class UpdatedState(State):
 
-  def __init__(self, sim, previous_state):
+  def __init__(self, sim, previous_state, actuation=None):
     super().__init__(sim)
 
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
@@ -129,6 +129,8 @@ class UpdatedState(State):
       self.stress_tensor2 = lam * (j - 1) * j * inverse(transpose(self.deformation_gradient))
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
+    if actuation is not None:
+      self.stress_tensor += actuation
     self.stress_tensor = -1 * self.stress_tensor
 
     # Rasterize momentum and velocity
