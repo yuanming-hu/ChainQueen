@@ -12,7 +12,10 @@ dx
 '''
 
 batch_size = 1
-particle_count = 100 * 2
+num_groups = 5
+sample_density = 5
+particle_count = sample_density ** 2 * num_groups
+group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
 gravity = (0, -9.8)
 #gravity = (0, 0)
 dt = 0.03
@@ -285,25 +288,17 @@ class Simulation:
     current_velocity = np.array([6, 1.5], dtype=np.float32)
     results = [s.get_evaluated() for s in self.states]
 
-    p = int(math.sqrt(particle_count // 2))
-    assert particle_count // 2 == p * p
-    particles = [[[
-      res * (i % p / p * 0.1 + 0.5), res * (i // p / p * 0.15 + 0.4)
-    ] for i in range(0 * particle_count // 2)]]
+    # Initial particle samples
+    particles = [[]]
 
-    for i in range(particle_count // 2):
-      while True:
-        x, y = random.random() - 0.5, random.random() - 0.5
-        if x * x + y * y < 0.25:
-          break
-      particles[0].append([res * (x * 0.1 + 0.44), res * (y * 0.1 + 0.5)])
-
-    for i in range(particle_count // 2):
-      while True:
-        x, y = random.random() - 0.5, random.random() - 0.5
-        if x * x + y * y < 0.25:
-          break
-      particles[0].append([res * (x * 0.1 + 0.2), res * (y * 0.1 + 0.5)])
+    for i, offset in enumerate(group_offsets):
+      for x in range(sample_density):
+        for y in range(sample_density):
+          scale = 0.15
+          u = (x / sample_density + offset[0]) * scale + 0.2
+          v = (y / sample_density + offset[1]) * scale + 0.2
+          particles[0].append([res * u, res * v])
+    assert len(particles[0]) == particle_count
 
     for i in range(40):
       print('velocity', current_velocity)
