@@ -444,12 +444,14 @@ class Simulation:
           color = (255, 0, 0)
         else:
           color = (0, 255, 0)
-        x0 = 100 + 30 * i
-        x1 = 120 + 30 * i
-        y0 = 100
-        y1 = act * 50 + 100
-        cv2.rectangle(img, (x0, y0), (x1, y1), color)
-    except Exception(e):
+        x0 = 20 + 25 * i
+        x1 = 40 + 25 * i
+        y0 = 140
+        y1 = int(act * 50 + 140)
+        if y0 > y1:
+           y0, y1 = y1, y0
+        cv2.rectangle(img, (y0, x0), (y1, x1), color, thickness=-1)
+    except Exception as e:
       raise e
 
     try:
@@ -474,8 +476,8 @@ class Simulation:
         grid, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
 
     cv2.imshow('Particles', img)
-    cv2.imshow('Mass', mass / 10)
-    cv2.imshow('Velocity', grid)
+    #cv2.imshow('Mass', mass / 10)
+    #cv2.imshow('Velocity', grid)
     if output_fn is not None:
       cv2.imwrite(output_fn, img * 255)
     cv2.waitKey(1)
