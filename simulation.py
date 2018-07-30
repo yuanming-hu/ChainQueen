@@ -6,6 +6,7 @@ import os
 import numpy as np
 import random
 import math
+import time
 
 from vector_math import *
 '''
@@ -13,7 +14,7 @@ TODO:
 dx
 '''
 
-lr = 1e-3
+lr = 4e-4
 batch_size = 1
 num_groups = 5
 sample_density = 20
@@ -23,9 +24,9 @@ group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
 gravity = (0, -15.8)
 #gravity = (0, 0)
 dt = 0.01
-actuation_strength = 1.0
-total_steps = 3
-res = 25
+actuation_strength = 0.8
+total_steps = 70
+res = 30
 dim = 2
 
 # Lame parameters
@@ -130,7 +131,7 @@ def particle_mask_from_group(g):
 
 
 # hidden_size = 10
-W1 = tf.Variable(0.01 * tf.random_normal(shape=(2, 22)), trainable=True)
+W1 = tf.Variable(0.002 * tf.random_normal(shape=(2, 22)), trainable=True)
 b1 = tf.Variable([[0.0, 0.0]], trainable=True)
 
 
@@ -244,8 +245,19 @@ class UpdatedState(State):
     else:
       # TODO: use sim.bc
       mask = np.zeros((1, res, res, 2))
-      mask[:, :, :4, 1] = 1
-      self.grid = self.grid * (1 - mask) + mask * tf.maximum(self.grid, 0)
+      mask_x = np.zeros((1, res, res, 2))
+      mask_y = np.zeros((1, res, res, 2))
+      
+      # bottom
+      mask[:, :, :4, :] = 1
+      mask_x[:, :, :4, 0] = 1
+      mask_y[:, :, :4, 1] = 1
+      
+      friction = 0.5
+      projected_bottom = tf.sign(self.grid) * \
+                         tf.maximum(tf.abs(self.grid) + friction * tf.minimum(0.0, self.grid[:, :, :, 1, None]), 0.0)
+      self.grid = self.grid * (1 - mask) + (mask_x * projected_bottom) + mask_y * tf.maximum(self.grid, 0.0)
+      
       mask = np.zeros((1, res, res, 2))
       mask[:, 3:res - 3, :res - 3] = 1
       self.grid = self.grid * mask
@@ -333,6 +345,7 @@ class Simulation:
   def optimize(self):
     # os.system('cd outputs && rm *.png')
     # Note: taking the first half only
+    t = time.time()
 
     final_state = self.states[-1].controller_states[0, 0]
 
@@ -369,8 +382,9 @@ class Simulation:
 
     self.sess.run(tf.global_variables_initializer())
 
+    i = 0
     while True:
-      goal = [0.4 + random.random() * 0.2, 0.5 + random.random() * 0.2]
+      goal = [0.5 + random.random() * 0.0, 0.5 + random.random() * 0.2]
       feed_dict = {
           self.initial_state.position:
               particles,
@@ -384,14 +398,19 @@ class Simulation:
       pos, l, _, evaluated = self.sess.run(
           [final_position, loss, opt, results], feed_dict=feed_dict)
       print('  loss', l)
-      for j, r in enumerate(evaluated):
-        frame = i * (total_steps + 1) + j
-        self.visualize(
-            i=frame,
-            r=r,
-            output_fn='outputs/{:04d}.png'.format(frame),
-            goal=goal)
-
+      try:
+        for j, r in enumerate(evaluated):
+          frame = i * (total_steps + 1) + j
+          self.visualize(
+              i=frame,
+              r=r,
+              output_fn='outputs/{:04d}.png'.format(frame),
+              goal=goal)
+      except:
+        pass
+      print('time', time.time() - t)
+      i += 1
+      
     os.system('cd outputs && ti video')
     os.system('cp outputs/video.mp4 .')
 
@@ -428,8 +447,8 @@ class Simulation:
           thickness=-1)
 
     cv2.line(
-        img, (int(res * scale * 0.102), 0),
-        (int(res * scale * 0.102), res * scale),
+        img, (int(res * scale * 0.101), 0),
+        (int(res * scale * 0.101), res * scale),
         color=(0, 0, 0))
     cv2.circle(
         img, (int(res * scale * goal[1]), int(res * scale * goal[0])),
