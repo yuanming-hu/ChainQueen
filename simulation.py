@@ -24,7 +24,7 @@ gravity = (0, -9.8)
 #gravity = (0, 0)
 dt = 0.01
 actuation_strength = 1
-total_steps = 75
+total_steps = 5
 res = 25
 dim = 2
 
@@ -52,6 +52,7 @@ class State:
         'mass': self.mass,
         'grid': self.grid,
         'deformation_gradient': self.deformation_gradient,
+        'controller_states': self.controller_states,
         'kernels': self.kernels,
     }
 
@@ -70,6 +71,21 @@ class State:
     y = tf.reduce_prod(y, axis=4, keepdims=True)
     #print('y', y.shape)
     return y
+
+  def get_centroids(self, previous_state):
+    # return centroid positions and velocities
+    states = []
+    for i in range(num_groups):
+      mask = particle_mask(i * group_size, (i + 1) * group_size)[:, :, None] * (
+        1.0 / group_size)
+      pos = tf.reduce_sum(mask * previous_state.position, axis=1, keepdims=True)
+      vel = tf.reduce_sum(mask * previous_state.velocity, axis=1, keepdims=True)
+      states.append(pos)
+      states.append(vel)
+    states = tf.concat(states, axis=2)
+    # print('states', states.shape)
+    return states
+
 
 
 # Initial State
@@ -98,6 +114,8 @@ class InitialState(State):
     TODO:
     mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
     '''
+    self.controller_states = self.get_centroids(self)
+
 
 
 def particle_mask(start, end):
@@ -114,26 +132,9 @@ b1 = tf.Variable([[0.0, 0.0]], trainable=True)
 
 # Updated state
 class UpdatedState(State):
-
-  def get_centroids(self, previous_state):
-    # return centroid positions and velocities
-    states = []
-    for i in range(num_groups):
-      mask = particle_mask(i * group_size, (i + 1) * group_size)[:, :, None] * (
-          1.0 / group_size)
-      pos = tf.reduce_sum(mask * previous_state.position, axis=1, keepdims=True)
-      vel = tf.reduce_sum(mask * previous_state.velocity, axis=1, keepdims=True)
-      states.append(pos)
-      states.append(vel)
-    states = tf.concat(states, axis=2)
-    # print('states', states.shape)
-    return states
-
   def __init__(self, sim, previous_state, actuation=None):
     super().__init__(sim)
-
     self.controller_states = self.get_centroids(previous_state)
-
     self.actuation = tf.tanh(
         tf.matmul(W1, self.controller_states[0, 0, :, None])[0] + b1) * actuation_strength
     self.actuation = self.actuation[0]
@@ -324,13 +325,15 @@ class Simulation:
 
   def optimize(self):
     os.system('cd outputs && rm *.png')
-    final_velocity = tf.reduce_mean(
-        self.states[-1].velocity[:, :], keepdims=False, axis=(0, 1))
     # Note: taking the first half only
-    final_position = tf.reduce_sum(
-        self.states[-1].position * particle_mask_from_group(2)[:, :, None], keepdims=False, axis=(0, 1)) / group_size
-    loss = (final_position[0] - res * 0.5)**2 + (
-        final_position[1] - res * 0.6)**2
+
+    final_state = self.states[-1].controller_states[0, 0]
+
+    goal = [0.5, 0.6]
+    final_position = [final_state[8], final_state[9]]
+
+    loss = (final_position[0] - res * goal[0])**2 + (
+         final_position[1] - res * goal[1])**2
 
     current_velocity = np.array([0, 0], dtype=np.float32)
     results = [s.get_evaluated() for s in self.states]
@@ -349,33 +352,17 @@ class Simulation:
 
     counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)
     trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+
     opt = ly.optimize_loss(
         loss=loss,
         learning_rate=lr,
         optimizer=partial(tf.train.AdamOptimizer, beta1=0.5, beta2=0.9),
         variables=trainables,
         global_step=counter)
-    '''
-    for i in range(40):
-      print('velocity', current_velocity)
-      feed_dict = {
-          self.initial_state.position:
-              particles,
-          self.initial_velocity:
-              current_velocity,
-          self.initial_state.deformation_gradient:
-              identity_matrix +
-              np.zeros(shape=(batch_size, particle_count, 1, 1))
-      }
-      l, gradient, evaluated = self.sess.run([loss, grad, results], feed_dict=feed_dict)
-      print('    grad', gradient)
-      print('    ** loss', l)
-      current_velocity -= learning_rate * gradient
-      '''
+
     self.sess.run(tf.global_variables_initializer())
 
     while True:
-      print('velocity', current_velocity)
       feed_dict = {
           self.initial_state.position:
               particles,
@@ -385,17 +372,17 @@ class Simulation:
               identity_matrix +
               np.zeros(shape=(batch_size, particle_count, 1, 1))
       }
-      l, _, evaluated = self.sess.run([loss, opt, results], feed_dict=feed_dict)
-      print('    ** loss', l)
+      pos, l, _, evaluated = self.sess.run([final_position, loss, opt, results], feed_dict=feed_dict)
+      print('  loss', l)
       for j, r in enumerate(evaluated):
         frame = i * (total_steps + 1) + j
         self.visualize(
-            i=frame, r=r, output_fn='outputs/{:04d}.png'.format(frame))
+            i=frame, r=r, output_fn='outputs/{:04d}.png'.format(frame), goal=goal)
 
     os.system('cd outputs && ti video')
     os.system('cp outputs/video.mp4 .')
 
-  def visualize(self, i, r, output_fn=None):
+  def visualize(self, i, r, goal, output_fn=None):
     pos = r['position'][0]
     mass = r['mass'][0]
     grid = r['grid'][0][:, :, 1:2]
@@ -432,10 +419,20 @@ class Simulation:
         (int(res * scale * 0.102), res * scale),
         color=(0, 0, 0))
     cv2.circle(
-        img, (int(res * scale * 0.45), int(res * scale * 0.8)),
+        img, (int(res * scale * goal[1]), int(res * scale * goal[0])),
         radius=8,
-        color=(0.5, 0.5, 0.5),
+        color=(0.0, 0.9, 0.0),
         thickness=-1)
+
+    try:
+      position = [r['controller_states'][0, 0][8], r['controller_states'][0, 0][9]]
+      cv2.circle(
+        img, (int(scale * position[1]), int(scale * position[0])),
+        radius=5,
+        color=(0.9, 0.0, 0.0),
+        thickness=-1)
+    except:
+      pass
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
