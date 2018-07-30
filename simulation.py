@@ -23,7 +23,8 @@ group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
 gravity = (0, -9.8)
 #gravity = (0, 0)
 dt = 0.03
-total_steps = 5
+actuation_strength = 1
+total_steps = 25
 res = 25
 dim = 2
 
@@ -83,7 +84,7 @@ class InitialState(State):
     broadcaster = [int(i > particle_count // 2) for i in range(particle_count)]
     self.velocity = np.array(broadcaster)[None, :, None] * initial_velocity[
         None, None, :]
-    print(self.velocity.shape)
+    # print(self.velocity.shape)
     '''
     self.velocity = tf.placeholder(
         tf.float32, [batch_size, particle_count, dim], name='velocity')
@@ -103,9 +104,11 @@ def particle_mask(start, end):
   r = tf.range(0, particle_count)
   return tf.cast(tf.logical_and(start <= r, r < end), tf.float32)[None, :]
 
+def particle_mask_from_group(g):
+  return particle_mask(g * group_size, (g + 1) * group_size)
 
 # hidden_size = 10
-W1 = tf.Variable(0.1 * tf.random_normal(shape=(2, 20)), trainable=True)
+W1 = tf.Variable(0.01 * tf.random_normal(shape=(2, 20)), trainable=True)
 b1 = tf.Variable([[0.0, 0.0]], trainable=True)
 
 
@@ -132,7 +135,7 @@ class UpdatedState(State):
     self.controller_states = self.get_centroids(previous_state)
 
     self.actuation = tf.tanh(
-        tf.matmul(W1, self.controller_states[0, 0, :, None])[0] + b1)
+        tf.matmul(W1, self.controller_states[0, 0, :, None])[0] + b1) * actuation_strength
     self.actuation = self.actuation[0]
     # print(self.actuation.shape)
 
@@ -324,12 +327,10 @@ class Simulation:
     final_velocity = tf.reduce_mean(
         self.states[-1].velocity[:, :], keepdims=False, axis=(0, 1))
     # Note: taking the first half only
-    final_position = tf.reduce_mean(
-        self.states[-1].position[:, :], keepdims=False, axis=(0, 1))
+    final_position = tf.reduce_sum(
+        self.states[-1].position * particle_mask_from_group(2)[:, :, None], keepdims=False, axis=(0, 1)) / group_size
     loss = (final_position[0] - res * 0.5)**2 + (
-        final_position[1] - res * 0.85)**2
-    #loss = tf.reduce_mean(self.states[1].position[:, :, 0], keepdims=False)
-    grad = tf.gradients(loss, [self.initial_velocity])[0]
+        final_position[1] - res * 0.6)**2
 
     current_velocity = np.array([0, 0], dtype=np.float32)
     results = [s.get_evaluated() for s in self.states]
