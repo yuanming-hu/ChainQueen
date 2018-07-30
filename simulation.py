@@ -14,18 +14,20 @@ TODO:
 dx
 '''
 
-lr = 4e-4
+lr = 3e-4
 batch_size = 1
-num_groups = 5
+num_groups = 7
 sample_density = 20
-group_size = sample_density**2
-particle_count = group_size * num_groups
-group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
+group_particle_count = sample_density ** 2
+particle_count = group_particle_count * num_groups
+group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
+group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
+actuations = [0, 1, 5, 6]
 gravity = (0, -15.8)
 #gravity = (0, 0)
 dt = 0.01
-actuation_strength = 0.8
-total_steps = 70
+actuation_strength = 1.0
+total_steps = 7
 res = 30
 dim = 2
 
@@ -45,7 +47,7 @@ class State:
   def __init__(self, sim):
     self.sim = sim
     self.affine = tf.zeros(shape=(batch_size, particle_count, 2, 2))
-    self.actuation = tf.zeros(shape=(2,))
+    self.actuation = tf.zeros(shape=(len(actuations),))
 
   def get_evaluated(self):
     return {
@@ -79,8 +81,8 @@ class State:
     # return centroid positions and velocities
     states = []
     for i in range(num_groups):
-      mask = particle_mask(i * group_size, (i + 1) * group_size)[:, :, None] * (
-          1.0 / group_size)
+      mask = particle_mask(i * group_particle_count, (i + 1) * group_particle_count)[:, :, None] * (
+        1.0 / group_particle_count)
       pos = tf.reduce_sum(mask * previous_state.position, axis=1, keepdims=True)
       vel = tf.reduce_sum(mask * previous_state.velocity, axis=1, keepdims=True)
       states.append(pos)
@@ -127,24 +129,26 @@ def particle_mask(start, end):
 
 
 def particle_mask_from_group(g):
-  return particle_mask(g * group_size, (g + 1) * group_size)
+  return particle_mask(g * group_particle_count, (g + 1) * group_particle_count)
 
 
 # hidden_size = 10
-W1 = tf.Variable(0.002 * tf.random_normal(shape=(2, 22)), trainable=True)
-b1 = tf.Variable([[0.0, 0.0]], trainable=True)
+W1 = tf.Variable(0.002 * tf.random_normal(shape=(len(actuations), 2 + 4 * len(group_sizes))), trainable=True)
+b1 = tf.Variable([[0.0] * len(actuations)], trainable=True)
 
 
 # Updated state
 class UpdatedState(State):
 
-  def __init__(self, sim, previous_state, actuation=None):
+  def __init__(self, sim, previous_state):
     super().__init__(sim)
     self.goal = previous_state.goal
     self.controller_states = self.get_centroids(previous_state)
-    self.actuation = tf.tanh(
-        tf.matmul(W1, self.controller_states[0, 0, :, None])[0] + b1
-    ) * actuation_strength
+    intermediate = tf.matmul(W1, self.controller_states[0, 0, :, None])
+    #print(W1.shape)
+    #print(self.controller_states[0, 0, :, None].shape)
+    #print(intermediate.shape)
+    self.actuation = tf.tanh(intermediate[:, 0] + b1) * actuation_strength
     self.actuation = self.actuation[0]
     # print(self.actuation.shape)
 
@@ -167,7 +171,7 @@ class UpdatedState(State):
     # print('base indices', base_indices.shape)
     self.mass = tf.zeros(shape=(batch_size, res, res, 1))
 
-    # Compute stress tensor (First Piola-Kirchhoff stress)
+    # Compute stress tensor (Kirchhoff stress instead of First Piola-Kirchhoff stress)
     self.deformation_gradient = previous_state.deformation_gradient
 
     if linear:
@@ -180,25 +184,25 @@ class UpdatedState(State):
       # Corotated elasticity
       r, s = polar_decomposition(self.deformation_gradient)
       j = determinant(self.deformation_gradient)[:, :, None, None]
-      self.stress_tensor1 = 2 * mu * (self.deformation_gradient - r)
+      self.stress_tensor1 = 2 * mu * matmatmul(self.deformation_gradient - r,
+                                      transpose(self.deformation_gradient))
+
+      if True:
+        zeros = tf.zeros(shape=(1, particle_count))
+        for i, group in enumerate(actuations):
+          actuation = self.actuation[i][None, None]
+          mask = particle_mask_from_group(group)
+          actuation = actuation * mask
+          # First PK stress here
+          actuation = E * make_matrix2d(zeros, zeros, zeros, actuation)
+          # Convert to Kirchhoff stress
+          actuation = matmatmul(actuation, transpose(self.deformation_gradient))
+          self.stress_tensor1 += actuation
+
       self.stress_tensor2 = lam * (
           j - 1) * j * inverse(transpose(self.deformation_gradient))
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
-    if actuation is not None:
-      self.stress_tensor += actuation
-    else:
-      # TODO make acutation a NN output
-      left_actuation = self.actuation[0][None, None]
-      right_actuation = self.actuation[1][None, None]
-      left_mask = particle_mask(0, group_size)
-      right_mask = particle_mask(group_size * (num_groups - 1), particle_count)
-      #print(left_actuation.shape)
-      #print(right_mask.shape)
-      actuation = left_actuation * left_mask + right_actuation * right_mask
-      zeros = tf.zeros(shape=(1, particle_count))
-      #print(actuation)
-      self.stress_tensor += E * make_matrix2d(zeros, zeros, zeros, actuation)
     self.stress_tensor = -1 * self.stress_tensor
 
     # Rasterize momentum and velocity
@@ -247,17 +251,18 @@ class UpdatedState(State):
       mask = np.zeros((1, res, res, 2))
       mask_x = np.zeros((1, res, res, 2))
       mask_y = np.zeros((1, res, res, 2))
-      
+
       # bottom
       mask[:, :, :4, :] = 1
       mask_x[:, :, :4, 0] = 1
       mask_y[:, :, :4, 1] = 1
-      
+
       friction = 0.5
       projected_bottom = tf.sign(self.grid) * \
                          tf.maximum(tf.abs(self.grid) + friction * tf.minimum(0.0, self.grid[:, :, :, 1, None]), 0.0)
-      self.grid = self.grid * (1 - mask) + (mask_x * projected_bottom) + mask_y * tf.maximum(self.grid, 0.0)
-      
+      self.grid = self.grid * (1 - mask) + (
+          mask_x * projected_bottom) + mask_y * tf.maximum(self.grid, 0.0)
+
       mask = np.zeros((1, res, res, 2))
       mask[:, 3:res - 3, :res - 3] = 1
       self.grid = self.grid * mask
@@ -349,7 +354,7 @@ class Simulation:
 
     final_state = self.states[-1].controller_states[0, 0]
 
-    final_position = [final_state[8], final_state[9]]
+    final_position = [final_state[12], final_state[13]]
 
     goal_input = self.initial_state.goal
     loss = (final_position[0] - res * goal_input[0, 0, 0])**2 + (
@@ -365,8 +370,8 @@ class Simulation:
       for x in range(sample_density):
         for y in range(sample_density):
           scale = 0.2
-          u = ((x + 0.5) / sample_density + offset[0]) * scale + 0.2
-          v = ((y + 0.5) / sample_density + offset[1]) * scale + 0.1
+          u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]) * scale  + 0.2
+          v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]) * scale  + 0.1
           particles[0].append([res * u, res * v])
     assert len(particles[0]) == particle_count
 
@@ -384,7 +389,7 @@ class Simulation:
 
     i = 0
     while True:
-      goal = [0.5 + random.random() * 0.0, 0.5 + random.random() * 0.2]
+      goal = [0.45 + random.random() * 0.1, 0.5 + random.random() * 0.2]
       feed_dict = {
           self.initial_state.position:
               particles,
@@ -406,11 +411,11 @@ class Simulation:
               r=r,
               output_fn='outputs/{:04d}.png'.format(frame),
               goal=goal)
-      except:
-        pass
+      except Exception as e:
+        print(e)
       print('time', time.time() - t)
       i += 1
-      
+
     os.system('cd outputs && ti video')
     os.system('cp outputs/video.mp4 .')
 
@@ -457,7 +462,7 @@ class Simulation:
         thickness=-1)
 
     try:
-      for i in range(2):
+      for i in range(len(actuations)):
         act = r['actuation'][i]
         if act < 0:
           color = (255, 0, 0)
@@ -468,14 +473,14 @@ class Simulation:
         y0 = 140
         y1 = int(act * 50 + 140)
         if y0 > y1:
-           y0, y1 = y1, y0
+          y0, y1 = y1, y0
         cv2.rectangle(img, (y0, x0), (y1, x1), color, thickness=-1)
     except Exception as e:
       raise e
 
     try:
       position = [
-          r['controller_states'][0, 0][8], r['controller_states'][0, 0][9]
+          r['controller_states'][0, 0][12], r['controller_states'][0, 0][13]
       ]
       cv2.circle(
           img, (int(scale * position[1]), int(scale * position[0])),
