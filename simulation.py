@@ -13,7 +13,7 @@ TODO:
 dx
 '''
 
-lr = 1e-2
+lr = 1e-3
 batch_size = 1
 num_groups = 5
 sample_density = 10
@@ -22,14 +22,14 @@ particle_count = group_size * num_groups
 group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
 gravity = (0, -9.8)
 #gravity = (0, 0)
-dt = 0.03
+dt = 0.01
 actuation_strength = 1
-total_steps = 25
+total_steps = 75
 res = 25
 dim = 2
 
 # Lame parameters
-E = 500
+E = 4500
 nu = 0.3
 mu = E / (2 * (1 + nu))
 lam = E * nu / ((1 + nu) * (1 - 2 * nu))
