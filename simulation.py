@@ -17,7 +17,7 @@ lr = 1e-2
 batch_size = 1
 num_groups = 5
 sample_density = 10
-group_size = sample_density ** 2
+group_size = sample_density**2
 particle_count = group_size * num_groups
 group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
 gravity = (0, -9.8)
@@ -81,7 +81,8 @@ class InitialState(State):
         tf.float32, [batch_size, particle_count, dim], name='position')
 
     broadcaster = [int(i > particle_count // 2) for i in range(particle_count)]
-    self.velocity = np.array(broadcaster)[None, :, None] * initial_velocity[None, None, :]
+    self.velocity = np.array(broadcaster)[None, :, None] * initial_velocity[
+        None, None, :]
     print(self.velocity.shape)
     '''
     self.velocity = tf.placeholder(
@@ -97,13 +98,16 @@ class InitialState(State):
     mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
     '''
 
+
 def particle_mask(start, end):
   r = tf.range(0, particle_count)
-  return tf.cast(tf.logical_and(start <= r, r < end), tf.float32)[None, :, None]
+  return tf.cast(tf.logical_and(start <= r, r < end), tf.float32)[None, :]
+
 
 # hidden_size = 10
 W1 = tf.Variable(0.1 * tf.random_normal(shape=(2, 20)), trainable=True)
 b1 = tf.Variable([[0.0, 0.0]], trainable=True)
+
 
 # Updated state
 class UpdatedState(State):
@@ -112,24 +116,25 @@ class UpdatedState(State):
     # return centroid positions and velocities
     states = []
     for i in range(num_groups):
-      mask = particle_mask(i * group_size, (i + 1) * group_size) * (1.0 / group_size)
+      mask = particle_mask(i * group_size, (i + 1) * group_size)[:, :, None] * (
+          1.0 / group_size)
       pos = tf.reduce_sum(mask * previous_state.position, axis=1, keepdims=True)
       vel = tf.reduce_sum(mask * previous_state.velocity, axis=1, keepdims=True)
       states.append(pos)
       states.append(vel)
     states = tf.concat(states, axis=2)
-    print('states', states.shape)
+    # print('states', states.shape)
     return states
-
 
   def __init__(self, sim, previous_state, actuation=None):
     super().__init__(sim)
 
     self.controller_states = self.get_centroids(previous_state)
 
-    self.actuation = tf.tanh(tf.matmul(W1, self.controller_states[0, 0, :, None])[0] + b1)
+    self.actuation = tf.tanh(
+        tf.matmul(W1, self.controller_states[0, 0, :, None])[0] + b1)
     self.actuation = self.actuation[0]
-    print(self.actuation.shape)
+    # print(self.actuation.shape)
 
     self.t = previous_state.t + dt
     self.grid = tf.zeros(shape=(batch_size, res, res, dim))
@@ -155,23 +160,33 @@ class UpdatedState(State):
 
     if linear:
       self.stress_tensor1 = mu * (
-        transpose(self.deformation_gradient) + self.deformation_gradient -
-        2 * identity_matrix)
+          transpose(self.deformation_gradient) + self.deformation_gradient -
+          2 * identity_matrix)
       self.stress_tensor2 = lam * identity_matrix * (
-        trace(self.deformation_gradient)[:, :, None, None] - dim)
+          trace(self.deformation_gradient)[:, :, None, None] - dim)
     else:
       # Corotated elasticity
       r, s = polar_decomposition(self.deformation_gradient)
       j = determinant(self.deformation_gradient)[:, :, None, None]
       self.stress_tensor1 = 2 * mu * (self.deformation_gradient - r)
-      self.stress_tensor2 = lam * (j - 1) * j * inverse(transpose(self.deformation_gradient))
+      self.stress_tensor2 = lam * (
+          j - 1) * j * inverse(transpose(self.deformation_gradient))
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
     if actuation is not None:
       self.stress_tensor += actuation
     else:
       # TODO make acutation a NN output
-      self.stress_tensor += make_matrix2d_from_scalar(0, 0, 0, self.actuation[0]) * self.t * E
+      left_actuation = self.actuation[0][None, None]
+      right_actuation = self.actuation[1][None, None]
+      left_mask = particle_mask(0, group_size)
+      right_mask = particle_mask(group_size * (num_groups - 1), particle_count)
+      #print(left_actuation.shape)
+      #print(right_mask.shape)
+      actuation = left_actuation * left_mask + right_actuation * right_mask
+      zeros = tf.zeros(shape=(1, particle_count))
+      #print(actuation)
+      self.stress_tensor += E * make_matrix2d(zeros, zeros, zeros, actuation)
     self.stress_tensor = -1 * self.stress_tensor
 
     # Rasterize momentum and velocity
@@ -198,7 +213,7 @@ class UpdatedState(State):
                  tf.cast(delta_node_position, tf.float32))
 
         grid_velocity_contributions = self.kernels[:, :, i, j] * (
-          self.velocity + matvecmul(self.affine, offset) * 4)
+            self.velocity + matvecmul(self.affine, offset) * 4)
         grid_force_contributions = self.kernels[:, :, i, j] * (
             matvecmul(self.stress_tensor, offset) * (-4 * dt))
         self.grid = self.grid + tf.scatter_nd(
@@ -221,7 +236,7 @@ class UpdatedState(State):
       mask[:, :, :4, 1] = 1
       self.grid = self.grid * (1 - mask) + mask * tf.maximum(self.grid, 0)
       mask = np.zeros((1, res, res, 2))
-      mask[:, 3:res-3, :res-3] = 1
+      mask[:, 3:res - 3, :res - 3] = 1
       self.grid = self.grid * mask
 
     # Resample velocity and local affine velocity field
@@ -311,7 +326,8 @@ class Simulation:
     # Note: taking the first half only
     final_position = tf.reduce_mean(
         self.states[-1].position[:, :], keepdims=False, axis=(0, 1))
-    loss = (final_position[0] - res * 0.5)**2 + (final_position[1] - res * 0.85)**2
+    loss = (final_position[0] - res * 0.5)**2 + (
+        final_position[1] - res * 0.85)**2
     #loss = tf.reduce_mean(self.states[1].position[:, :, 0], keepdims=False)
     grad = tf.gradients(loss, [self.initial_velocity])[0]
 
@@ -332,10 +348,12 @@ class Simulation:
 
     counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)
     trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-    opt = ly.optimize_loss(loss=loss, learning_rate=lr,
-                             optimizer=partial(tf.train.AdamOptimizer, beta1=0.5, beta2=0.9),
-                             variables=trainables, global_step=counter)
-
+    opt = ly.optimize_loss(
+        loss=loss,
+        learning_rate=lr,
+        optimizer=partial(tf.train.AdamOptimizer, beta1=0.5, beta2=0.9),
+        variables=trainables,
+        global_step=counter)
     '''
     for i in range(40):
       print('velocity', current_velocity)
@@ -358,13 +376,13 @@ class Simulation:
     while True:
       print('velocity', current_velocity)
       feed_dict = {
-        self.initial_state.position:
-          particles,
-        self.initial_velocity:
-          current_velocity,
-        self.initial_state.deformation_gradient:
-          identity_matrix +
-          np.zeros(shape=(batch_size, particle_count, 1, 1))
+          self.initial_state.position:
+              particles,
+          self.initial_velocity:
+              current_velocity,
+          self.initial_state.deformation_gradient:
+              identity_matrix +
+              np.zeros(shape=(batch_size, particle_count, 1, 1))
       }
       l, _, evaluated = self.sess.run([loss, opt, results], feed_dict=feed_dict)
       print('    ** loss', l)
@@ -379,7 +397,7 @@ class Simulation:
   def visualize(self, i, r, output_fn=None):
     pos = r['position'][0]
     mass = r['mass'][0]
-    grid = r['grid'][0][:,:, 1:2]
+    grid = r['grid'][0][:, :, 1:2]
     J = determinant(r['deformation_gradient'])[0]
     #5 print(grid.min(), grid.max())
     grid = grid / (1e-5 + np.abs(grid).max()) * 4 + 0.5
@@ -401,14 +419,22 @@ class Simulation:
       #if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
       #  img[x, y] = (0, 0, 1)
       cv2.circle(
-          img, (y, x),
+          img,
+          (y, x),
           radius=1,
           #color=(1, 1, float(J[i])),
           color=(0.2, 0.2, 0.2),
           thickness=-1)
 
-    cv2.line(img, (int(res * scale*0.102), 0), (int(res *scale* 0.102), res * scale), color=(0, 0, 0))
-    cv2.circle(img, (int(res *scale * 0.45), int(res *scale* 0.8)), radius=8, color=(0.5, 0.5, 0.5), thickness=-1)
+    cv2.line(
+        img, (int(res * scale * 0.102), 0),
+        (int(res * scale * 0.102), res * scale),
+        color=(0, 0, 0))
+    cv2.circle(
+        img, (int(res * scale * 0.45), int(res * scale * 0.8)),
+        radius=8,
+        color=(0.5, 0.5, 0.5),
+        thickness=-1)
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
     mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
@@ -417,7 +443,7 @@ class Simulation:
     mass = cv2.resize(
         mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
     grid = cv2.resize(
-      grid, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+        grid, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
 
     cv2.imshow('Particles', img)
     cv2.imshow('Mass', mass / 10)

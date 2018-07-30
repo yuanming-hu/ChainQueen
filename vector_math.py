@@ -1,12 +1,14 @@
 import tensorflow as tf
 import numpy as np
 
+
 def make_matrix2d_from_scalar(m00, m01, m10, m11):
   m00 = tf.ones(shape=(1, 1)) * m00
   m01 = tf.ones(shape=(1, 1)) * m01
   m10 = tf.ones(shape=(1, 1)) * m10
   m11 = tf.ones(shape=(1, 1)) * m11
   return make_matrix2d(m00, m01, m10, m11)
+
 
 def make_matrix2d(m00, m01, m10, m11):
   assert len(m00.shape) == 2  # Batch, particles
@@ -23,17 +25,19 @@ def polar_decomposition(m):
   assert len(m.shape) == 4  # Batch, particles, row, column
   x = m[:, :, 0, 0] + m[:, :, 1, 1]
   y = m[:, :, 1, 0] - m[:, :, 0, 1]
-  scale = 1.0 / tf.sqrt(x ** 2 + y ** 2)
+  scale = 1.0 / tf.sqrt(x**2 + y**2)
   c = x * scale
   s = y * scale
   r = make_matrix2d(c, -s, s, c)
   return r, matmatmul(transpose(r), m)
 
+
 def inverse(m):
   # Reference: http://www.cs.cornell.edu/courses/cs4620/2014fa/lectures/polarnotes.pdf
   assert len(m.shape) == 4  # Batch, particles, row, column
   Jinv = 1.0 / determinant(m)
-  return Jinv[:, :, None, None] * make_matrix2d(m[:, :,1, 1], -m[:, :, 0, 1], -m[:, :, 1, 0], m[:, :, 0, 0])
+  return Jinv[:, :, None, None] * make_matrix2d(m[:, :, 1, 1], -m[:, :, 0, 1],
+                                                -m[:, :, 1, 0], m[:, :, 0, 0])
 
 
 def matmatmul(a, b):
@@ -116,7 +120,8 @@ if __name__ == '__main__':
     r = r[0, 0]
     s = s[0, 0]
     np.testing.assert_array_almost_equal(np.matmul(r, s), a)
-    np.testing.assert_array_almost_equal(np.matmul(r, np.transpose(r)), [[1, 0], [0, 1]])
+    np.testing.assert_array_almost_equal(
+        np.matmul(r, np.transpose(r)), [[1, 0], [0, 1]])
     np.testing.assert_array_almost_equal(s, np.transpose(s))
 
     # Inverse
