@@ -14,21 +14,28 @@ TODO:
 dx
 '''
 
-lr = 3e-4
+lr = 1e-3
 batch_size = 1
-num_groups = 7
 sample_density = 20
 group_particle_count = sample_density ** 2
+if False:
+  num_groups = 7
+  group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
+  group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
+  actuations = [0, 1, 5, 6]
+else:
+  num_groups = 5
+  group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
+  group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
+  actuations = [0, 4]
+
 particle_count = group_particle_count * num_groups
-group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
-group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
-actuations = [0, 1, 5, 6]
 gravity = (0, -15.8)
 #gravity = (0, 0)
 dt = 0.01
-actuation_strength = 1.0
-total_steps = 7
-res = 30
+actuation_strength = 0.3
+total_steps = 100
+res = 25
 dim = 2
 
 # Lame parameters
@@ -133,7 +140,7 @@ def particle_mask_from_group(g):
 
 
 # hidden_size = 10
-W1 = tf.Variable(0.002 * tf.random_normal(shape=(len(actuations), 2 + 4 * len(group_sizes))), trainable=True)
+W1 = tf.Variable(0.02 * tf.random_normal(shape=(len(actuations), 2 + 4 * len(group_sizes))), trainable=True)
 b1 = tf.Variable([[0.0] * len(actuations)], trainable=True)
 
 
@@ -253,9 +260,9 @@ class UpdatedState(State):
       mask_y = np.zeros((1, res, res, 2))
 
       # bottom
-      mask[:, :, :4, :] = 1
-      mask_x[:, :, :4, 0] = 1
-      mask_y[:, :, :4, 1] = 1
+      mask[:, :, :3, :] = 1
+      mask_x[:, :, :3, 0] = 1
+      mask_y[:, :, :3, 1] = 1
 
       friction = 0.5
       projected_bottom = tf.sign(self.grid) * \
@@ -354,7 +361,7 @@ class Simulation:
 
     final_state = self.states[-1].controller_states[0, 0]
 
-    final_position = [final_state[12], final_state[13]]
+    final_position = [final_state[num_groups // 2 * 4], final_state[num_groups // 2 * 4 + 1]]
 
     goal_input = self.initial_state.goal
     loss = (final_position[0] - res * goal_input[0, 0, 0])**2 + (
@@ -389,7 +396,7 @@ class Simulation:
 
     i = 0
     while True:
-      goal = [0.45 + random.random() * 0.1, 0.5 + random.random() * 0.2]
+      goal = [0.5 + random.random() * 0.0, 0.5 + random.random() * 0.2]
       feed_dict = {
           self.initial_state.position:
               particles,
@@ -480,7 +487,7 @@ class Simulation:
 
     try:
       position = [
-          r['controller_states'][0, 0][12], r['controller_states'][0, 0][13]
+          r['controller_states'][0, 0][num_groups // 2 * 4], r['controller_states'][0, 0][num_groups // 2 * 4 + 1]
       ]
       cv2.circle(
           img, (int(scale * position[1]), int(scale * position[0])),
