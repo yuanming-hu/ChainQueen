@@ -13,6 +13,7 @@ total_steps = 3
 
 class Simulation:
   def __init__(self, sess, res, gravity=(0, -9.8), dt=0.01, batch_size=1):
+    self.scale = 30
     self.res = res
     self.sess = sess
     self.initial_velocity = tf.placeholder(shape=(2,), dtype=tf.float32)
@@ -43,26 +44,6 @@ class Simulation:
       previous_state = new_state
 
     self.states = [self.initial_state] + self.updated_states
-
-  def run(self):
-    results = self.states
-
-    feed_dict = {
-        self.initial_state.position: [[[
-            random.uniform(0.3, 0.5) * self.res[0],
-            random.uniform(0.2, 0.4) * self.res[1]
-        ] for i in range(particle_count)]],
-        self.initial_velocity: [0, 0],
-        self.initial_state.deformation_gradient:
-            identity_matrix +
-            np.zeros(shape=(self.batch_size, particle_count, 1, 1))
-    }
-
-    results = self.sess.run(results, feed_dict=feed_dict)
-
-    while True:
-      for i, r in enumerate(results):
-        self.visualize(i, r)
 
   def optimize(self):
 
@@ -105,8 +86,7 @@ class Simulation:
 
     self.sess.run(tf.global_variables_initializer())
 
-    i = 0
-    while True:
+    for i in range(1000000):
       goal = [0.50 + random.random() * 0.0, 0.4 + random.random() * 0.2]
       feed_dict = {
           self.initial_state.position:
@@ -121,27 +101,29 @@ class Simulation:
       pos, l, _, evaluated = self.sess.run(
           [final_position, loss, opt, results], feed_dict=feed_dict)
       print('  loss', l)
-      try:
-        for j, r in enumerate(evaluated):
-          frame = i * (total_steps + 1) + j
-          self.visualize(
-              i=frame,
-              r=r,
-              output_fn='outputs/{:04d}.png'.format(frame),
-              goal=goal)
-      except Exception as e:
-        print(e)
+
+      for j, r in enumerate(evaluated):
+        frame = i * (total_steps + 1) + j
+        img = self.visualize(i=frame, r=r)
+        scale = self.scale
+        cv2.circle(
+          img, (int(self.res[0] * scale * goal[1]), int(self.res[1] * scale * goal[0])),
+          radius=8,
+          color=(0.0, 0.9, 0.0),
+          thickness=-1)
+        img = img.swapaxes(0, 1)[::-1, :, ::-1]
+        output_fn='outputs/{:04d}.png'.format(frame)
+        cv2.imshow('Particles', img)
+        cv2.imwrite(output_fn, img * 255)
+        cv2.waitKey(1)
+
       print('time', time.time() - t)
-      i += 1
 
-    os.system('cd outputs && ti video')
-    os.system('cp outputs/video.mp4 .')
-
-  def visualize(self, i, r, goal, output_fn=None):
+  def visualize(self, i, r):
     pos = r['position'][0]
     mass = r['mass'][0]
     grid = r['grid'][0][:, :, 1:2]
-    J = determinant(r['deformation_gradient'])[0]
+    # J = determinant(r['deformation_gradient'])[0]
     #5 print(grid.min(), grid.max())
     grid = grid / (1e-5 + np.abs(grid).max()) * 4 + 0.5
     grid = np.clip(grid, 0, 1)
@@ -151,7 +133,7 @@ class Simulation:
       np.testing.assert_array_almost_equal(
           mass.sum(), particle_count, decimal=3)
 
-    scale = 30
+    scale = self.scale
 
     # Pure-white background
     img = np.ones((scale * self.res[0], scale * self.res[1], 3), dtype=np.float)
@@ -173,11 +155,6 @@ class Simulation:
         img, (int(self.res[0] * scale * 0.101), 0),
         (int(self.res[0] * scale * 0.101), self.res[1] * scale),
         color=(0, 0, 0))
-    cv2.circle(
-        img, (int(self.res[0] * scale * goal[1]), int(self.res[1] * scale * goal[0])),
-        radius=8,
-        color=(0.0, 0.9, 0.0),
-        thickness=-1)
 
     try:
       for i in range(len(actuations)):
@@ -208,7 +185,6 @@ class Simulation:
     except:
       pass
 
-    img = img.swapaxes(0, 1)[::-1, :, ::-1]
     #mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
     #grid = grid.swapaxes(0, 1)[::-1, :, ::-1]
     #grid = np.concatenate([grid, grid[:, :, 0:1] * 0], axis=2)
@@ -217,9 +193,4 @@ class Simulation:
     # grid = cv2.resize(
     #     grid, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
 
-    cv2.imshow('Particles', img)
-    #cv2.imshow('Mass', mass / 10)
-    #cv2.imshow('Velocity', grid)
-    if output_fn is not None:
-      cv2.imwrite(output_fn, img * 255)
-    cv2.waitKey(1)
+    return img

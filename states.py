@@ -67,8 +67,7 @@ class State:
 
 
   def __getitem__(self, item):
-    return self.get_evaluated(item)
-
+    return self.get_evaluated()[item]
 
   @staticmethod
   def compute_kernels(positions):
