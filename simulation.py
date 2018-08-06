@@ -1,16 +1,13 @@
 import tensorflow as tf
 import tensorflow.contrib.layers as ly
-from functools import partial
 import cv2
 import os
 import random
 import math
-import time
 from vector_math import *
 
 from states import InitialState, UpdatedState
 lr = 1e-3
-total_steps = 3
 sample_density = 20
 group_num_particles = sample_density ** 2
 E = 4500
@@ -44,8 +41,9 @@ b1 = tf.Variable([[-0.1] * len(actuations)], trainable=True)
 
 
 class Simulation:
-  def __init__(self, sess, res, num_particles, gravity=(0, -9.8), dt=0.01, batch_size=1):
+  def __init__(self, sess, res, num_particles, num_steps, gravity=(0, -9.8), dt=0.01, batch_size=1):
     self.E = E
+    self.num_steps = num_steps
     self.num_particles = num_particles
     self.scale = 30
     self.res = res
@@ -62,7 +60,7 @@ class Simulation:
     # Boundary condition
     previous_state = self.initial_state
 
-    for i in range(total_steps):
+    for i in range(num_steps):
       new_state = UpdatedState(self, previous_state)
       self.updated_states.append(new_state)
       previous_state = new_state
@@ -84,6 +82,7 @@ class Simulation:
     # print('states', states.shape)
     return states
 
+
   def get_actuation(self, state):
     intermediate = tf.matmul(W1, state.controller_states[0, 0, :, None])
     actuation = tf.tanh(intermediate[:, 0] + b1) * actuation_strength
@@ -101,79 +100,6 @@ class Simulation:
       total_actuation = total_actuation + matmatmul(act, transpose(state['deformation_gradient']))
     return total_actuation
 
-  def optimize(self):
-
-    # os.system('cd outputs && rm *.png')
-    # Note: taking the first half only
-    t = time.time()
-
-    final_state = self.states[-1].controller_states[0, 0]
-
-    final_position = [final_state[num_groups // 2 * 4], final_state[num_groups // 2 * 4 + 1]]
-
-    goal_input = self.initial_state.goal
-    loss = (final_position[0] - self.res[0] * goal_input[0, 0, 0])**2 + (
-        final_position[1] - self.res[1] * goal_input[0, 0, 1])**2
-
-    current_velocity = np.array([0, 0], dtype=np.float32)
-    results = [s.get_evaluated() for s in self.states]
-
-    # Initial particle samples
-    particles = [[]]
-
-    for i, offset in enumerate(group_offsets):
-      for x in range(sample_density):
-        for y in range(sample_density):
-          scale = 0.2
-          u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]) * scale  + 0.2
-          v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]) * scale  + 0.1
-          particles[0].append([self.res[0] * u, self.res[1] * v])
-    assert len(particles[0]) == num_particles
-
-    counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)
-    trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-
-    opt = ly.optimize_loss(
-        loss=loss,
-        learning_rate=lr,
-        optimizer=partial(tf.train.AdamOptimizer, beta1=0.5, beta2=0.9),
-        variables=trainables,
-        global_step=counter)
-
-    self.sess.run(tf.global_variables_initializer())
-
-    for i in range(1000000):
-      goal = [0.50 + random.random() * 0.0, 0.4 + random.random() * 0.2]
-      feed_dict = {
-          self.initial_state.position:
-              particles,
-          self.initial_velocity:
-              current_velocity,
-          self.initial_state.deformation_gradient:
-              identity_matrix +
-              np.zeros(shape=(self.batch_size, num_particles, 1, 1)),
-          goal_input: [[goal]]
-      }
-      pos, l, _, evaluated = self.sess.run(
-          [final_position, loss, opt, results], feed_dict=feed_dict)
-      print('  loss', l)
-
-      for j, r in enumerate(evaluated):
-        frame = i * (total_steps + 1) + j
-        img = self.visualize(i=frame, r=r)
-        scale = self.scale
-        cv2.circle(
-          img, (int(self.res[0] * scale * goal[1]), int(self.res[1] * scale * goal[0])),
-          radius=8,
-          color=(0.0, 0.9, 0.0),
-          thickness=-1)
-        img = img.swapaxes(0, 1)[::-1, :, ::-1]
-        output_fn='outputs/{:04d}.png'.format(frame)
-        cv2.imshow('Particles', img)
-        cv2.imwrite(output_fn, img * 255)
-        cv2.waitKey(1)
-
-      print('time', time.time() - t)
 
   def visualize(self, i, r):
     pos = r['position'][0]
