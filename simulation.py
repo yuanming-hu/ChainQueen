@@ -33,8 +33,8 @@ particle_count = group_particle_count * num_groups
 gravity = (0, -15.8)
 #gravity = (0, 0)
 dt = 0.01
-actuation_strength = 0.3
-total_steps = 100
+actuation_strength = 0.4
+total_steps = 80
 res = 25
 dim = 2
 
@@ -94,7 +94,7 @@ class State:
       vel = tf.reduce_sum(mask * previous_state.velocity, axis=1, keepdims=True)
       states.append(pos)
       states.append(vel)
-    states.append(self.goal)
+      states.append(self.goal)
     states = tf.concat(states, axis=2)
     # print('states', states.shape)
     return states
@@ -140,8 +140,9 @@ def particle_mask_from_group(g):
 
 
 # hidden_size = 10
-W1 = tf.Variable(0.02 * tf.random_normal(shape=(len(actuations), 2 + 4 * len(group_sizes))), trainable=True)
-b1 = tf.Variable([[0.0] * len(actuations)], trainable=True)
+W1 = tf.Variable(0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))), trainable=True)
+b1 = tf.Variable([[-0.1] * len(actuations)], trainable=True)
+#b1 = tf.Variable([[0.1, 0.5]], trainable=True)
 
 
 # Updated state
@@ -396,7 +397,7 @@ class Simulation:
 
     i = 0
     while True:
-      goal = [0.5 + random.random() * 0.0, 0.5 + random.random() * 0.2]
+      goal = [0.50 + random.random() * 0.0, 0.4 + random.random() * 0.2]
       feed_dict = {
           self.initial_state.position:
               particles,
@@ -487,7 +488,7 @@ class Simulation:
 
     try:
       position = [
-          r['controller_states'][0, 0][num_groups // 2 * 4], r['controller_states'][0, 0][num_groups // 2 * 4 + 1]
+          r['controller_states'][0, 0][num_groups // 2 * 6], r['controller_states'][0, 0][num_groups // 2 * 6 + 1]
       ]
       cv2.circle(
           img, (int(scale * position[1]), int(scale * position[0])),
