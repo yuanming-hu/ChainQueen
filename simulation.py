@@ -5,26 +5,23 @@ from time_integration import InitialState, UpdatedState
 class Simulation:
 
   def __init__(self,
-               sess,
-               res,
+               grid_res,
                num_particles,
-               num_steps,
+               num_time_steps,
                controller,
                gravity=(0, -9.8),
                dt=0.01,
                batch_size=1,
                E=4500):
     self.E = E
-    self.num_steps = num_steps
+    self.num_time_steps = num_time_steps
     self.num_particles = num_particles
     self.scale = 30
-    self.res = res
-    self.sess = sess
-    self.initial_velocity = tf.placeholder(shape=(2,), dtype=tf.float32)
+    self.grid_res = grid_res
+
     assert batch_size == 1
     self.batch_size = batch_size
-    self.initial_state = InitialState(
-        self, initial_velocity=self.initial_velocity)
+    self.initial_state = InitialState(self)
     self.updated_states = []
     self.gravity = gravity
     self.dt = dt
@@ -33,7 +30,7 @@ class Simulation:
     previous_state = self.initial_state
 
     # Controller is a function that takes states and generates action
-    for i in range(num_steps):
+    for i in range(num_time_steps):
       new_state = UpdatedState(self, previous_state, controller)
       self.updated_states.append(new_state)
       previous_state = new_state
@@ -60,7 +57,7 @@ class Simulation:
     scale = self.scale
 
     # Pure-white background
-    img = np.ones((scale * self.res[0], scale * self.res[1], 3), dtype=np.float)
+    img = np.ones((scale * self.grid_res[0], scale * self.grid_res[1], 3), dtype=np.float)
 
     for i in range(len(pos)):
       p = pos[i]
@@ -76,8 +73,8 @@ class Simulation:
           thickness=-1)
 
     cv2.line(
-        img, (int(self.res[0] * scale * 0.101), 0),
-        (int(self.res[0] * scale * 0.101), self.res[1] * scale),
+        img, (int(self.grid_res[0] * scale * 0.101), 0),
+        (int(self.grid_res[0] * scale * 0.101), self.grid_res[1] * scale),
         color=(0, 0, 0))
 
     #mass = mass.swapaxes(0, 1)[::-1, :, ::-1]

@@ -43,7 +43,7 @@ def particle_mask_from_group(g):
 W1 = tf.Variable(
     0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))),
     trainable=True)
-b1 = tf.Variable([[-0.1] * len(actuations)], trainable=True)
+b1 = tf.Variable([[0.1] * len(actuations)], trainable=True)
 
 
 def main(sess):
@@ -52,7 +52,8 @@ def main(sess):
   goal = tf.placeholder(tf.float32, [1, 1, 2], name='goal')
   E = 4500
 
-  def controller(previous_state, current_state):
+  # Define your controller here
+  def controller(previous_state):
     controller_inputs = []
     for i in range(num_groups):
       mask = particle_mask(i * group_num_particles,
@@ -67,7 +68,7 @@ def main(sess):
     intermediate = tf.matmul(W1, controller_inputs[0, 0, :, None])
     actuation = tf.tanh(intermediate[:, 0] + b1) * actuation_strength
     actuation = actuation[0]
-    current_state.debug = {
+    debug = {
         'controller_inputs': controller_inputs,
         'actuation': actuation
     }
@@ -82,13 +83,12 @@ def main(sess):
       # Convert to Kirchhoff stress
       total_actuation = total_actuation + matmatmul(
           act, transpose(previous_state['deformation_gradient']))
-    return total_actuation
+    return total_actuation, debug
 
   sim = Simulation(
-      sess=sess,
       num_particles=num_particles,
-      num_steps=3,
-      res=(25, 25),
+      num_time_steps=30,
+      grid_res=(25, 25),
       controller=controller,
       E=E)
   print("Building time: {:.4f}s".format(time.time() - t))
@@ -98,17 +98,16 @@ def main(sess):
 
   final_state = sim.states[-1]['debug']['controller_inputs'][0, 0]
   final_position = [
-      final_state[num_groups // 2 * 4], final_state[num_groups // 2 * 4 + 1]
+      final_state[num_groups // 2 * 6], final_state[num_groups // 2 * 6 + 1]
   ]
 
-  loss = (final_position[0] - sim.res[0] * goal[0, 0, 0])**2 + (
-      final_position[1] - sim.res[1] * goal[0, 0, 1])**2
+  loss = (final_position[0] - sim.grid_res[0] * goal[0, 0, 0])**2 + (
+      final_position[1] - sim.grid_res[1] * goal[0, 0, 1])**2
 
-  current_velocity = np.array([0, 0], dtype=np.float32)
+  initial_velocity = np.zeros(shape=[1, num_particles, 2])
   results = [s.get_evaluated() for s in sim.states]
 
-  # Initial particle samples
-  particles = [[]]
+  initial_positions = [[]]
 
   for i, offset in enumerate(group_offsets):
     for x in range(sample_density):
@@ -118,8 +117,8 @@ def main(sess):
             ) * scale + 0.2
         v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
             ) * scale + 0.1
-        particles[0].append([sim.res[0] * u, sim.res[1] * v])
-  assert len(particles[0]) == num_particles
+        initial_positions[0].append([sim.grid_res[0] * u, sim.grid_res[1] * v])
+  assert len(initial_positions[0]) == num_particles
 
   counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
@@ -131,31 +130,32 @@ def main(sess):
       variables=trainables,
       global_step=counter)
 
-  sim.sess.run(tf.global_variables_initializer())
+  sess.run(tf.global_variables_initializer())
 
+  # Optimization loop
   for i in range(1000000):
-    goal_input = [0.50 + random.random() * 0.0, 0.4 + random.random() * 0.2]
+    goal_input = [0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]
     feed_dict = {
+        sim.initial_state.velocity:
+            initial_velocity,
         sim.initial_state.position:
-            particles,
-        sim.initial_velocity:
-            current_velocity,
+            initial_positions,
         sim.initial_state.deformation_gradient:
             identity_matrix +
             np.zeros(shape=(sim.batch_size, num_particles, 1, 1)),
         goal: [[goal_input]]
     }
-    pos, l, _, evaluated = sim.sess.run(
+    pos, l, _, evaluated = sess.run(
         [final_position, loss, opt, results], feed_dict=feed_dict)
     print('  loss', l)
 
     for j, r in enumerate(evaluated):
-      frame = i * (sim.num_steps + 1) + j
+      frame = i * (sim.num_time_steps + 1) + j
       img = sim.visualize(i=frame, r=r)
       scale = sim.scale
       cv2.circle(
-          img, (int(sim.res[0] * scale * goal_input[1]),
-                int(sim.res[1] * scale * goal_input[0])),
+          img, (int(sim.grid_res[0] * scale * goal_input[1]),
+                int(sim.grid_res[1] * scale * goal_input[0])),
           radius=8,
           color=(0.0, 0.9, 0.0),
           thickness=-1)
