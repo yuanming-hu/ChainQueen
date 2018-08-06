@@ -7,33 +7,14 @@ TODO:
 dx
 '''
 
-sample_density = 20
-group_particle_count = sample_density ** 2
-if False:
-  num_groups = 7
-  group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
-  group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
-  actuations = [0, 1, 5, 6]
-else:
-  num_groups = 5
-  group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
-  group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
-  actuations = [0, 4]
-
-particle_count = group_particle_count * num_groups
-actuation_strength = 0.4
 
 # Lame parameters
-E = 4500
 nu = 0.3
-mu = E / (2 * (1 + nu))
-lam = E * nu / ((1 + nu) * (1 - 2 * nu))
 
 sticky = False
 
 linear = False
 
-identity_matrix = np.array([[1, 0], [0, 1]])[None, None, :, :]
 
 dim = 2
 
@@ -41,29 +22,41 @@ class State:
 
   def __init__(self, sim):
     self.sim = sim
-    self.affine = tf.zeros(shape=(self.sim.batch_size, particle_count, 2, 2))
-    self.actuation = tf.zeros(shape=(len(actuations),))
+    self.affine = tf.zeros(shape=(self.sim.batch_size, sim.num_particles, 2, 2))
+    self.position = None
+    self.velocity = None
+    self.deformation_gradient = None
+    self.controller_states = None
+    self.mass = None
+    self.grid = None
+    self.kernels = None
+    self.actuation = None
 
   def get_evaluated(self):
-    # batch, particle, dimension
-    assert len(self.position.shape) == 3
-    assert len(self.position.shape) == 3
-    # batch, particle, matrix dimension1, matrix dimension2
-    assert len(self.deformation_gradient.shape) == 4
-    # batch, x, y, dimension
-    assert len(self.mass.shape) == 4
-    assert len(self.grid.shape) == 4
+    # # batch, particle, dimension
+    # assert len(self.position.shape) == 3
+    # assert len(self.position.shape) == 3
+    # # batch, particle, matrix dimension1, matrix dimension2
+    # assert len(self.deformation_gradient.shape) == 4
+    # # batch, x, y, dimension
+    # assert len(self.mass.shape) == 4
+    # assert len(self.grid.shape) == 4
 
-    return {
+    ret = {
       'position': self.position,
       'velocity': self.velocity,
       'deformation_gradient': self.deformation_gradient,
       'controller_states': self.controller_states,
       'mass': self.mass,
       'grid': self.grid,
-      'kernels': self.kernels,
-      'actuation': self.actuation
+      'actuation': self.actuation,
+      'kernels': self.kernels
     }
+    ret_filtered = {}
+    for k, v in ret.items():
+      if v is not None:
+        ret_filtered[k] = v
+    return ret_filtered
 
 
   def __getitem__(self, item):
@@ -85,41 +78,26 @@ class State:
     #print('y', y.shape)
     return y
 
-  def get_centroids(self, previous_state):
-    # return centroid positions and velocities
-    states = []
-    for i in range(num_groups):
-      mask = particle_mask(i * group_particle_count, (i + 1) * group_particle_count)[:, :, None] * (
-        1.0 / group_particle_count)
-      pos = tf.reduce_sum(mask * previous_state.position, axis=1, keepdims=True)
-      vel = tf.reduce_sum(mask * previous_state.velocity, axis=1, keepdims=True)
-      states.append(pos)
-      states.append(vel)
-      states.append(self.goal)
-    states = tf.concat(states, axis=2)
-    # print('states', states.shape)
-    return states
-
-
 class InitialState(State):
 
   def __init__(self, sim, initial_velocity):
     super().__init__(sim)
     self.t = 0
     self.goal = tf.placeholder(tf.float32, [self.sim.batch_size, 1, 2], name='goal')
+    num_particles = sim.num_particles
     self.position = tf.placeholder(
-      tf.float32, [self.sim.batch_size, particle_count, dim], name='position')
+      tf.float32, [self.sim.batch_size, num_particles, dim], name='position')
 
-    broadcaster = [int(i > particle_count // 2) for i in range(particle_count)]
+    broadcaster = [int(i > num_particles // 2) for i in range(num_particles)]
     self.velocity = np.array(broadcaster)[None, :, None] * initial_velocity[
                                                            None, None, :]
     # print(self.velocity.shape)
     '''
     self.velocity = tf.placeholder(
-        tf.float32, [batch_size, particle_count, dim], name='velocity')
+        tf.float32, [batch_size, num_particles, dim], name='velocity')
     '''
     self.deformation_gradient = tf.placeholder(
-      tf.float32, [self.sim.batch_size, particle_count, dim, dim], name='dg')
+      tf.float32, [self.sim.batch_size, num_particles, dim, dim], name='dg')
     self.mass = tf.zeros(shape=(self.sim.batch_size, self.sim.res[0], self.sim.res[1], 1))
     self.grid = tf.zeros(shape=(self.sim.batch_size, self.sim.res[0], self.sim.res[1], dim))
     self.kernels = tf.zeros(shape=(self.sim.batch_size, self.sim.res[0], self.sim.res[1], 3, 3))
@@ -127,22 +105,8 @@ class InitialState(State):
     TODO:
     mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
     '''
-    self.controller_states = self.get_centroids(self)
+    self.controller_states = None
 
-
-def particle_mask(start, end):
-  r = tf.range(0, particle_count)
-  return tf.cast(tf.logical_and(start <= r, r < end), tf.float32)[None, :]
-
-
-def particle_mask_from_group(g):
-  return particle_mask(g * group_particle_count, (g + 1) * group_particle_count)
-
-
-# hidden_size = 10
-W1 = tf.Variable(0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))), trainable=True)
-b1 = tf.Variable([[-0.1] * len(actuations)], trainable=True)
-#b1 = tf.Variable([[0.1, 0.5]], trainable=True)
 
 
 class UpdatedState(State):
@@ -150,19 +114,10 @@ class UpdatedState(State):
   def __init__(self, sim, previous_state):
     super().__init__(sim)
     self.goal = previous_state.goal
-    self.controller_states = self.get_centroids(previous_state)
-    intermediate = tf.matmul(W1, self.controller_states[0, 0, :, None])
-    #print(W1.shape)
-    #print(self.controller_states[0, 0, :, None].shape)
-    #print(intermediate.shape)
-    self.actuation = tf.tanh(intermediate[:, 0] + b1) * actuation_strength
-    self.actuation = self.actuation[0]
-    # print(self.actuation.shape)
+    self.controller_states = self.sim.get_centroids(previous_state)
 
     self.t = previous_state.t + self.sim.dt
     self.grid = tf.zeros(shape=(self.sim.batch_size, self.sim.res[0], self.sim.res[1], dim))
-
-    self.get_centroids(previous_state)
 
     # Rasterize mass and velocity
     base_indices = tf.cast(tf.floor(previous_state.position - 0.5), tf.int32)
@@ -170,9 +125,10 @@ class UpdatedState(State):
     assert batch_size == 1
     # print('base indices', base_indices.shape)
     # Add the batch size indices
+    num_particles = sim.num_particles
     base_indices = tf.concat(
       [
-        tf.zeros(shape=(batch_size, particle_count, 1), dtype=tf.int32),
+        tf.zeros(shape=(batch_size, num_particles, 1), dtype=tf.int32),
         base_indices
       ],
       axis=2)
@@ -182,6 +138,8 @@ class UpdatedState(State):
     # Compute stress tensor (Kirchhoff stress instead of First Piola-Kirchhoff stress)
     self.deformation_gradient = previous_state.deformation_gradient
 
+    mu = self.sim.E / (2 * (1 + nu))
+    lam = self.sim.E * nu / ((1 + nu) * (1 - 2 * nu))
     if linear:
       self.stress_tensor1 = mu * (
         transpose(self.deformation_gradient) + self.deformation_gradient -
@@ -195,17 +153,7 @@ class UpdatedState(State):
       self.stress_tensor1 = 2 * mu * matmatmul(self.deformation_gradient - r,
                                                transpose(self.deformation_gradient))
 
-      if True:
-        zeros = tf.zeros(shape=(1, particle_count))
-        for i, group in enumerate(actuations):
-          actuation = self.actuation[i][None, None]
-          mask = particle_mask_from_group(group)
-          actuation = actuation * mask
-          # First PK stress here
-          actuation = E * make_matrix2d(zeros, zeros, zeros, actuation)
-          # Convert to Kirchhoff stress
-          actuation = matmatmul(actuation, transpose(self.deformation_gradient))
-          self.stress_tensor1 += actuation
+      self.stress_tensor1 += self.sim.get_actuation(self)
 
       self.stress_tensor2 = lam * (
         j - 1) * j * inverse(transpose(self.deformation_gradient))
@@ -219,7 +167,7 @@ class UpdatedState(State):
     self.grid = tf.zeros(shape=(batch_size, self.sim.res[0], self.sim.res[1], dim))
 
     self.kernels = self.compute_kernels(previous_state.position)
-    assert self.kernels.shape == (batch_size, particle_count, 3, 3, 1)
+    assert self.kernels.shape == (batch_size, num_particles, 3, 3, 1)
 
     self.velocity = previous_state.velocity
     for i in range(3):

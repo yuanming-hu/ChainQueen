@@ -1,13 +1,14 @@
 import tensorflow as tf
 import os
 from simulation import Simulation
+import simulation
 import time
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 def main(sess):
   t = time.time()
-  sim = Simulation(sess=sess, res=(25, 25))
+  sim = Simulation(sess=sess, num_particles=simulation.num_particles, res=(25, 25))
   print("Building time: {:.4f}s".format(time.time() - t))
   t = time.time()
   #sim.run()

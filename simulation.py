@@ -6,13 +6,47 @@ import os
 import random
 import math
 import time
+from vector_math import *
 
-from states import * #InitialState, UpdatedState
+from states import InitialState, UpdatedState
 lr = 1e-3
 total_steps = 3
+sample_density = 20
+group_num_particles = sample_density ** 2
+E = 4500
+if False:
+  num_groups = 7
+  group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
+  group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
+  actuations = [0, 1, 5, 6]
+else:
+  num_groups = 5
+  group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
+  group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
+  actuations = [0, 4]
+
+actuation_strength = 0.4
+num_particles = group_num_particles * num_groups
+
+def particle_mask(start, end):
+  r = tf.range(0, num_particles)
+  return tf.cast(tf.logical_and(start <= r, r < end), tf.float32)[None, :]
+
+
+def particle_mask_from_group(g):
+  return particle_mask(g * group_num_particles, (g + 1) * group_num_particles)
+
+
+# hidden_size = 10
+W1 = tf.Variable(0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))), trainable=True)
+b1 = tf.Variable([[-0.1] * len(actuations)], trainable=True)
+#b1 = tf.Variable([[0.1, 0.5]], trainable=True)
+
 
 class Simulation:
-  def __init__(self, sess, res, gravity=(0, -9.8), dt=0.01, batch_size=1):
+  def __init__(self, sess, res, num_particles, gravity=(0, -9.8), dt=0.01, batch_size=1):
+    self.E = E
+    self.num_particles = num_particles
     self.scale = 30
     self.res = res
     self.sess = sess
@@ -26,16 +60,6 @@ class Simulation:
     self.dt = dt
 
     # Boundary condition
-    if sticky:
-      self.bc = np.zeros((1, res[0], res[1], 2))
-      self.bc[:, 4:res[0] - 4, 4:res[1] - 4] = 1
-    else:
-      self.bc = np.zeros((1, res[0], res[1], 2, 2))
-      self.bc[:, :, 4:, 1, 0] = 1
-      self.bc[:, :, :res[1] - 4, 1, 1] = 1
-      self.bc[:, 4:, :, 1, 0] = 1
-      self.bc[:, :res[0] - 4, :, 1, 1] = 1
-
     previous_state = self.initial_state
 
     for i in range(total_steps):
@@ -44,6 +68,38 @@ class Simulation:
       previous_state = new_state
 
     self.states = [self.initial_state] + self.updated_states
+
+  def get_centroids(self, previous_state):
+    # return centroid positions and velocities
+    states = []
+    for i in range(num_groups):
+      mask = particle_mask(i * group_num_particles, (i + 1) * group_num_particles)[:, :, None] * (
+        1.0 / group_num_particles)
+      pos = tf.reduce_sum(mask * previous_state.position, axis=1, keepdims=True)
+      vel = tf.reduce_sum(mask * previous_state.velocity, axis=1, keepdims=True)
+      states.append(pos)
+      states.append(vel)
+      states.append(self.initial_state.goal)
+    states = tf.concat(states, axis=2)
+    # print('states', states.shape)
+    return states
+
+  def get_actuation(self, state):
+    intermediate = tf.matmul(W1, state.controller_states[0, 0, :, None])
+    actuation = tf.tanh(intermediate[:, 0] + b1) * actuation_strength
+    actuation = actuation[0]
+    state.actuation = actuation
+    total_actuation = 0
+    zeros = tf.zeros(shape=(1, self.num_particles))
+    for i, group in enumerate(actuations):
+      act = actuation[i][None, None]
+      mask = particle_mask_from_group(group)
+      act = act * mask
+      # First PK stress here
+      act = E * make_matrix2d(zeros, zeros, zeros, act)
+      # Convert to Kirchhoff stress
+      total_actuation = total_actuation + matmatmul(act, transpose(state['deformation_gradient']))
+    return total_actuation
 
   def optimize(self):
 
@@ -72,7 +128,7 @@ class Simulation:
           u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]) * scale  + 0.2
           v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]) * scale  + 0.1
           particles[0].append([self.res[0] * u, self.res[1] * v])
-    assert len(particles[0]) == particle_count
+    assert len(particles[0]) == num_particles
 
     counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)
     trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
@@ -95,7 +151,7 @@ class Simulation:
               current_velocity,
           self.initial_state.deformation_gradient:
               identity_matrix +
-              np.zeros(shape=(self.batch_size, particle_count, 1, 1)),
+              np.zeros(shape=(self.batch_size, num_particles, 1, 1)),
           goal_input: [[goal]]
       }
       pos, l, _, evaluated = self.sess.run(
@@ -131,7 +187,7 @@ class Simulation:
     if 0 < i < 3:
       np.testing.assert_array_almost_equal(kernel_sum, 1, decimal=3)
       np.testing.assert_array_almost_equal(
-          mass.sum(), particle_count, decimal=3)
+          mass.sum(), num_particles, decimal=3)
 
     scale = self.scale
 
@@ -171,7 +227,8 @@ class Simulation:
           y0, y1 = y1, y0
         cv2.rectangle(img, (y0, x0), (y1, x1), color, thickness=-1)
     except Exception as e:
-      raise e
+      if i != 0:
+        print(e)
 
     try:
       position = [

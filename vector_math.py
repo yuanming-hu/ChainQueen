@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
+identity_matrix = np.array([[1, 0], [0, 1]])[None, None, :, :]
 
 def make_matrix2d_from_scalar(m00, m01, m10, m11):
   m00 = tf.ones(shape=(1, 1)) * m00
