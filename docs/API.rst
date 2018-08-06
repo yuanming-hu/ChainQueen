@@ -1,6 +1,12 @@
 API
 ==================================
 
+Initialization
+---------------------
+
+Particle configuration
+Boundary conditions
+
 Interacting with the simulation
 ----------------------------------
 

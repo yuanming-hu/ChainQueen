@@ -19,7 +19,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'taichi'
+project = 'Differentiable MPM'
 copyright = '2018, Yuanming Hu'
 author = 'Yuanming Hu'
 

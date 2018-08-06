@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=build
-set SPHINXPROJ=taichi
+set SPHINXPROJ=Differentiable MPM
 
 if "%1" == "" goto help
 

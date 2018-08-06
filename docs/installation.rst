@@ -15,7 +15,7 @@ Please see `jump.py`
 Building the documentation
 -------------------------------------
 
-.. code-block:bash
+.. code-block:: bash
 
     sudo pip3 install Sphinx sphinx_rtd_theme
     sphinx-build . build
