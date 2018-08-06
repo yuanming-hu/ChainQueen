@@ -7,7 +7,6 @@ TODO:
 dx
 '''
 
-lr = 1e-3
 batch_size = 1
 sample_density = 20
 group_particle_count = sample_density ** 2
@@ -28,7 +27,6 @@ gravity = (0, -15.8)
 dt = 0.01
 actuation_strength = 0.4
 total_steps = 3
-res = 25
 dim = 2
 
 # Lame parameters
@@ -93,7 +91,6 @@ class State:
     return states
 
 
-# Initial State
 class InitialState(State):
 
   def __init__(self, sim, initial_velocity):
@@ -113,9 +110,9 @@ class InitialState(State):
     '''
     self.deformation_gradient = tf.placeholder(
       tf.float32, [batch_size, particle_count, dim, dim], name='dg')
-    self.mass = tf.zeros(shape=(batch_size, res, res, 1))
-    self.grid = tf.zeros(shape=(batch_size, res, res, dim))
-    self.kernels = tf.zeros(shape=(batch_size, res, res, 3, 3))
+    self.mass = tf.zeros(shape=(batch_size, self.sim.res[0], self.sim.res[1], 1))
+    self.grid = tf.zeros(shape=(batch_size, self.sim.res[0], self.sim.res[1], dim))
+    self.kernels = tf.zeros(shape=(batch_size, self.sim.res[0], self.sim.res[1], 3, 3))
     '''
     TODO:
     mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
@@ -138,7 +135,6 @@ b1 = tf.Variable([[-0.1] * len(actuations)], trainable=True)
 #b1 = tf.Variable([[0.1, 0.5]], trainable=True)
 
 
-# Updated state
 class UpdatedState(State):
 
   def __init__(self, sim, previous_state):
@@ -154,7 +150,7 @@ class UpdatedState(State):
     # print(self.actuation.shape)
 
     self.t = previous_state.t + dt
-    self.grid = tf.zeros(shape=(batch_size, res, res, dim))
+    self.grid = tf.zeros(shape=(batch_size, self.sim.res[0], self.sim.res[1], dim))
 
     self.get_centroids(previous_state)
 
@@ -170,7 +166,7 @@ class UpdatedState(State):
       ],
       axis=2)
     # print('base indices', base_indices.shape)
-    self.mass = tf.zeros(shape=(batch_size, res, res, 1))
+    self.mass = tf.zeros(shape=(batch_size, self.sim.res[0], self.sim.res[1], 1))
 
     # Compute stress tensor (Kirchhoff stress instead of First Piola-Kirchhoff stress)
     self.deformation_gradient = previous_state.deformation_gradient
@@ -209,7 +205,7 @@ class UpdatedState(State):
     # Rasterize momentum and velocity
     # ... and apply gravity
 
-    self.grid = tf.zeros(shape=(batch_size, res, res, dim))
+    self.grid = tf.zeros(shape=(batch_size, self.sim.res[0], self.sim.res[1], dim))
 
     self.kernels = self.compute_kernels(previous_state.position)
     assert self.kernels.shape == (batch_size, particle_count, 3, 3, 1)
@@ -221,7 +217,7 @@ class UpdatedState(State):
         delta_indices = np.array([0, i, j])[None, None, :]
         #print((base_indices + delta_indices).shape)
         self.mass = self.mass + tf.scatter_nd(
-          shape=(batch_size, res, res, 1),
+          shape=(batch_size, self.sim.res[0], self.sim.res[1], 1),
           indices=base_indices + delta_indices,
           updates=self.kernels[:, :, i, j])
 
@@ -234,10 +230,10 @@ class UpdatedState(State):
         grid_force_contributions = self.kernels[:, :, i, j] * (
           matvecmul(self.stress_tensor, offset) * (-4 * dt))
         self.grid = self.grid + tf.scatter_nd(
-          shape=(batch_size, res, res, dim),
+          shape=(batch_size, self.sim.res[0], self.sim.res[1], dim),
           indices=base_indices + delta_indices,
           updates=grid_velocity_contributions + grid_force_contributions)
-    assert self.mass.shape == (batch_size, res, res, 1), 'shape={}'.format(
+    assert self.mass.shape == (batch_size, self.sim.res[0], self.sim.res[1], 1), 'shape={}'.format(
       self.mass.shape)
 
     # self.velocity += np.array(gravity)[None, None, :] * dt
@@ -249,9 +245,9 @@ class UpdatedState(State):
       self.grid = self.grid * self.sim.bc
     else:
       # TODO: use sim.bc
-      mask = np.zeros((1, res, res, 2))
-      mask_x = np.zeros((1, res, res, 2))
-      mask_y = np.zeros((1, res, res, 2))
+      mask = np.zeros((1, self.sim.res[0], self.sim.res[1], 2))
+      mask_x = np.zeros((1, self.sim.res[0], self.sim.res[1], 2))
+      mask_y = np.zeros((1, self.sim.res[0], self.sim.res[1], 2))
 
       # bottom
       mask[:, :, :3, :] = 1
@@ -264,8 +260,8 @@ class UpdatedState(State):
       self.grid = self.grid * (1 - mask) + (
         mask_x * projected_bottom) + mask_y * tf.maximum(self.grid, 0.0)
 
-      mask = np.zeros((1, res, res, 2))
-      mask[:, 3:res - 3, :res - 3] = 1
+      mask = np.zeros((1, self.sim.res[0], self.sim.res[1], 2))
+      mask[:, 3:self.sim.res[0] - 3, :self.sim.res[1] - 3] = 1
       self.grid = self.grid * mask
 
     # Resample velocity and local affine velocity field

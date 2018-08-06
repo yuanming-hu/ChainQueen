@@ -7,7 +7,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 def main(sess):
   t = time.time()
-  sim = Simulation(sess)
+  sim = Simulation(sess, res=(25, 25))
   print("Building time: {:.4f}s".format(time.time() - t))
   t = time.time()
   #sim.run()

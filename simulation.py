@@ -3,18 +3,17 @@ import tensorflow.contrib.layers as ly
 from functools import partial
 import cv2
 import os
-import numpy as np
 import random
 import math
 import time
 
-from vector_math import *
-
-from states import *#InitialState, UpdatedState
+from states import * #InitialState, UpdatedState
+lr = 1e-3
 
 class Simulation:
 
-  def __init__(self, sess):
+  def __init__(self, sess, res):
+    self.res = res
     self.sess = sess
     self.initial_velocity = tf.placeholder(shape=(2,), dtype=tf.float32)
     self.initial_state = InitialState(
@@ -23,14 +22,14 @@ class Simulation:
 
     # Boundary condition
     if sticky:
-      self.bc = np.zeros((1, res, res, 2))
-      self.bc[:, 4:res - 4, 4:res - 4] = 1
+      self.bc = np.zeros((1, res[0], res[1], 2))
+      self.bc[:, 4:res[0] - 4, 4:res[1] - 4] = 1
     else:
-      self.bc = np.zeros((1, res, res, 2, 2))
+      self.bc = np.zeros((1, res[0], res[1], 2, 2))
       self.bc[:, :, 4:, 1, 0] = 1
-      self.bc[:, :, :res - 4, 1, 1] = 1
+      self.bc[:, :, :res[1] - 4, 1, 1] = 1
       self.bc[:, 4:, :, 1, 0] = 1
-      self.bc[:, :res - 4, :, 1, 1] = 1
+      self.bc[:, :res[0] - 4, :, 1, 1] = 1
 
     previous_state = self.initial_state
 
@@ -46,8 +45,8 @@ class Simulation:
 
     feed_dict = {
         self.initial_state.position: [[[
-            random.uniform(0.3, 0.5) * res,
-            random.uniform(0.2, 0.4) * res
+            random.uniform(0.3, 0.5) * self.res[0],
+            random.uniform(0.2, 0.4) * self.res[1]
         ] for i in range(particle_count)]],
         self.initial_velocity: [0, 0],
         self.initial_state.deformation_gradient:
@@ -71,8 +70,8 @@ class Simulation:
     final_position = [final_state[num_groups // 2 * 4], final_state[num_groups // 2 * 4 + 1]]
 
     goal_input = self.initial_state.goal
-    loss = (final_position[0] - res * goal_input[0, 0, 0])**2 + (
-        final_position[1] - res * goal_input[0, 0, 1])**2
+    loss = (final_position[0] - self.res[0] * goal_input[0, 0, 0])**2 + (
+        final_position[1] - self.res[1] * goal_input[0, 0, 1])**2
 
     current_velocity = np.array([0, 0], dtype=np.float32)
     results = [s.get_evaluated() for s in self.states]
@@ -86,7 +85,7 @@ class Simulation:
           scale = 0.2
           u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]) * scale  + 0.2
           v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]) * scale  + 0.1
-          particles[0].append([res * u, res * v])
+          particles[0].append([self.res[0] * u, self.res[1] * v])
     assert len(particles[0]) == particle_count
 
     counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)
@@ -150,7 +149,7 @@ class Simulation:
     scale = 30
 
     # Pure-white background
-    img = np.ones((scale * res, scale * res, 3), dtype=np.float)
+    img = np.ones((scale * self.res[0], scale * self.res[1], 3), dtype=np.float)
 
     for i in range(len(pos)):
       p = pos[i]
@@ -166,11 +165,11 @@ class Simulation:
           thickness=-1)
 
     cv2.line(
-        img, (int(res * scale * 0.101), 0),
-        (int(res * scale * 0.101), res * scale),
+        img, (int(self.res[0] * scale * 0.101), 0),
+        (int(self.res[0] * scale * 0.101), self.res[1] * scale),
         color=(0, 0, 0))
     cv2.circle(
-        img, (int(res * scale * goal[1]), int(res * scale * goal[0])),
+        img, (int(self.res[0] * scale * goal[1]), int(self.res[1] * scale * goal[0])),
         radius=8,
         color=(0.0, 0.9, 0.0),
         thickness=-1)
@@ -205,13 +204,13 @@ class Simulation:
       pass
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
-    mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
-    grid = grid.swapaxes(0, 1)[::-1, :, ::-1]
+    #mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
+    #grid = grid.swapaxes(0, 1)[::-1, :, ::-1]
     #grid = np.concatenate([grid, grid[:, :, 0:1] * 0], axis=2)
-    mass = cv2.resize(
-        mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
-    grid = cv2.resize(
-        grid, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+    # mass = cv2.resize(
+    #     mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+    # grid = cv2.resize(
+    #     grid, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
 
     cv2.imshow('Particles', img)
     #cv2.imshow('Mass', mass / 10)
