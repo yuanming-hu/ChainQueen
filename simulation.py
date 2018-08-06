@@ -9,16 +9,20 @@ import time
 
 from states import * #InitialState, UpdatedState
 lr = 1e-3
+total_steps = 3
 
 class Simulation:
-
-  def __init__(self, sess, res):
+  def __init__(self, sess, res, gravity=(0, -9.8), dt=0.01, batch_size=1):
     self.res = res
     self.sess = sess
     self.initial_velocity = tf.placeholder(shape=(2,), dtype=tf.float32)
+    assert batch_size == 1
+    self.batch_size = batch_size
     self.initial_state = InitialState(
         self, initial_velocity=self.initial_velocity)
     self.updated_states = []
+    self.gravity = gravity
+    self.dt = dt
 
     # Boundary condition
     if sticky:
@@ -51,7 +55,7 @@ class Simulation:
         self.initial_velocity: [0, 0],
         self.initial_state.deformation_gradient:
             identity_matrix +
-            np.zeros(shape=(batch_size, particle_count, 1, 1))
+            np.zeros(shape=(self.batch_size, particle_count, 1, 1))
     }
 
     results = self.sess.run(results, feed_dict=feed_dict)
@@ -61,6 +65,7 @@ class Simulation:
         self.visualize(i, r)
 
   def optimize(self):
+
     # os.system('cd outputs && rm *.png')
     # Note: taking the first half only
     t = time.time()
@@ -110,7 +115,7 @@ class Simulation:
               current_velocity,
           self.initial_state.deformation_gradient:
               identity_matrix +
-              np.zeros(shape=(batch_size, particle_count, 1, 1)),
+              np.zeros(shape=(self.batch_size, particle_count, 1, 1)),
           goal_input: [[goal]]
       }
       pos, l, _, evaluated = self.sess.run(

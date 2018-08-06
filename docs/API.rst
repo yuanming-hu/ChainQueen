@@ -3,6 +3,7 @@ API
 
 Initialization
 ---------------------
+The initial states of a simulation consist of particle positions and velocities (by default, zero).
 
 Particle configuration
 Boundary conditions
@@ -11,7 +12,7 @@ Boundary conditions
 Interacting with the simulation states
 ----------------------------------
 
-Simulation starts with a series of states, one per time step.
+A simulation consists of a series of states, one per time step.
 You can get the (symbolic) simulation from `sim.states`
 
 .. code-block:: python
