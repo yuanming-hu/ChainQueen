@@ -1,8 +1,19 @@
 import tensorflow as tf
-from states import InitialState, UpdatedState
+from time_integration import InitialState, UpdatedState
+
 
 class Simulation:
-  def __init__(self, sess, res, num_particles, num_steps, controller, gravity=(0, -9.8), dt=0.01, batch_size=1, E=4500):
+
+  def __init__(self,
+               sess,
+               res,
+               num_particles,
+               num_steps,
+               controller,
+               gravity=(0, -9.8),
+               dt=0.01,
+               batch_size=1,
+               E=4500):
     self.E = E
     self.num_steps = num_steps
     self.num_particles = num_particles
@@ -68,7 +79,6 @@ class Simulation:
         img, (int(self.res[0] * scale * 0.101), 0),
         (int(self.res[0] * scale * 0.101), self.res[1] * scale),
         color=(0, 0, 0))
-
 
     #mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
     #grid = grid.swapaxes(0, 1)[::-1, :, ::-1]
