@@ -30,7 +30,7 @@ class State:
     self.mass = None
     self.grid = None
     self.kernels = None
-    self.actuation = None
+    self.debug = None
 
   def get_evaluated(self):
     # # batch, particle, dimension
@@ -49,8 +49,8 @@ class State:
       'controller_states': self.controller_states,
       'mass': self.mass,
       'grid': self.grid,
-      'actuation': self.actuation,
-      'kernels': self.kernels
+      'kernels': self.kernels,
+      'debug': self.debug
     }
     ret_filtered = {}
     for k, v in ret.items():
@@ -83,7 +83,6 @@ class InitialState(State):
   def __init__(self, sim, initial_velocity):
     super().__init__(sim)
     self.t = 0
-    self.goal = tf.placeholder(tf.float32, [self.sim.batch_size, 1, 2], name='goal')
     num_particles = sim.num_particles
     self.position = tf.placeholder(
       tf.float32, [self.sim.batch_size, num_particles, dim], name='position')
@@ -105,16 +104,13 @@ class InitialState(State):
     TODO:
     mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
     '''
-    self.controller_states = None
 
 
 
 class UpdatedState(State):
 
-  def __init__(self, sim, previous_state):
+  def __init__(self, sim, previous_state, controller):
     super().__init__(sim)
-    self.goal = previous_state.goal
-    self.controller_states = self.sim.get_centroids(previous_state)
 
     self.t = previous_state.t + self.sim.dt
     self.grid = tf.zeros(shape=(self.sim.batch_size, self.sim.res[0], self.sim.res[1], dim))
@@ -153,7 +149,7 @@ class UpdatedState(State):
       self.stress_tensor1 = 2 * mu * matmatmul(self.deformation_gradient - r,
                                                transpose(self.deformation_gradient))
 
-      self.stress_tensor1 += self.sim.get_actuation(self)
+      self.stress_tensor1 += controller(previous_state, self)
 
       self.stress_tensor2 = lam * (
         j - 1) * j * inverse(transpose(self.deformation_gradient))
