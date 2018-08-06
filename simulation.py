@@ -41,7 +41,7 @@ class Simulation:
     self.states = [self.initial_state] + self.updated_states
 
   def run(self):
-    results = [s.get_evaluated() for s in self.states]
+    results = self.states
 
     feed_dict = {
         self.initial_state.position: [[[

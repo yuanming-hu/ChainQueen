@@ -48,16 +48,30 @@ class State:
     self.actuation = tf.zeros(shape=(len(actuations),))
 
   def get_evaluated(self):
+    # batch, particle, dimension
+    assert len(self.position.shape) == 3
+    assert len(self.position.shape) == 3
+    # batch, particle, matrix dimension1, matrix dimension2
+    assert len(self.deformation_gradient.shape) == 4
+    # batch, x, y, dimension
+    assert len(self.mass.shape) == 4
+    assert len(self.grid.shape) == 4
+
     return {
       'position': self.position,
       'velocity': self.velocity,
-      'mass': self.mass,
-      'grid': self.grid,
       'deformation_gradient': self.deformation_gradient,
       'controller_states': self.controller_states,
+      'mass': self.mass,
+      'grid': self.grid,
       'kernels': self.kernels,
       'actuation': self.actuation
     }
+
+
+  def __getitem__(self, item):
+    return self.get_evaluated(item)
+
 
   @staticmethod
   def compute_kernels(positions):
