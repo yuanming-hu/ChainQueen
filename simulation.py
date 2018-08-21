@@ -1,6 +1,5 @@
 import tensorflow as tf
-from time_integration import InitialState, UpdatedState
-
+from time_integration import InitialSimulationState, UpdatedSimulationState
 
 class Simulation:
 
@@ -21,7 +20,7 @@ class Simulation:
 
     assert batch_size == 1
     self.batch_size = batch_size
-    self.initial_state = InitialState(self)
+    self.initial_state = InitialSimulationState(self)
     self.updated_states = []
     self.gravity = gravity
     self.dt = dt
@@ -31,7 +30,7 @@ class Simulation:
 
     # Controller is a function that takes states and generates action
     for i in range(num_time_steps):
-      new_state = UpdatedState(self, previous_state, controller)
+      new_state = UpdatedSimulationState(self, previous_state, controller)
       self.updated_states.append(new_state)
       previous_state = new_state
 

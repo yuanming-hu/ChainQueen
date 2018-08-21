@@ -16,7 +16,7 @@ mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
 '''
 
 
-class State:
+class SimulationState:
 
   def __init__(self, sim):
     self.sim = sim
@@ -76,7 +76,7 @@ class State:
     return y
 
 
-class InitialState(State):
+class InitialSimulationState(SimulationState):
 
   def __init__(self, sim):
     super().__init__(sim)
@@ -98,7 +98,7 @@ class InitialState(State):
 
 
 
-class UpdatedState(State):
+class UpdatedSimulationState(SimulationState):
 
   def __init__(self, sim, previous_state, controller):
     super().__init__(sim)
