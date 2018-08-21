@@ -1,20 +1,10 @@
 import numpy as np
 import tensorflow as tf
 from vector_math import *
-'''
-TODO:
-dx
-'''
 
 sticky = False
 linear = False
 dim = 2
-
-'''
-TODO:
-mass, volume, Lame parameters (Young's modulus and Poisson's ratio)
-'''
-
 
 class SimulationState:
 
@@ -100,7 +90,7 @@ class InitialSimulationState(SimulationState):
 
 class UpdatedSimulationState(SimulationState):
 
-  def __init__(self, sim, previous_state, controller):
+  def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
 
     self.t = previous_state.t + self.sim.dt
@@ -144,8 +134,9 @@ class UpdatedSimulationState(SimulationState):
       self.stress_tensor1 = 2 * mu * matmatmul(
           self.deformation_gradient - r, transpose(self.deformation_gradient))
 
-      act, self.debug = controller(previous_state)
-      self.stress_tensor1 += act
+      if controller:
+        act, self.debug = controller(previous_state)
+        self.stress_tensor1 += act
 
       self.stress_tensor2 = lam * (
           j - 1) * j * inverse(transpose(self.deformation_gradient))

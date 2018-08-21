@@ -6,10 +6,11 @@ class Simulation:
   def __init__(self,
                grid_res,
                num_particles,
-               num_time_steps,
-               controller,
+               num_time_steps=None,
+               controller=None,
                gravity=(0, -9.8),
                dt=0.01,
+               dx=0.1,
                batch_size=1,
                E=4500):
     self.E = E
@@ -24,17 +25,20 @@ class Simulation:
     self.updated_states = []
     self.gravity = gravity
     self.dt = dt
+    self.dx = dx
 
     # Boundary condition
     previous_state = self.initial_state
 
     # Controller is a function that takes states and generates action
-    for i in range(num_time_steps):
-      new_state = UpdatedSimulationState(self, previous_state, controller)
-      self.updated_states.append(new_state)
-      previous_state = new_state
+    if controller is not None:
+      assert num_time_steps is not None
+      for i in range(num_time_steps):
+        new_state = UpdatedSimulationState(self, previous_state, controller)
+        self.updated_states.append(new_state)
+        previous_state = new_state
 
-    self.states = [self.initial_state] + self.updated_states
+      self.states = [self.initial_state] + self.updated_states
 
   def visualize(self, i, r):
     import math
