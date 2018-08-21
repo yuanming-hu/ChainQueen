@@ -93,11 +93,10 @@ class Simulation:
     return img
 
   def initial_state_place_holder(self):
-    return (self.initial_state.velocity, self.initial_state.position,
-            self.initial_state.deformation_gradient)
+    return self.initial_state.to_tuples()
 
   def get_initial_state(self, position):
     initial_velocity = np.zeros(shape=[1, self.num_particles, 2])
     deformation_gradient = identity_matrix +\
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
-    return (initial_velocity, position, deformation_gradient)
+    return (position, initial_velocity, deformation_gradient)

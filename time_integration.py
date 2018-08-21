@@ -20,6 +20,9 @@ class SimulationState:
     self.kernels = None
     self.debug = None
 
+  def get_state_names(self):
+    return ['position', 'velocity', 'deformation_gradient']
+
   def get_evaluated(self):
     # # batch, particle, dimension
     # assert len(self.position.shape) == 3
@@ -45,6 +48,10 @@ class SimulationState:
       if v is not None:
         ret_filtered[k] = v
     return ret_filtered
+
+  def to_tuples(self):
+    evaluated = self.get_evaluated()
+    return tuple([evaluated[k] for k in self.get_state_names()])
 
   def __getitem__(self, item):
     return self.get_evaluated()[item]
