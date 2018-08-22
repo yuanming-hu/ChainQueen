@@ -24,7 +24,8 @@ class TestSimulator(unittest.TestCase):
   def test_free_fall(self):
     # Zero gravity, 1-batched, translating block
     num_particles = 100
-    sim = Simulation(grid_res=(30, 30), num_particles=num_particles)
+    g = -10
+    sim = Simulation(grid_res=(30, 30), num_particles=num_particles, gravity=(0, g))
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(1, num_particles, 2))
@@ -36,10 +37,22 @@ class TestSimulator(unittest.TestCase):
     def center_of_mass():
       return np.mean(input_state[0][:, :, 0]), np.mean(input_state[0][:, :, 1])
 
-    print(center_of_mass())
+    self.assertAlmostEqual(center_of_mass()[0], 15.0)
+    y = 15.0
+    vy = 0
+    self.assertAlmostEqual(center_of_mass()[1], y)
     for i in range(10):
       input_state = sess.run(next_state.to_tuples(), feed_dict={sim.initial_state_place_holder(): input_state})
-      print(center_of_mass())
+      self.assertAlmostEqual(center_of_mass()[0], 15.0)
+      t = (i + 1) * sim.dt
+
+      # This will work if we use Verlet
+      # self.assertAlmostEqual(center_of_mass()[1], 15.0 - t * t * 0.5 * g)
+
+      # Symplectic Euler verion
+      vy += sim.dt * g
+      y += sim.dt * vy
+      self.assertAlmostEqual(center_of_mass()[1], y, delta=1e-5)
 
   def test_translation_batched(self):
     pass
