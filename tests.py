@@ -6,7 +6,6 @@ import numpy as np
 import cv2
 
 sess = tf.Session()
-
 class TestSimulator(unittest.TestCase):
 
   def assertAlmostEqualFloat32(self, a, b):
@@ -83,6 +82,7 @@ class TestSimulator(unittest.TestCase):
     pass
 
   def test_bouncing_cube(self):
+    return
     gravity=(0, -10)
     initial_velocity=(0, 0)
     batch_size=1
@@ -98,6 +98,30 @@ class TestSimulator(unittest.TestCase):
         for j in range(10):
           position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx, (j * 0.5 + 12.75) * dx)
           velocity[b, i * 10 + j] = initial_velocity
+    input_state = sim.get_initial_state(position=position, velocity=velocity)
+
+    for i in range(100):
+      for j in range(10):
+        input_state = sess.run(next_state.to_tuples(), feed_dict={sim.initial_state_place_holder(): input_state})
+      img = sim.visualize_particles(input_state[0][0])
+      cv2.imshow('img', img)
+      cv2.waitKey(1)
+
+  def test_rotating_cube(self):
+    gravity=(0, 0)
+    batch_size=1
+    dx=0.03
+    num_particles = 100
+    sim = Simulation(grid_res=(30, 30), dx=dx, num_particles=num_particles, gravity=gravity, dt=1e-3)
+    initial = sim.initial_state
+    next_state = UpdatedSimulationState(sim, initial)
+    position = np.zeros(shape=(batch_size, num_particles, 2))
+    velocity = np.zeros(shape=(batch_size, num_particles, 2))
+    for b in range(batch_size):
+      for i in range(10):
+        for j in range(10):
+          position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx, (j * 0.5 + 12.75) * dx)
+          velocity[b, i * 10 + j] = (j - 4.5, -i + 4.5)
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
     for i in range(100):
