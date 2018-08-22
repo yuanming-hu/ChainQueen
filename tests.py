@@ -23,7 +23,7 @@ class TestSimulator(unittest.TestCase):
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
-          position[b, i * 10 + j] = (i * 0.5 + 12.75, j * 0.5 + 12.75)
+          position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx, (j * 0.5 + 12.75) * dx)
           velocity[b, i * 10 + j] = initial_velocity
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
@@ -31,7 +31,7 @@ class TestSimulator(unittest.TestCase):
       return np.mean(input_state[0][:, :, 0]), np.mean(input_state[0][:, :, 1])
 
 
-    x, y = 15.0, 15.0
+    x, y = 15.0 * dx, 15.0 * dx
     vx, vy = initial_velocity
 
     self.assertAlmostEqual(center_of_mass()[0], x)
@@ -59,8 +59,8 @@ class TestSimulator(unittest.TestCase):
   def test_falling_translation(self):
     self.motion_test(initial_velocity=(2, -1), gravity=(-4, 6))
 
-  def test_falling_translation_batch(self):
-    self.motion_test(initial_velocity=(2, -1), gravity=(-4, 6), batch_size=2)
+  def test_falling_translation_dx(self):
+    self.motion_test(initial_velocity=(2, -1), gravity=(-4, 6), dx=0.5)
 
   def test_free_fall(self):
     self.motion_test(gravity=(0, -10))
