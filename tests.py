@@ -139,7 +139,7 @@ class TestSimulator(unittest.TestCase):
         dx=dx,
         num_particles=num_particles,
         gravity=gravity,
-        dt=1e-3)
+        dt=1e-3, E=40)
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(batch_size, num_particles, 2))
@@ -149,7 +149,7 @@ class TestSimulator(unittest.TestCase):
         for j in range(10):
           position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
-          velocity[b, i * 10 + j] = (j - 4.5, -i + 4.5)
+          velocity[b, i * 10 + j] = (1 * (j - 4.5), -1*(i - 4.5))
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
     for i in range(100):
@@ -159,6 +159,40 @@ class TestSimulator(unittest.TestCase):
             feed_dict={
                 sim.initial_state_place_holder(): input_state
             })
+      img = sim.visualize_particles(input_state[0][0])
+      cv2.imshow('img', img)
+      cv2.waitKey(1)
+
+  def test_dilating_cube(self):
+    gravity = (0, 0)
+    batch_size = 1
+    dx = 0.03
+    num_particles = 100
+    sim = Simulation(
+      grid_res=(30, 30),
+      dx=dx,
+      num_particles=num_particles,
+      gravity=gravity,
+      dt=1e-3, E=0)
+    initial = sim.initial_state
+    next_state = UpdatedSimulationState(sim, initial)
+    position = np.zeros(shape=(batch_size, num_particles, 2))
+    velocity = np.zeros(shape=(batch_size, num_particles, 2))
+    for b in range(batch_size):
+      for i in range(10):
+        for j in range(10):
+          position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
+                                     (j * 0.5 + 12.75) * dx)
+          velocity[b, i * 10 + j] = (0.5 * (i - 4.5), 0)
+    input_state = sim.get_initial_state(position=position, velocity=velocity)
+
+    for i in range(100):
+      for j in range(10):
+        input_state = sess.run(
+          next_state.to_tuples(),
+          feed_dict={
+            sim.initial_state_place_holder(): input_state
+          })
       img = sim.visualize_particles(input_state[0][0])
       cv2.imshow('img', img)
       cv2.waitKey(1)

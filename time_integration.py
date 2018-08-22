@@ -24,7 +24,7 @@ class SimulationState:
     self.debug = None
 
   def get_state_names(self):
-    return ['position', 'velocity', 'deformation_gradient']
+    return ['position', 'velocity', 'deformation_gradient', 'affine']
 
   def get_evaluated(self):
     # # batch, particle, dimension
@@ -37,6 +37,7 @@ class SimulationState:
     # assert len(self.grid_velocity.shape) == 4
 
     ret = {
+        'affine': self.affine,
         'position': self.position,
         'velocity': self.velocity,
         'deformation_gradient': self.deformation_gradient,
@@ -144,8 +145,12 @@ class UpdatedSimulationState(SimulationState):
           trace(self.deformation_gradient)[:, :, None, None] - dim)
     else:
       # Corotated elasticity
+      # P(F) = dPhi/dF(F) = 2 mu (F-R) + lambda (J-1)JF^-T
+
       r, s = polar_decomposition(self.deformation_gradient)
       j = determinant(self.deformation_gradient)[:, :, None, None]
+
+      # Note: stress_tensor here is right-multiplied by F^T
       self.stress_tensor1 = 2 * mu * matmatmul(
           self.deformation_gradient - r, transpose(self.deformation_gradient))
 
@@ -153,8 +158,7 @@ class UpdatedSimulationState(SimulationState):
         act, self.debug = controller(previous_state)
         self.stress_tensor1 += act
 
-      self.stress_tensor2 = lam * (
-          j - 1) * j * inverse(transpose(self.deformation_gradient))
+      self.stress_tensor2 = lam * (j - 1) * j
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
 
@@ -187,7 +191,7 @@ class UpdatedSimulationState(SimulationState):
                   previous_state.position * sim.inv_dx) * sim.dx
 
         grid_velocity_contributions = particle_mass * self.kernels[:, :, i, j] * (
-            self.velocity + matvecmul(self.affine, offset))
+            self.velocity + matvecmul(previous_state.affine, offset))
         grid_force_contributions = particle_volume * self.kernels[:, :, i, j] * (
             matvecmul(self.stress_tensor, offset) *
             (-4 * self.sim.dt * self.sim.inv_dx * self.sim.inv_dx))

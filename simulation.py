@@ -128,4 +128,6 @@ class Simulation:
       initial_velocity = np.zeros(shape=[1, self.num_particles, 2])
     deformation_gradient = identity_matrix +\
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
-    return (position, initial_velocity, deformation_gradient)
+    affine = identity_matrix * 0 + \
+                           np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
+    return (position, initial_velocity, deformation_gradient, affine)
