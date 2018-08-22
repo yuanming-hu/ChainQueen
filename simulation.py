@@ -12,9 +12,12 @@ class Simulation:
                controller=None,
                gravity=(0, -9.8),
                dt=0.01,
-               dx=0.1,
+               dx=1,
                batch_size=1,
                E=4500):
+
+    if dx == 1:
+      print("Warning: using dx=1")
     self.E = E
     self.num_time_steps = num_time_steps
     self.num_particles = num_particles
@@ -28,6 +31,7 @@ class Simulation:
     self.gravity = gravity
     self.dt = dt
     self.dx = dx
+    self.inv_dx = 1.0 / dx
 
     # Boundary condition
     previous_state = self.initial_state
