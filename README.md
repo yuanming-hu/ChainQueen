@@ -1,6 +1,6 @@
-# Differentiable MPM
+# Differentiable MPM for TensorFlow / PyTorch
 
-## 88-Line Version [[Download](https://github.com/yuanming-hu/taichi_mpm/releases/download/SIGGRAPH2018/mls-mpm88.zip)]
+## 88-Line MLS-MPM Reference [[Download](https://github.com/yuanming-hu/taichi_mpm/releases/download/SIGGRAPH2018/mls-mpm88.zip)]
 ``` C++
 // 88-Line Moving Least Squares Material Point Method (MLS-MPM)  [with comments]
 // To compile:    g++ mls-mpm88.cpp -std=c++14 -g -lX11 -lpthread -O3 -o mls-mpm
@@ -93,6 +93,6 @@ int main() {
 ```
 
 
-## Mathematical Comparisons with Traditional MPM
+## Discretization Cheatsheet
 (Assuming quadratic B-spline)
 <img src="/data/images/comparison.jpg" with="1000">
