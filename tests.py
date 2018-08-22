@@ -94,7 +94,6 @@ class TestSimulator(unittest.TestCase):
     pass
 
   def test_bouncing_cube(self):
-    return
     gravity = (0, -10)
     initial_velocity = (0, 0)
     batch_size = 1

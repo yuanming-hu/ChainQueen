@@ -158,7 +158,7 @@ class UpdatedSimulationState(SimulationState):
         act, self.debug = controller(previous_state)
         self.stress_tensor1 += act
 
-      self.stress_tensor2 = lam * (j - 1) * j
+      self.stress_tensor2 = lam * (j - 1) * j * identity_matrix
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
 
@@ -222,6 +222,8 @@ class UpdatedSimulationState(SimulationState):
       mask_y[:, :, :3, 1] = 1
 
       friction = 0.5
+
+      # X component
       projected_bottom = tf.sign(self.grid_velocity) * \
                          tf.maximum(tf.abs(self.grid_velocity) + friction * tf.minimum(0.0, self.grid_velocity[:, :, :, 1, None]), 0.0)
       self.grid_velocity = self.grid_velocity * (1 - mask) + (
