@@ -93,7 +93,7 @@ def outer_product(a, b):
   c = [[None for i in range(dim)] for j in range(dim)]
   for i in range(dim):
     for j in range(dim):
-      c[i][j] = a[:, :, j] * b[:, :, i]
+      c[i][j] = a[:, :, i] * b[:, :, j]
   row0 = tf.stack([c[0][0], c[0][1]], axis=2)
   row1 = tf.stack([c[1][0], c[1][1]], axis=2)
   C = tf.stack([row0, row1], axis=2)

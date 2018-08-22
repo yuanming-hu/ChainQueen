@@ -121,7 +121,6 @@ class Simulation:
     return self.initial_state.to_tuples()
 
   def get_initial_state(self, position, velocity=None):
-    initial_position = np.zeros(shape=[1, self.num_particles, 2])
     if velocity is not None:
       initial_velocity = velocity
     else:
