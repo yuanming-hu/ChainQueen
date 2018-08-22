@@ -11,19 +11,6 @@ class TestSimulator(unittest.TestCase):
   def test_acceleration(self):
     pass
 
-  def test_translation_x(self):
-    self.motion_test(initial_velocity=(1, 0))
-
-  def test_translation_y(self):
-    self.motion_test(initial_velocity=(0, 1))
-
-  def test_recursive_placeholder(self):
-    a = tf.placeholder(dtype=tf.float32)
-    b = tf.placeholder(dtype=tf.float32)
-    self.assertAlmostEqual(sess.run(a + b, feed_dict={(a, b): [1, 2]}), 3)
-    # The following will not work
-    # print(sess.run(a + b, feed_dict={{'a':a, 'b':b}: {'a':1, 'b':2}}))
-
   def motion_test(self, gravity=(0, -10), initial_velocity=(0, 0), batch_size=1, dx=1, num_steps=1):
     # Zero gravity, 1-batched, translating block
     num_particles = 100
@@ -63,8 +50,28 @@ class TestSimulator(unittest.TestCase):
       self.assertAlmostEqual(center_of_mass()[0], x, delta=1e-5)
       self.assertAlmostEqual(center_of_mass()[1], y, delta=1e-5)
 
+  def test_translation_x(self):
+    self.motion_test(initial_velocity=(1, 0))
+
+  def test_translation_y(self):
+    self.motion_test(initial_velocity=(0, 1))
+
+  def test_falling_translation(self):
+    self.motion_test(initial_velocity=(2, -1), gravity=(-4, 6))
+
+  def test_falling_translation_batch(self):
+    self.motion_test(initial_velocity=(2, -1), gravity=(-4, 6), batch_size=2)
+
   def test_free_fall(self):
     self.motion_test(gravity=(0, -10))
+
+  def test_recursive_placeholder(self):
+    a = tf.placeholder(dtype=tf.float32)
+    b = tf.placeholder(dtype=tf.float32)
+    self.assertAlmostEqual(sess.run(a + b, feed_dict={(a, b): [1, 2]}), 3)
+    # The following will not work
+    # print(sess.run(a + b, feed_dict={{'a':a, 'b':b}: {'a':1, 'b':2}}))
+
 
   def test_translation_batched(self):
     pass
