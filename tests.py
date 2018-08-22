@@ -11,48 +11,60 @@ class TestSimulator(unittest.TestCase):
   def test_acceleration(self):
     pass
 
-  def test_free_translation(self):
-    pass
+  def test_translation_x(self):
+    self.motion_test(initial_velocity=(1, 0))
+
+  def test_translation_y(self):
+    self.motion_test(initial_velocity=(0, 1))
 
   def test_recursive_placeholder(self):
     a = tf.placeholder(dtype=tf.float32)
     b = tf.placeholder(dtype=tf.float32)
-    print(sess.run(a + b, feed_dict={(a, b): [1, 2]}))
+    self.assertAlmostEqual(sess.run(a + b, feed_dict={(a, b): [1, 2]}), 3)
     # The following will not work
     # print(sess.run(a + b, feed_dict={{'a':a, 'b':b}: {'a':1, 'b':2}}))
 
-  def test_free_fall(self):
+  def motion_test(self, gravity=(0, -10), initial_velocity=(0, 0), batch_size=1, dx=1, num_steps=1):
     # Zero gravity, 1-batched, translating block
     num_particles = 100
     g = -10
-    sim = Simulation(grid_res=(30, 30), num_particles=num_particles, gravity=(0, g))
+    sim = Simulation(grid_res=(30, 30), dx=dx, num_particles=num_particles, gravity=gravity)
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
-    position = np.zeros(shape=(1, num_particles, 2))
-    for i in range(10):
-      for j in range(10):
-        position[0, i * 10 + j] = (i * 0.5 + 12.75, j * 0.5 + 12.75)
-    input_state = sim.get_initial_state(position=position)
+    position = np.zeros(shape=(batch_size, num_particles, 2))
+    velocity = np.zeros(shape=(batch_size, num_particles, 2))
+    for b in range(batch_size):
+      for i in range(10):
+        for j in range(10):
+          position[b, i * 10 + j] = (i * 0.5 + 12.75, j * 0.5 + 12.75)
+          velocity[b, i * 10 + j] = initial_velocity
+    input_state = sim.get_initial_state(position=position, velocity=velocity)
 
     def center_of_mass():
       return np.mean(input_state[0][:, :, 0]), np.mean(input_state[0][:, :, 1])
 
-    self.assertAlmostEqual(center_of_mass()[0], 15.0)
-    y = 15.0
-    vy = 0
+
+    x, y = 15.0, 15.0
+    vx, vy = initial_velocity
+
+    self.assertAlmostEqual(center_of_mass()[0], x)
     self.assertAlmostEqual(center_of_mass()[1], y)
     for i in range(10):
       input_state = sess.run(next_state.to_tuples(), feed_dict={sim.initial_state_place_holder(): input_state})
-      self.assertAlmostEqual(center_of_mass()[0], 15.0)
-      t = (i + 1) * sim.dt
 
       # This will work if we use Verlet
       # self.assertAlmostEqual(center_of_mass()[1], 15.0 - t * t * 0.5 * g)
 
-      # Symplectic Euler verion
-      vy += sim.dt * g
+      # Symplectic Euler version
+      vx += sim.dt * gravity[0]
+      x += sim.dt * vx
+      vy += sim.dt * gravity[1]
       y += sim.dt * vy
+      self.assertAlmostEqual(center_of_mass()[0], x, delta=1e-5)
       self.assertAlmostEqual(center_of_mass()[1], y, delta=1e-5)
+
+  def test_free_fall(self):
+    self.motion_test(gravity=(0, -10))
 
   def test_translation_batched(self):
     pass

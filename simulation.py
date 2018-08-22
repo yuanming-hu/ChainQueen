@@ -95,8 +95,12 @@ class Simulation:
   def initial_state_place_holder(self):
     return self.initial_state.to_tuples()
 
-  def get_initial_state(self, position):
-    initial_velocity = np.zeros(shape=[1, self.num_particles, 2])
+  def get_initial_state(self, position, velocity=None):
+    initial_position = np.zeros(shape=[1, self.num_particles, 2])
+    if velocity is not None:
+      initial_velocity = velocity
+    else:
+      initial_velocity = np.zeros(shape=[1, self.num_particles, 2])
     deformation_gradient = identity_matrix +\
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
     return (position, initial_velocity, deformation_gradient)
