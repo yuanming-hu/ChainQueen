@@ -5,6 +5,8 @@ from vector_math import *
 sticky = False
 linear = False
 dim = 2
+particle_mass = 1
+particle_volume = 1
 
 class SimulationState:
 
@@ -171,16 +173,16 @@ class UpdatedSimulationState(SimulationState):
         self.grid_mass = self.grid_mass + tf.scatter_nd(
             shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], 1),
             indices=base_indices + delta_indices,
-            updates=self.kernels[:, :, i, j])
+            updates=particle_mass * self.kernels[:, :, i, j])
 
         delta_node_position = np.array([i, j])[None, None, :]
         # xi - xp
         offset = (tf.floor(previous_state.position * sim.inv_dx - 0.5) + tf.cast(delta_node_position, tf.float32) -
                   previous_state.position * sim.inv_dx) * sim.dx
 
-        grid_velocity_contributions = self.kernels[:, :, i, j] * (
+        grid_velocity_contributions = particle_mass * self.kernels[:, :, i, j] * (
             self.velocity + matvecmul(self.affine, offset))
-        grid_force_contributions = self.kernels[:, :, i, j] * (
+        grid_force_contributions = particle_volume * self.kernels[:, :, i, j] * (
             matvecmul(self.stress_tensor, offset) * (-4 * self.sim.dt * self.sim.inv_dx * self.sim.inv_dx))
         self.grid_velocity = self.grid_velocity + tf.scatter_nd(
             shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], dim),
