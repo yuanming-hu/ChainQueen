@@ -65,7 +65,7 @@ class TestSimulator(unittest.TestCase):
 
   def test_falling_translation_dx(self):
     self.motion_test(initial_velocity=(2, -1), gravity=(-4, 6), dx=0.05)
-    self.motion_test(initial_velocity=(0.02, -0.01), gravity=(-0.04, 0.06), dx=0.001)
+    self.motion_test(initial_velocity=(0.02, -0.01), gravity=(-0.04, 0.06), dx=0.1)
     self.motion_test(initial_velocity=(2, -1), gravity=(-4, 6), dx=10)
 
   def test_free_fall(self):
