@@ -14,7 +14,7 @@ class Simulation:
                dt=0.01,
                dx=1,
                batch_size=1,
-               E=4500):
+               E=10):
 
     if dx == 1:
       print("Warning: using dx=1")
@@ -57,9 +57,7 @@ class Simulation:
     img = np.ones((scale * self.grid_res[0], scale * self.grid_res[1], 3), dtype=np.float)
 
     for p in pos:
-      print(p)
       x, y = tuple(map(lambda t: math.ceil(t * scale), p))
-      print(x, y)
       cv2.circle(
         img,
         (y, x),

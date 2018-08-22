@@ -150,7 +150,6 @@ class UpdatedSimulationState(SimulationState):
           j - 1) * j * inverse(transpose(self.deformation_gradient))
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
-    self.stress_tensor = -1 * self.stress_tensor
 
     # Rasterize momentum and velocity
     # ... and apply gravity
@@ -175,13 +174,14 @@ class UpdatedSimulationState(SimulationState):
             updates=self.kernels[:, :, i, j])
 
         delta_node_position = np.array([i, j])[None, None, :]
-        offset = -(previous_state.position * sim.inv_dx - tf.floor(previous_state.position * sim.inv_dx - 0.5) - \
-                   tf.cast(delta_node_position, tf.float32))
+        # xi - xp
+        offset = (tf.floor(previous_state.position * sim.inv_dx - 0.5) + tf.cast(delta_node_position, tf.float32) -
+                  previous_state.position * sim.inv_dx) * sim.dx
 
         grid_velocity_contributions = self.kernels[:, :, i, j] * (
-            self.velocity + matvecmul(self.affine, offset) * 4)
+            self.velocity + matvecmul(self.affine, offset))
         grid_force_contributions = self.kernels[:, :, i, j] * (
-            matvecmul(self.stress_tensor, offset) * (-4 * self.sim.dt))
+            matvecmul(self.stress_tensor, offset) * (-4 * self.sim.dt * self.sim.inv_dx * self.sim.inv_dx))
         self.grid_velocity = self.grid_velocity + tf.scatter_nd(
             shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], dim),
             indices=base_indices + delta_indices,
@@ -229,16 +229,17 @@ class UpdatedSimulationState(SimulationState):
 
         delta_node_position = np.array([i, j])[None, None, :]
 
-        offset = -(previous_state.position * sim.inv_dx - tf.floor(previous_state.position * sim.inv_dx - 0.5) - \
-                   tf.cast(delta_node_position, tf.float32))
+        # xi - xp
+        offset = (tf.floor(previous_state.position * sim.inv_dx - 0.5) + tf.cast(delta_node_position, tf.float32) -
+                  previous_state.position * sim.inv_dx) * sim.dx
         assert offset.shape == previous_state.position.shape
         weighted_node_velocity = tf.gather_nd(
             params=self.grid_velocity,
             indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
-        self.affine = self.affine + outer_product(weighted_node_velocity,
-                                                  offset)
+        self.affine += outer_product(weighted_node_velocity, offset)
 
-    dg_change = identity_matrix - (4 * self.sim.dt) * self.affine
+    self.affine *= 4 * sim.inv_dx * sim.inv_dx
+    dg_change = identity_matrix + self.sim.dt * self.affine
     #print(dg_change.shape)
     #print(previous_state.deformation_gradient)
     self.deformation_gradient = matmatmul(dg_change,
