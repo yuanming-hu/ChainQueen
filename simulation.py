@@ -46,6 +46,31 @@ class Simulation:
 
       self.states = [self.initial_state] + self.updated_states
 
+  def visualize_particles(self, pos):
+    import math
+    import cv2
+    import numpy as np
+    pos = pos * self.inv_dx
+
+    scale = self.scale
+
+    img = np.ones((scale * self.grid_res[0], scale * self.grid_res[1], 3), dtype=np.float)
+
+    for p in pos:
+      print(p)
+      x, y = tuple(map(lambda t: math.ceil(t * scale), p))
+      print(x, y)
+      cv2.circle(
+        img,
+        (y, x),
+        radius=1,
+        color=(0.2, 0.2, 0.2),
+        thickness=-1)
+
+    img = img.swapaxes(0, 1)[::-1, :, ::-1]
+
+    return img
+
   def visualize(self, i, r):
     import math
     import cv2
