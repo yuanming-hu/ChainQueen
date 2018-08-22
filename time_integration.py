@@ -8,6 +8,7 @@ dim = 2
 particle_mass = 1
 particle_volume = 1
 
+
 class SimulationState:
 
   def __init__(self, sim):
@@ -89,12 +90,14 @@ class InitialSimulationState(SimulationState):
     self.deformation_gradient = tf.placeholder(
         tf.float32, [self.sim.batch_size, num_particles, dim, dim], name='dg')
     self.grid_mass = tf.zeros(
-        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1], 1))
+        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
+               1))
     self.grid_velocity = tf.zeros(
-        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1], dim))
+        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
+               dim))
     self.kernels = tf.zeros(
-        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1], 3, 3))
-
+        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
+               3, 3))
 
 
 class UpdatedSimulationState(SimulationState):
@@ -104,10 +107,12 @@ class UpdatedSimulationState(SimulationState):
 
     self.t = previous_state.t + self.sim.dt
     self.grid_velocity = tf.zeros(
-        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1], dim))
+        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
+               dim))
 
     # Rasterize mass and velocity
-    base_indices = tf.cast(tf.floor(previous_state.position * sim.inv_dx - 0.5), tf.int32)
+    base_indices = tf.cast(
+        tf.floor(previous_state.position * sim.inv_dx - 0.5), tf.int32)
     batch_size = self.sim.batch_size
     assert batch_size == 1
     # print('base indices', base_indices.shape)
@@ -177,19 +182,22 @@ class UpdatedSimulationState(SimulationState):
 
         delta_node_position = np.array([i, j])[None, None, :]
         # xi - xp
-        offset = (tf.floor(previous_state.position * sim.inv_dx - 0.5) + tf.cast(delta_node_position, tf.float32) -
+        offset = (tf.floor(previous_state.position * sim.inv_dx - 0.5) +
+                  tf.cast(delta_node_position, tf.float32) -
                   previous_state.position * sim.inv_dx) * sim.dx
 
         grid_velocity_contributions = particle_mass * self.kernels[:, :, i, j] * (
             self.velocity + matvecmul(self.affine, offset))
         grid_force_contributions = particle_volume * self.kernels[:, :, i, j] * (
-            matvecmul(self.stress_tensor, offset) * (-4 * self.sim.dt * self.sim.inv_dx * self.sim.inv_dx))
+            matvecmul(self.stress_tensor, offset) *
+            (-4 * self.sim.dt * self.sim.inv_dx * self.sim.inv_dx))
         self.grid_velocity = self.grid_velocity + tf.scatter_nd(
             shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], dim),
             indices=base_indices + delta_indices,
             updates=grid_velocity_contributions + grid_force_contributions)
-    assert self.grid_mass.shape == (batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
-                               1), 'shape={}'.format(self.grid_mass.shape)
+    assert self.grid_mass.shape == (batch_size, self.sim.grid_res[0],
+                                    self.sim.grid_res[1], 1), 'shape={}'.format(
+                                        self.grid_mass.shape)
 
     self.grid_velocity += self.grid_mass * np.array(
         self.sim.gravity)[None, None, None, :] * self.sim.dt
@@ -213,7 +221,8 @@ class UpdatedSimulationState(SimulationState):
       projected_bottom = tf.sign(self.grid_velocity) * \
                          tf.maximum(tf.abs(self.grid_velocity) + friction * tf.minimum(0.0, self.grid_velocity[:, :, :, 1, None]), 0.0)
       self.grid_velocity = self.grid_velocity * (1 - mask) + (
-          mask_x * projected_bottom) + mask_y * tf.maximum(self.grid_velocity, 0.0)
+          mask_x * projected_bottom) + mask_y * tf.maximum(
+              self.grid_velocity, 0.0)
 
       mask = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
       mask[:, 3:self.sim.grid_res[0] - 3, :self.sim.grid_res[1] - 3] = 1
@@ -232,7 +241,8 @@ class UpdatedSimulationState(SimulationState):
         delta_node_position = np.array([i, j])[None, None, :]
 
         # xi - xp
-        offset = (tf.floor(previous_state.position * sim.inv_dx - 0.5) + tf.cast(delta_node_position, tf.float32) -
+        offset = (tf.floor(previous_state.position * sim.inv_dx - 0.5) +
+                  tf.cast(delta_node_position, tf.float32) -
                   previous_state.position * sim.inv_dx) * sim.dx
         assert offset.shape == previous_state.position.shape
         weighted_node_velocity = tf.gather_nd(

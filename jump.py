@@ -68,10 +68,7 @@ def main(sess):
     intermediate = tf.matmul(W1, controller_inputs[0, 0, :, None])
     actuation = tf.tanh(intermediate[:, 0] + b1) * actuation_strength
     actuation = actuation[0]
-    debug = {
-        'controller_inputs': controller_inputs,
-        'actuation': actuation
-    }
+    debug = {'controller_inputs': controller_inputs, 'actuation': actuation}
     total_actuation = 0
     zeros = tf.zeros(shape=(1, num_particles))
     for i, group in enumerate(actuations):

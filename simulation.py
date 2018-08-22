@@ -3,6 +3,7 @@ from vector_math import *
 import numpy as np
 from time_integration import InitialSimulationState, UpdatedSimulationState
 
+
 class Simulation:
 
   def __init__(self,
@@ -54,16 +55,12 @@ class Simulation:
 
     scale = self.scale
 
-    img = np.ones((scale * self.grid_res[0], scale * self.grid_res[1], 3), dtype=np.float)
+    img = np.ones(
+        (scale * self.grid_res[0], scale * self.grid_res[1], 3), dtype=np.float)
 
     for p in pos:
       x, y = tuple(map(lambda t: math.ceil(t * scale), p))
-      cv2.circle(
-        img,
-        (y, x),
-        radius=1,
-        color=(0.2, 0.2, 0.2),
-        thickness=-1)
+      cv2.circle(img, (y, x), radius=1, color=(0.2, 0.2, 0.2), thickness=-1)
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
 
@@ -89,7 +86,8 @@ class Simulation:
     scale = self.scale
 
     # Pure-white background
-    img = np.ones((scale * self.grid_res[0], scale * self.grid_res[1], 3), dtype=np.float)
+    img = np.ones(
+        (scale * self.grid_res[0], scale * self.grid_res[1], 3), dtype=np.float)
 
     for i in range(len(pos)):
       p = pos[i]
