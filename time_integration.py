@@ -5,8 +5,6 @@ from vector_math import *
 sticky = False
 linear = False
 dim = 2
-particle_mass = 1
-particle_volume = 1
 
 
 class SimulationState:
@@ -156,8 +154,11 @@ class UpdatedSimulationState(SimulationState):
 
     nu = 0.3
     # Lame parameters
-    mu = self.sim.E / (2 * (1 + nu))
-    lam = self.sim.E * nu / ((1 + nu) * (1 - 2 * nu))
+    mu = self.youngs_modulus / (2 * (1 + self.poissons_ratio))
+    lam = self.youngs_modulus * self.poissons_ratio / ((1 + self.poissons_ratio)
+                                                       * (1 - 2 * self.poissons_ratio))
+    mu = mu[:, :, :, None]
+    lam = lam[:, :, :, None]
     if linear:
       self.stress_tensor1 = mu * (
           transpose(self.deformation_gradient) + self.deformation_gradient -
@@ -203,7 +204,7 @@ class UpdatedSimulationState(SimulationState):
         self.grid_mass = self.grid_mass + tf.scatter_nd(
             shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], 1),
             indices=base_indices + delta_indices,
-            updates=particle_mass * self.kernels[:, :, i, j])
+            updates=self.particle_mass * self.kernels[:, :, i, j])
 
         delta_node_position = np.array([i, j])[None, None, :]
         # xi - xp
@@ -211,9 +212,9 @@ class UpdatedSimulationState(SimulationState):
                   tf.cast(delta_node_position, tf.float32) -
                   previous_state.position * sim.inv_dx) * sim.dx
 
-        grid_velocity_contributions = particle_mass * self.kernels[:, :, i, j] * (
+        grid_velocity_contributions = self.particle_mass * self.kernels[:, :, i, j] * (
             self.velocity + matvecmul(previous_state.affine, offset))
-        grid_force_contributions = particle_volume * self.kernels[:, :, i, j] * (
+        grid_force_contributions = self.particle_volume * self.kernels[:, :, i, j] * (
             matvecmul(self.stress_tensor, offset) *
             (-4 * self.sim.dt * self.sim.inv_dx * self.sim.inv_dx))
         self.grid_velocity = self.grid_velocity + tf.scatter_nd(
