@@ -15,6 +15,10 @@ class SimulationState:
     self.sim = sim
     self.affine = tf.zeros(shape=(self.sim.batch_size, sim.num_particles, 2, 2))
     self.position = None
+    self.particle_mass = None
+    self.particle_volume = None
+    self.youngs_modulus = None
+    self.poissons_ratio = None
     self.velocity = None
     self.deformation_gradient = None
     self.controller_states = None
@@ -24,7 +28,8 @@ class SimulationState:
     self.debug = None
 
   def get_state_names(self):
-    return ['position', 'velocity', 'deformation_gradient', 'affine']
+    return ['position', 'velocity', 'deformation_gradient', 'affine',
+            'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio']
 
   def get_evaluated(self):
     # # batch, particle, dimension
@@ -45,6 +50,10 @@ class SimulationState:
         'grid_mass': self.grid_mass,
         'grid_velocity': self.grid_velocity,
         'kernels': self.kernels,
+        'particle_mass': self.particle_mass,
+        'particle_volume': self.particle_volume,
+        'youngs_modulus': self.youngs_modulus,
+        'poissons_ratio': self.poissons_ratio,
         'debug': self.debug
     }
     ret_filtered = {}
@@ -90,6 +99,14 @@ class InitialSimulationState(SimulationState):
         tf.float32, [self.sim.batch_size, num_particles, dim], name='velocity')
     self.deformation_gradient = tf.placeholder(
         tf.float32, [self.sim.batch_size, num_particles, dim, dim], name='dg')
+    self.particle_mass = tf.placeholder(
+      tf.float32, [self.sim.batch_size, num_particles, 1], name='particle_mass')
+    self.particle_volume = tf.placeholder(
+      tf.float32, [self.sim.batch_size, num_particles, 1], name='particle_volume')
+    self.youngs_modulus = tf.placeholder(
+      tf.float32, [self.sim.batch_size, num_particles, 1], name='youngs_modulus')
+    self.poissons_ratio = tf.placeholder(
+      tf.float32, [self.sim.batch_size, num_particles, 1], name='poissons_ratio')
     self.grid_mass = tf.zeros(
         shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
                1))
@@ -105,6 +122,10 @@ class UpdatedSimulationState(SimulationState):
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
+    self.particle_mass = previous_state.particle_mass
+    self.particle_volume = previous_state.particle_volume
+    self.youngs_modulus = previous_state.youngs_modulus
+    self.poissons_ratio = previous_state.poissons_ratio
 
     self.t = previous_state.t + self.sim.dt
     self.grid_velocity = tf.zeros(

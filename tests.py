@@ -68,6 +68,10 @@ class TestSimulator(unittest.TestCase):
   def test_translation_x(self):
     self.motion_test(initial_velocity=(1, 0))
 
+  def test_translation_x_batched(self):
+    pass
+    #self.motion_test(initial_velocity=(1, 0), batch_size=2)
+    
   def test_translation_y(self):
     self.motion_test(initial_velocity=(0, 1))
 
@@ -89,9 +93,6 @@ class TestSimulator(unittest.TestCase):
     self.assertAlmostEqual(sess.run(a + b, feed_dict={(a, b): [1, 2]}), 3)
     # The following will not work
     # print(sess.run(a + b, feed_dict={{'a':a, 'b':b}: {'a':1, 'b':2}}))
-
-  def test_translation_batched(self):
-    pass
 
   def test_bouncing_cube(self):
     gravity = (0, -10)
