@@ -110,13 +110,15 @@ class TestSimulator(unittest.TestCase):
     next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(batch_size, num_particles, 2))
     velocity = np.zeros(shape=(batch_size, num_particles, 2))
+    poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.45
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
           position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
           velocity[b, i * 10 + j] = initial_velocity
-    input_state = sim.get_initial_state(position=position, velocity=velocity)
+    input_state = sim.get_initial_state(position=position, velocity=velocity,
+                                        poissons_ratio=poissons_ratio)
 
     for i in range(100):
       for j in range(10):
