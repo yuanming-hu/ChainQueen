@@ -14,10 +14,7 @@ class Simulation:
                gravity=(0, -9.8),
                dt=0.01,
                dx=1,
-               batch_size=1,
-               E=10):
-
-    self.E = E
+               batch_size=1):
     self.num_time_steps = num_time_steps
     self.num_particles = num_particles
     self.scale = 30
@@ -118,7 +115,8 @@ class Simulation:
   def initial_state_place_holder(self):
     return self.initial_state.to_tuples()
 
-  def get_initial_state(self, position, velocity=None):
+  def get_initial_state(self, position, velocity=None, particle_mass=None, particle_volume=None,
+                        youngs_modulus=None, poissons_ratio=None):
     if velocity is not None:
       initial_velocity = velocity
     else:
@@ -127,4 +125,17 @@ class Simulation:
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
     affine = identity_matrix * 0 + \
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
-    return (position, initial_velocity, deformation_gradient, affine)
+    batch_size = position.shape[0]
+    num_particles = position.shape[1]
+    
+    if particle_mass is None:
+      particle_mass = np.ones(shape=(batch_size, num_particles, 1))
+    if particle_volume is None:
+      particle_volume = np.ones(shape=(batch_size, num_particles, 1))
+    if youngs_modulus is None:
+      youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * 10
+    if poissons_ratio is None:
+      poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.3
+      
+    return (position, initial_velocity, deformation_gradient, affine, particle_mass,
+            particle_volume, youngs_modulus, poissons_ratio)

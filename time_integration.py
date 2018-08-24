@@ -5,8 +5,6 @@ from vector_math import *
 sticky = False
 linear = False
 dim = 2
-particle_mass = 1
-particle_volume = 1
 
 
 class SimulationState:
@@ -15,6 +13,10 @@ class SimulationState:
     self.sim = sim
     self.affine = tf.zeros(shape=(self.sim.batch_size, sim.num_particles, 2, 2))
     self.position = None
+    self.particle_mass = None
+    self.particle_volume = None
+    self.youngs_modulus = None
+    self.poissons_ratio = None
     self.velocity = None
     self.deformation_gradient = None
     self.controller_states = None
@@ -24,7 +26,8 @@ class SimulationState:
     self.debug = None
 
   def get_state_names(self):
-    return ['position', 'velocity', 'deformation_gradient', 'affine']
+    return ['position', 'velocity', 'deformation_gradient', 'affine',
+            'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio']
 
   def get_evaluated(self):
     # # batch, particle, dimension
@@ -45,6 +48,10 @@ class SimulationState:
         'grid_mass': self.grid_mass,
         'grid_velocity': self.grid_velocity,
         'kernels': self.kernels,
+        'particle_mass': self.particle_mass,
+        'particle_volume': self.particle_volume,
+        'youngs_modulus': self.youngs_modulus,
+        'poissons_ratio': self.poissons_ratio,
         'debug': self.debug
     }
     ret_filtered = {}
@@ -90,6 +97,14 @@ class InitialSimulationState(SimulationState):
         tf.float32, [self.sim.batch_size, num_particles, dim], name='velocity')
     self.deformation_gradient = tf.placeholder(
         tf.float32, [self.sim.batch_size, num_particles, dim, dim], name='dg')
+    self.particle_mass = tf.placeholder(
+      tf.float32, [self.sim.batch_size, num_particles, 1], name='particle_mass')
+    self.particle_volume = tf.placeholder(
+      tf.float32, [self.sim.batch_size, num_particles, 1], name='particle_volume')
+    self.youngs_modulus = tf.placeholder(
+      tf.float32, [self.sim.batch_size, num_particles, 1], name='youngs_modulus')
+    self.poissons_ratio = tf.placeholder(
+      tf.float32, [self.sim.batch_size, num_particles, 1], name='poissons_ratio')
     self.grid_mass = tf.zeros(
         shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
                1))
@@ -105,6 +120,10 @@ class UpdatedSimulationState(SimulationState):
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
+    self.particle_mass = previous_state.particle_mass
+    self.particle_volume = previous_state.particle_volume
+    self.youngs_modulus = previous_state.youngs_modulus
+    self.poissons_ratio = previous_state.poissons_ratio
 
     self.t = previous_state.t + self.sim.dt
     self.grid_velocity = tf.zeros(
@@ -135,8 +154,11 @@ class UpdatedSimulationState(SimulationState):
 
     nu = 0.3
     # Lame parameters
-    mu = self.sim.E / (2 * (1 + nu))
-    lam = self.sim.E * nu / ((1 + nu) * (1 - 2 * nu))
+    mu = self.youngs_modulus / (2 * (1 + self.poissons_ratio))
+    lam = self.youngs_modulus * self.poissons_ratio / ((1 + self.poissons_ratio)
+                                                       * (1 - 2 * self.poissons_ratio))
+    mu = mu[:, :, :, None]
+    lam = lam[:, :, :, None]
     if linear:
       self.stress_tensor1 = mu * (
           transpose(self.deformation_gradient) + self.deformation_gradient -
@@ -182,7 +204,7 @@ class UpdatedSimulationState(SimulationState):
         self.grid_mass = self.grid_mass + tf.scatter_nd(
             shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], 1),
             indices=base_indices + delta_indices,
-            updates=particle_mass * self.kernels[:, :, i, j])
+            updates=self.particle_mass * self.kernels[:, :, i, j])
 
         delta_node_position = np.array([i, j])[None, None, :]
         # xi - xp
@@ -190,9 +212,9 @@ class UpdatedSimulationState(SimulationState):
                   tf.cast(delta_node_position, tf.float32) -
                   previous_state.position * sim.inv_dx) * sim.dx
 
-        grid_velocity_contributions = particle_mass * self.kernels[:, :, i, j] * (
+        grid_velocity_contributions = self.particle_mass * self.kernels[:, :, i, j] * (
             self.velocity + matvecmul(previous_state.affine, offset))
-        grid_force_contributions = particle_volume * self.kernels[:, :, i, j] * (
+        grid_force_contributions = self.particle_volume * self.kernels[:, :, i, j] * (
             matvecmul(self.stress_tensor, offset) *
             (-4 * self.sim.dt * self.sim.inv_dx * self.sim.inv_dx))
         self.grid_velocity = self.grid_velocity + tf.scatter_nd(
