@@ -14,12 +14,10 @@ class Simulation:
                gravity=(0, -9.8),
                dt=0.01,
                dx=1,
-               batch_size=1,
-               E=10):
+               batch_size=1):
 
     if dx == 1:
       print("Warning: using dx=1")
-    self.E = E
     self.num_time_steps = num_time_steps
     self.num_particles = num_particles
     self.scale = 30
