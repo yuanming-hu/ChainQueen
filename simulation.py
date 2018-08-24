@@ -19,8 +19,6 @@ class Simulation:
     self.num_particles = num_particles
     self.scale = 30
     self.grid_res = grid_res
-
-    assert batch_size == 1
     self.batch_size = batch_size
     self.initial_state = InitialSimulationState(self)
     self.updated_states = []
@@ -125,7 +123,7 @@ class Simulation:
     if velocity is not None:
       initial_velocity = velocity
     else:
-      initial_velocity = np.zeros(shape=[1, self.num_particles, 2])
+      initial_velocity = np.zeros(shape=[self.batch_size, self.num_particles, 2])
     deformation_gradient = identity_matrix +\
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
     affine = identity_matrix * 0 + \

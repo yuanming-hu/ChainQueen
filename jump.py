@@ -86,8 +86,7 @@ def main(sess):
       num_particles=num_particles,
       num_time_steps=30,
       grid_res=(25, 25),
-      controller=controller,
-      E=E)
+      controller=controller, batch_size=2)
   print("Building time: {:.4f}s".format(time.time() - t))
   # os.system('cd outputs && rm *.png')
 

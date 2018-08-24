@@ -140,8 +140,6 @@ class UpdatedSimulationState(SimulationState):
     base_indices = tf.cast(
         tf.floor(previous_state.position * sim.inv_dx - 0.5), tf.int32)
     batch_size = self.sim.batch_size
-    assert batch_size == 1
-    # print('base indices', base_indices.shape)
     num_particles = sim.num_particles
     # TODO:
     # Add the batch size indices
@@ -204,8 +202,10 @@ class UpdatedSimulationState(SimulationState):
     # Quadratic B-spline kernel
     for i in range(3):
       for j in range(3):
-        assert batch_size == 1
-        delta_indices = np.array([0, i, j])[None, None, :]
+        delta_indices = np.zeros(shape=(self.sim.batch_size, 1, 3), dtype=np.int32)
+        for b in range(batch_size):
+          delta_indices[b, 0] = [b, i, j]
+        #delta_indices = np.array([0, i, j])[:, None, :]
         #print((base_indices + delta_indices).shape)
         self.grid_mass = self.grid_mass + tf.scatter_nd(
             shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], 1),
@@ -266,8 +266,9 @@ class UpdatedSimulationState(SimulationState):
     self.velocity *= 0
     for i in range(3):
       for j in range(3):
-        assert batch_size == 1
-        delta_indices = np.array([0, i, j])[None, None, :]
+        delta_indices = np.zeros(shape=(self.sim.batch_size, 1, 3), dtype=np.int32)
+        for b in range(batch_size):
+          delta_indices[b, 0] = [b, i, j]
         self.velocity = self.velocity + tf.gather_nd(
             params=self.grid_velocity,
             indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
