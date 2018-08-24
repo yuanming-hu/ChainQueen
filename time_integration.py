@@ -26,8 +26,10 @@ class SimulationState:
     self.debug = None
 
   def get_state_names(self):
-    return ['position', 'velocity', 'deformation_gradient', 'affine',
-            'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio']
+    return [
+        'position', 'velocity', 'deformation_gradient', 'affine',
+        'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio'
+    ]
 
   def get_evaluated(self):
     # # batch, particle, dimension
@@ -98,13 +100,17 @@ class InitialSimulationState(SimulationState):
     self.deformation_gradient = tf.placeholder(
         tf.float32, [self.sim.batch_size, num_particles, dim, dim], name='dg')
     self.particle_mass = tf.placeholder(
-      tf.float32, [self.sim.batch_size, num_particles, 1], name='particle_mass')
+        tf.float32, [self.sim.batch_size, num_particles, 1],
+        name='particle_mass')
     self.particle_volume = tf.placeholder(
-      tf.float32, [self.sim.batch_size, num_particles, 1], name='particle_volume')
+        tf.float32, [self.sim.batch_size, num_particles, 1],
+        name='particle_volume')
     self.youngs_modulus = tf.placeholder(
-      tf.float32, [self.sim.batch_size, num_particles, 1], name='youngs_modulus')
+        tf.float32, [self.sim.batch_size, num_particles, 1],
+        name='youngs_modulus')
     self.poissons_ratio = tf.placeholder(
-      tf.float32, [self.sim.batch_size, num_particles, 1], name='poissons_ratio')
+        tf.float32, [self.sim.batch_size, num_particles, 1],
+        name='poissons_ratio')
     self.grid_mass = tf.zeros(
         shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
                1))
@@ -155,8 +161,8 @@ class UpdatedSimulationState(SimulationState):
     nu = 0.3
     # Lame parameters
     mu = self.youngs_modulus / (2 * (1 + self.poissons_ratio))
-    lam = self.youngs_modulus * self.poissons_ratio / ((1 + self.poissons_ratio)
-                                                       * (1 - 2 * self.poissons_ratio))
+    lam = self.youngs_modulus * self.poissons_ratio / ((
+        1 + self.poissons_ratio) * (1 - 2 * self.poissons_ratio))
     mu = mu[:, :, :, None]
     lam = lam[:, :, :, None]
     if linear:

@@ -71,7 +71,7 @@ class TestSimulator(unittest.TestCase):
   def test_translation_x_batched(self):
     pass
     #self.motion_test(initial_velocity=(1, 0), batch_size=2)
-    
+
   def test_translation_y(self):
     self.motion_test(initial_velocity=(0, 1))
 
@@ -117,8 +117,8 @@ class TestSimulator(unittest.TestCase):
           position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
           velocity[b, i * 10 + j] = initial_velocity
-    input_state = sim.get_initial_state(position=position, velocity=velocity,
-                                        poissons_ratio=poissons_ratio)
+    input_state = sim.get_initial_state(
+        position=position, velocity=velocity, poissons_ratio=poissons_ratio)
 
     for i in range(100):
       for j in range(10):
@@ -151,7 +151,7 @@ class TestSimulator(unittest.TestCase):
         for j in range(10):
           position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
-          velocity[b, i * 10 + j] = (1 * (j - 4.5), -1*(i - 4.5))
+          velocity[b, i * 10 + j] = (1 * (j - 4.5), -1 * (i - 4.5))
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
     for i in range(100):
@@ -171,11 +171,11 @@ class TestSimulator(unittest.TestCase):
     dx = 0.03
     num_particles = 100
     sim = Simulation(
-      grid_res=(30, 30),
-      dx=dx,
-      num_particles=num_particles,
-      gravity=gravity,
-      dt=1e-3)
+        grid_res=(30, 30),
+        dx=dx,
+        num_particles=num_particles,
+        gravity=gravity,
+        dt=1e-3)
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(batch_size, num_particles, 2))
@@ -187,15 +187,16 @@ class TestSimulator(unittest.TestCase):
           position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
           velocity[b, i * 10 + j] = (0.5 * (i - 4.5), 0)
-    input_state = sim.get_initial_state(position=position, velocity=velocity, youngs_modulus=youngs_modulus)
+    input_state = sim.get_initial_state(
+        position=position, velocity=velocity, youngs_modulus=youngs_modulus)
 
     for i in range(100):
       for j in range(10):
         input_state = sess.run(
-          next_state.to_tuples(),
-          feed_dict={
-            sim.initial_state_place_holder(): input_state
-          })
+            next_state.to_tuples(),
+            feed_dict={
+                sim.initial_state_place_holder(): input_state
+            })
       img = sim.visualize_particles(input_state[0][0])
       cv2.imshow('img', img)
       cv2.waitKey(1)

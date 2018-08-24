@@ -115,8 +115,13 @@ class Simulation:
   def initial_state_place_holder(self):
     return self.initial_state.to_tuples()
 
-  def get_initial_state(self, position, velocity=None, particle_mass=None, particle_volume=None,
-                        youngs_modulus=None, poissons_ratio=None):
+  def get_initial_state(self,
+                        position,
+                        velocity=None,
+                        particle_mass=None,
+                        particle_volume=None,
+                        youngs_modulus=None,
+                        poissons_ratio=None):
     if velocity is not None:
       initial_velocity = velocity
     else:
@@ -127,7 +132,7 @@ class Simulation:
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
     batch_size = position.shape[0]
     num_particles = position.shape[1]
-    
+
     if particle_mass is None:
       particle_mass = np.ones(shape=(batch_size, num_particles, 1))
     if particle_volume is None:
@@ -136,6 +141,6 @@ class Simulation:
       youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * 10
     if poissons_ratio is None:
       poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.3
-      
-    return (position, initial_velocity, deformation_gradient, affine, particle_mass,
-            particle_volume, youngs_modulus, poissons_ratio)
+
+    return (position, initial_velocity, deformation_gradient, affine,
+            particle_mass, particle_volume, youngs_modulus, poissons_ratio)
