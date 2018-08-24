@@ -121,39 +121,47 @@ class Simulation:
   def run(self, initial, num_steps):
     cache = [initial]
     for i in range(num_steps):
-      cache.append(self.sess.run(self.updated_state.to_tuples(), feed_dict={
-        self.initial_state.to_tuples(): cache[-1]
-      }))
+      cache.append(
+          self.sess.run(
+              self.updated_state.to_tuples(),
+              feed_dict={
+                  self.initial_state.to_tuples(): cache[-1]
+              }))
     return cache
 
   def gradients(self, loss, cache, variables):
     # loss = L(state)
-    last_grad_sym = tf.gradients(loss(self.initial_state_place_holder()),
-                                 self.initial_state_place_holder())
-    last_grad = last_grad_sym.eval(feed_dict = {
-      self.initial_state_place_holder(): cache[-1]
+    last_grad_sym = tf.gradients(
+        loss(self.initial_state_place_holder()),
+        self.initial_state_place_holder())
+    last_grad = last_grad_sym.eval(feed_dict={
+        self.initial_state_place_holder(): cache[-1]
     })
     grad = 0
 
-    step_grad_variables = tf.gradients(ys=self.updatad_state.to_tuples(),
-                                       xs=variables,
-                                       grad_ys=self.grad_state)
+    step_grad_variables = tf.gradients(
+        ys=self.updatad_state.to_tuples(),
+        xs=variables,
+        grad_ys=self.grad_state)
 
-    step_grad_states = tf.gradients(ys=self.updatad_state.to_tuples(),
-                                    xs=self.initial_state.to_tuples(),
-                                    grad_ys=self.grad_state)
+    step_grad_states = tf.gradients(
+        ys=self.updatad_state.to_tuples(),
+        xs=self.initial_state.to_tuples(),
+        grad_ys=self.grad_state)
 
     for i in reversed(range(len(cache))):
       # last_grad:
-      grad += step_grad_variables.eval(feed_dict={
-        self.updatad_state.to_tuples(): cache[i],
-        self.grad_state.to_tuples(): last_grad
-      })
+      grad += step_grad_variables.eval(
+          feed_dict={
+              self.updatad_state.to_tuples(): cache[i],
+              self.grad_state.to_tuples(): last_grad
+          })
       if i != 0:
-        last_grad = step_grad_states.eval(feed_dict={
-          self.updatad_state.to_tuples(): cache[i],
-          self.grad_state.to_tuples(): last_grad
-        })
+        last_grad = step_grad_states.eval(
+            feed_dict={
+                self.updatad_state.to_tuples(): cache[i],
+                self.grad_state.to_tuples(): last_grad
+            })
 
     return grad
 
@@ -167,7 +175,8 @@ class Simulation:
     if velocity is not None:
       initial_velocity = velocity
     else:
-      initial_velocity = np.zeros(shape=[self.batch_size, self.num_particles, 2])
+      initial_velocity = np.zeros(
+          shape=[self.batch_size, self.num_particles, 2])
     deformation_gradient = identity_matrix +\
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
     affine = identity_matrix * 0 + \

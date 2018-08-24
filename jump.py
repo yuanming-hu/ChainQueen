@@ -86,7 +86,8 @@ def main(sess):
       num_particles=num_particles,
       num_time_steps=30,
       grid_res=(25, 25),
-      controller=controller, batch_size=2)
+      controller=controller,
+      batch_size=2)
   print("Building time: {:.4f}s".format(time.time() - t))
   # os.system('cd outputs && rm *.png')
 
@@ -114,7 +115,8 @@ def main(sess):
               ) * scale + 0.2
           v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
               ) * scale + 0.1
-          initial_positions[b].append([sim.grid_res[0] * u, sim.grid_res[1] * v])
+          initial_positions[b].append(
+              [sim.grid_res[0] * u, sim.grid_res[1] * v])
   assert len(initial_positions[0]) == num_particles
 
   counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)

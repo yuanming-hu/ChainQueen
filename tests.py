@@ -27,7 +27,10 @@ class TestSimulator(unittest.TestCase):
     num_particles = 100
     sim = Simulation(
         sess=sess,
-        grid_res=(30, 30), dx=dx, num_particles=num_particles, gravity=gravity,
+        grid_res=(30, 30),
+        dx=dx,
+        num_particles=num_particles,
+        gravity=gravity,
         batch_size=batch_size)
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
@@ -106,7 +109,9 @@ class TestSimulator(unittest.TestCase):
         dx=dx,
         num_particles=num_particles,
         gravity=gravity,
-        dt=1e-3, batch_size=batch_size, sess=sess)
+        dt=1e-3,
+        batch_size=batch_size,
+        sess=sess)
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(batch_size, num_particles, 2))
@@ -140,7 +145,8 @@ class TestSimulator(unittest.TestCase):
         dx=dx,
         num_particles=num_particles,
         gravity=gravity,
-        dt=1e-3, sess=sess)
+        dt=1e-3,
+        sess=sess)
     position = np.zeros(shape=(batch_size, num_particles, 2))
     velocity = np.zeros(shape=(batch_size, num_particles, 2))
     for b in range(batch_size):
@@ -165,7 +171,8 @@ class TestSimulator(unittest.TestCase):
         dx=dx,
         num_particles=num_particles,
         gravity=gravity,
-        dt=1e-3, sess=sess)
+        dt=1e-3,
+        sess=sess)
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(batch_size, num_particles, 2))

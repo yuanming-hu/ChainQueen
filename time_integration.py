@@ -202,7 +202,8 @@ class UpdatedSimulationState(SimulationState):
     # Quadratic B-spline kernel
     for i in range(3):
       for j in range(3):
-        delta_indices = np.zeros(shape=(self.sim.batch_size, 1, 3), dtype=np.int32)
+        delta_indices = np.zeros(
+            shape=(self.sim.batch_size, 1, 3), dtype=np.int32)
         for b in range(batch_size):
           delta_indices[b, 0] = [b, i, j]
         #delta_indices = np.array([0, i, j])[:, None, :]
@@ -252,8 +253,9 @@ class UpdatedSimulationState(SimulationState):
       friction = 0.5
 
       # X component
-      projected_bottom = tf.sign(self.grid_velocity) * \
-                         tf.maximum(tf.abs(self.grid_velocity) + friction * tf.minimum(0.0, self.grid_velocity[:, :, :, 1, None]), 0.0)
+      projected_bottom = tf.sign(self.grid_velocity) * tf.maximum(
+          tf.abs(self.grid_velocity) +
+          friction * tf.minimum(0.0, self.grid_velocity[:, :, :, 1, None]), 0.0)
       self.grid_velocity = self.grid_velocity * (1 - mask) + (
           mask_x * projected_bottom) + mask_y * tf.maximum(
               self.grid_velocity, 0.0)
@@ -266,7 +268,8 @@ class UpdatedSimulationState(SimulationState):
     self.velocity *= 0
     for i in range(3):
       for j in range(3):
-        delta_indices = np.zeros(shape=(self.sim.batch_size, 1, 3), dtype=np.int32)
+        delta_indices = np.zeros(
+            shape=(self.sim.batch_size, 1, 3), dtype=np.int32)
         for b in range(batch_size):
           delta_indices[b, 0] = [b, i, j]
         self.velocity = self.velocity + tf.gather_nd(
