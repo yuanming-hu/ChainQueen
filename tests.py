@@ -1,9 +1,8 @@
 import unittest
 from simulation import Simulation
-from time_integration import SimulationState, InitialSimulationState, UpdatedSimulationState
+from time_integration import UpdatedSimulationState
 import tensorflow as tf
 import numpy as np
-import cv2
 
 sess = tf.Session()
 
@@ -112,8 +111,6 @@ class TestSimulator(unittest.TestCase):
         dt=1e-3,
         batch_size=batch_size,
         sess=sess)
-    initial = sim.initial_state
-    next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(batch_size, num_particles, 2))
     velocity = np.zeros(shape=(batch_size, num_particles, 2))
     poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.45
@@ -126,14 +123,9 @@ class TestSimulator(unittest.TestCase):
     input_state = sim.get_initial_state(
         position=position, velocity=velocity, poissons_ratio=poissons_ratio)
 
+    frames = sim.run(input_state, 1000)
     for i in range(100):
-      for j in range(10):
-        input_state = sess.run(
-            next_state.to_tuples(),
-            feed_dict={
-                sim.initial_state_place_holder(): input_state
-            })
-      sim.visualize_particles(input_state[0][1])
+      sim.visualize_particles(frames[i * 10][0][1])
 
   def test_rotating_cube(self):
     gravity = (0, 0)
@@ -173,8 +165,6 @@ class TestSimulator(unittest.TestCase):
         gravity=gravity,
         dt=1e-3,
         sess=sess)
-    initial = sim.initial_state
-    next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(batch_size, num_particles, 2))
     velocity = np.zeros(shape=(batch_size, num_particles, 2))
     youngs_modulus = np.zeros(shape=(batch_size, num_particles, 1))
@@ -187,14 +177,9 @@ class TestSimulator(unittest.TestCase):
     input_state = sim.get_initial_state(
         position=position, velocity=velocity, youngs_modulus=youngs_modulus)
 
+    frames = sim.run(input_state, 100)
     for i in range(100):
-      for j in range(10):
-        input_state = sess.run(
-            next_state.to_tuples(),
-            feed_dict={
-                sim.initial_state_place_holder(): input_state
-            })
-      sim.visualize_particles(input_state[0][0])
+      sim.visualize_particles(frames[i][0][0])
 
 
 if __name__ == '__main__':
