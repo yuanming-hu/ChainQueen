@@ -17,8 +17,6 @@ class Simulation:
                batch_size=1,
                E=10):
 
-    if dx == 1:
-      print("Warning: using dx=1")
     self.E = E
     self.num_time_steps = num_time_steps
     self.num_particles = num_particles
