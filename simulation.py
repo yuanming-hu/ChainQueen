@@ -7,6 +7,7 @@ from time_integration import InitialSimulationState, UpdatedSimulationState
 class Simulation:
 
   def __init__(self,
+               sess,
                grid_res,
                num_particles,
                num_time_steps=None,
@@ -15,17 +16,20 @@ class Simulation:
                dt=0.01,
                dx=1,
                batch_size=1):
+    self.sess = sess
     self.num_time_steps = num_time_steps
     self.num_particles = num_particles
     self.scale = 30
     self.grid_res = grid_res
     self.batch_size = batch_size
     self.initial_state = InitialSimulationState(self)
+    self.grad_state = InitialSimulationState(self)
     self.updated_states = []
     self.gravity = gravity
     self.dt = dt
     self.dx = dx
     self.inv_dx = 1.0 / dx
+    self.updated_state = UpdatedSimulationState(self, self.initial_state)
 
     # Boundary condition
     previous_state = self.initial_state
@@ -57,7 +61,8 @@ class Simulation:
 
     img = img.swapaxes(0, 1)[::-1, :, ::-1]
 
-    return img
+    cv2.imshow('Differentiable MPM Simulator', img)
+    cv2.waitKey(1)
 
   def visualize(self, i, r):
     import math
@@ -112,6 +117,45 @@ class Simulation:
 
   def initial_state_place_holder(self):
     return self.initial_state.to_tuples()
+
+  def run(self, initial, num_steps):
+    cache = [initial]
+    for i in range(num_steps):
+      cache.append(self.sess.run(self.updated_state.to_tuples(), feed_dict={
+        self.initial_state.to_tuples(): cache[-1]
+      }))
+    return cache
+
+  def gradients(self, loss, cache, variables):
+    # loss = L(state)
+    last_grad_sym = tf.gradients(loss(self.initial_state_place_holder()),
+                                 self.initial_state_place_holder())
+    last_grad = last_grad_sym.eval(feed_dict = {
+      self.initial_state_place_holder(): cache[-1]
+    })
+    grad = 0
+
+    step_grad_variables = tf.gradients(ys=self.updatad_state.to_tuples(),
+                                       xs=variables,
+                                       grad_ys=self.grad_state)
+
+    step_grad_states = tf.gradients(ys=self.updatad_state.to_tuples(),
+                                    xs=self.initial_state.to_tuples(),
+                                    grad_ys=self.grad_state)
+
+    for i in reversed(range(len(cache))):
+      # last_grad:
+      grad += step_grad_variables.eval(feed_dict={
+        self.updatad_state.to_tuples(): cache[i],
+        self.grad_state.to_tuples(): last_grad
+      })
+      if i != 0:
+        last_grad = step_grad_states.eval(feed_dict={
+          self.updatad_state.to_tuples(): cache[i],
+          self.grad_state.to_tuples(): last_grad
+        })
+
+    return grad
 
   def get_initial_state(self,
                         position,

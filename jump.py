@@ -49,8 +49,8 @@ b1 = tf.Variable([[0.1] * len(actuations)], trainable=True)
 def main(sess):
   t = time.time()
 
-  goal = tf.placeholder(tf.float32, [1, 1, 2], name='goal')
-  E = 4500
+  batch_size = 1
+  goal = tf.placeholder(tf.float32, [batch_size, 1, 2], name='goal')
 
   # Define your controller here
   def controller(previous_state):
@@ -76,7 +76,7 @@ def main(sess):
       mask = particle_mask_from_group(group)
       act = act * mask
       # First PK stress here
-      act = E * make_matrix2d(zeros, zeros, zeros, act)
+      act = 4500 * make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
       total_actuation = total_actuation + matmatmul(
           act, transpose(previous_state['deformation_gradient']))
@@ -100,20 +100,21 @@ def main(sess):
   loss = (final_position[0] - sim.grid_res[0] * goal[0, 0, 0])**2 + (
       final_position[1] - sim.grid_res[1] * goal[0, 0, 1])**2
 
-  initial_velocity = np.zeros(shape=[1, num_particles, 2])
+  initial_velocity = np.zeros(shape=[batch_size, num_particles, 2])
   results = [s.get_evaluated() for s in sim.states]
 
   initial_positions = [[]]
 
-  for i, offset in enumerate(group_offsets):
-    for x in range(sample_density):
-      for y in range(sample_density):
-        scale = 0.2
-        u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]
-            ) * scale + 0.2
-        v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
-            ) * scale + 0.1
-        initial_positions[0].append([sim.grid_res[0] * u, sim.grid_res[1] * v])
+  for b in range(batch_size):
+    for i, offset in enumerate(group_offsets):
+      for x in range(sample_density):
+        for y in range(sample_density):
+          scale = 0.2
+          u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]
+              ) * scale + 0.2
+          v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
+              ) * scale + 0.1
+          initial_positions[b].append([sim.grid_res[0] * u, sim.grid_res[1] * v])
   assert len(initial_positions[0]) == num_particles
 
   counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)

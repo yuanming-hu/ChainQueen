@@ -26,6 +26,7 @@ class TestSimulator(unittest.TestCase):
     # Zero gravity, 1-batched, translating block
     num_particles = 100
     sim = Simulation(
+        sess=sess,
         grid_res=(30, 30), dx=dx, num_particles=num_particles, gravity=gravity,
         batch_size=batch_size)
     initial = sim.initial_state
@@ -105,7 +106,7 @@ class TestSimulator(unittest.TestCase):
         dx=dx,
         num_particles=num_particles,
         gravity=gravity,
-        dt=1e-3, batch_size=batch_size)
+        dt=1e-3, batch_size=batch_size, sess=sess)
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(batch_size, num_particles, 2))
@@ -127,9 +128,7 @@ class TestSimulator(unittest.TestCase):
             feed_dict={
                 sim.initial_state_place_holder(): input_state
             })
-      img = sim.visualize_particles(input_state[0][1])
-      cv2.imshow('img', img)
-      cv2.waitKey(1)
+      sim.visualize_particles(input_state[0][1])
 
   def test_rotating_cube(self):
     gravity = (0, 0)
@@ -141,9 +140,7 @@ class TestSimulator(unittest.TestCase):
         dx=dx,
         num_particles=num_particles,
         gravity=gravity,
-        dt=1e-3)
-    initial = sim.initial_state
-    next_state = UpdatedSimulationState(sim, initial)
+        dt=1e-3, sess=sess)
     position = np.zeros(shape=(batch_size, num_particles, 2))
     velocity = np.zeros(shape=(batch_size, num_particles, 2))
     for b in range(batch_size):
@@ -154,16 +151,9 @@ class TestSimulator(unittest.TestCase):
           velocity[b, i * 10 + j] = (1 * (j - 4.5), -1 * (i - 4.5))
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
+    frames = sim.run(input_state, 100)
     for i in range(100):
-      for j in range(10):
-        input_state = sess.run(
-            next_state.to_tuples(),
-            feed_dict={
-                sim.initial_state_place_holder(): input_state
-            })
-      img = sim.visualize_particles(input_state[0][0])
-      cv2.imshow('img', img)
-      cv2.waitKey(1)
+      sim.visualize_particles(frames[i][0][0])
 
   def test_dilating_cube(self):
     gravity = (0, 0)
@@ -175,7 +165,7 @@ class TestSimulator(unittest.TestCase):
         dx=dx,
         num_particles=num_particles,
         gravity=gravity,
-        dt=1e-3)
+        dt=1e-3, sess=sess)
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
     position = np.zeros(shape=(batch_size, num_particles, 2))
@@ -197,9 +187,7 @@ class TestSimulator(unittest.TestCase):
             feed_dict={
                 sim.initial_state_place_holder(): input_state
             })
-      img = sim.visualize_particles(input_state[0][0])
-      cv2.imshow('img', img)
-      cv2.waitKey(1)
+      sim.visualize_particles(input_state[0][0])
 
 
 if __name__ == '__main__':
