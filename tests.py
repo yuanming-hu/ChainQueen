@@ -99,7 +99,6 @@ class TestSimulator(unittest.TestCase):
 
   def test_bouncing_cube(self):
     gravity = (0, -10)
-    initial_velocity = (0, 0)
     batch_size = 2
     dx = 0.03
     num_particles = 100
@@ -112,18 +111,20 @@ class TestSimulator(unittest.TestCase):
         batch_size=batch_size,
         sess=sess)
     position = np.zeros(shape=(batch_size, num_particles, 2))
-    velocity = np.zeros(shape=(batch_size, num_particles, 2))
     poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.45
+    initial_velocity = tf.placeholder(shape=(2,), dtype=tf.float32)
+    velocity = tf.broadcast_to(initial_velocity[None, None, :], shape=(batch_size, num_particles, 2))
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
           position[b, i * 10 + j] = (((i + b * 3) * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
-          velocity[b, i * 10 + j] = initial_velocity
     input_state = sim.get_initial_state(
         position=position, velocity=velocity, poissons_ratio=poissons_ratio)
 
-    frames = sim.run(input_state, 1000)
+    frames = sim.run(input_state, 1000, initial_feed_dict={
+      initial_velocity: [1, 0]
+    })
     for i in range(100):
       sim.visualize_particles(frames[i * 10][0][1])
 
@@ -180,6 +181,9 @@ class TestSimulator(unittest.TestCase):
     frames = sim.run(input_state, 100)
     for i in range(100):
       sim.visualize_particles(frames[i][0][0])
+      
+  def test_sess(self):
+    print(sess.run(1))
 
   def test_gradient(self):
     return

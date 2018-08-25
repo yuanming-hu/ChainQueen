@@ -118,8 +118,14 @@ class Simulation:
   def initial_state_place_holder(self):
     return self.initial_state.to_tuples()
 
-  def run(self, initial, num_steps, extra={}):
-    cache = [initial]
+  def run(self, initial, num_steps, initial_feed_dict={}):
+    initial_evaluated = []
+    for t in initial:
+      if isinstance(t, tf.Tensor):
+        initial_evaluated.append(self.sess.run(t, initial_feed_dict))
+      else:
+        initial_evaluated.append(t)
+    cache = [initial_evaluated]
     for i in range(num_steps):
       feed_dict = {
         self.initial_state.to_tuples(): cache[-1]
