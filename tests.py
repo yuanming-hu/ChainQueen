@@ -185,8 +185,7 @@ class TestSimulator(unittest.TestCase):
   def test_sess(self):
     print(sess.run(1))
 
-  def test_gradient(self):
-    return
+  def test_initial_gradient(self):
     gravity = (0, 0)
     batch_size = 1
     dx = 0.03
@@ -210,9 +209,12 @@ class TestSimulator(unittest.TestCase):
     input_state = sim.get_initial_state(
       position=position, velocity=velocity, youngs_modulus=youngs_modulus)
 
-    frames = sim.run(input_state, 100, extra={velocity_ph: [3, 2]})
-    for i in range(100):
-      sim.visualize_particles(frames[i][0][0])
+    loss = tf.reduce_mean(sim.initial_state.center_of_mass()[:, 0])
+    frames = sim.run(input_state, 10, initial_feed_dict={velocity_ph: [3, 2]})
+    grad = sim.gradients(loss, frames, [velocity_ph])
+    print(grad)
+    #for i in range(100):
+    #  sim.visualize_particles(frames[i][0][0])
 
 
 if __name__ == '__main__':
