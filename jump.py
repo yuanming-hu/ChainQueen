@@ -87,7 +87,8 @@ def main(sess):
       num_time_steps=30,
       grid_res=(25, 25),
       controller=controller,
-      batch_size=2)
+      batch_size=batch_size,
+      sess=sess)
   print("Building time: {:.4f}s".format(time.time() - t))
   # os.system('cd outputs && rm *.png')
 
@@ -135,13 +136,7 @@ def main(sess):
   for i in range(1000000):
     goal_input = [0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]
     feed_dict = {
-        sim.initial_state.velocity:
-            initial_velocity,
-        sim.initial_state.position:
-            initial_positions,
-        sim.initial_state.deformation_gradient:
-            identity_matrix +
-            np.zeros(shape=(sim.batch_size, num_particles, 1, 1)),
+        sim.initial_state.to_tuples(): sim.get_initial_state(position=np.array(initial_positions)),
         goal: [[goal_input]]
     }
     pos, l, _, evaluated = sess.run(

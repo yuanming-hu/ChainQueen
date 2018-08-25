@@ -183,8 +183,8 @@ class Simulation:
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
     affine = identity_matrix * 0 + \
                            np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
-    batch_size = position.shape[0]
-    num_particles = position.shape[1]
+    batch_size = self.batch_size
+    num_particles = len(position[0])
 
     if particle_mass is None:
       particle_mass = np.ones(shape=(batch_size, num_particles, 1))
