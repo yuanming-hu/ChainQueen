@@ -118,15 +118,26 @@ class Simulation:
   def initial_state_place_holder(self):
     return self.initial_state.to_tuples()
 
-  def run(self, initial, num_steps):
+  def run(self, initial, num_steps, extra={}):
+    initial_ph, initial_ = [], []
+    for k, v in zip(self.initial_state.to_tuples(), initial):
+      if not isinstance(v, tf.Tensor):
+        initial_ph.append(k)
+        initial_.append(v)
+
     cache = [initial]
+    feed_dict = {
+      tuple(initial_ph): initial_,
+      self.initial_state.to_tuples(): cache[-1]
+    }
+
+    for k in extra:
+      feed_dict[k] = extra[k]
     for i in range(num_steps):
       cache.append(
           self.sess.run(
               self.updated_state.to_tuples(),
-              feed_dict={
-                  self.initial_state.to_tuples(): cache[-1]
-              }))
+              feed_dict=feed_dict))
     return cache
 
   def gradients(self, loss, cache, variables):

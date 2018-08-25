@@ -181,6 +181,34 @@ class TestSimulator(unittest.TestCase):
     for i in range(100):
       sim.visualize_particles(frames[i][0][0])
 
+  def test_gradient(self):
+    gravity = (0, 0)
+    batch_size = 1
+    dx = 0.03
+    num_particles = 100
+    sim = Simulation(
+      grid_res=(30, 30),
+      dx=dx,
+      num_particles=num_particles,
+      gravity=gravity,
+      dt=1e-3,
+      sess=sess)
+    position = np.zeros(shape=(batch_size, num_particles, 2))
+    youngs_modulus = np.zeros(shape=(batch_size, num_particles, 1))
+    velocity_ph = tf.placeholder(shape=(2,), dtype=tf.float32)
+    velocity = tf.broadcast_to(velocity_ph[None, None, :], [batch_size, num_particles, 2])
+    for b in range(batch_size):
+      for i in range(10):
+        for j in range(10):
+          position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
+                                     (j * 0.5 + 12.75) * dx)
+    input_state = sim.get_initial_state(
+      position=position, velocity=velocity, youngs_modulus=youngs_modulus)
+
+    frames = sim.run(input_state, 100, extra={velocity_ph: [3, 2]})
+    for i in range(100):
+      sim.visualize_particles(frames[i][0][0])
+
 
 if __name__ == '__main__':
   unittest.main()
