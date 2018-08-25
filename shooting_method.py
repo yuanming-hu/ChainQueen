@@ -13,6 +13,7 @@ lr = 1e-3
 sample_density = 20
 group_num_particles = sample_density**2
 import IPython
+num_timesteps = 30
 
 if True:
   # Robot A
@@ -41,11 +42,13 @@ def particle_mask_from_group(g):
 
 
 # NN weights
-W1 = tf.Variable(
-    0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))),
-    trainable=True)
-b1 = tf.Variable([[0.1] * len(actuations)], trainable=True)
-
+#W1 = tf.Variable(
+#    0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))),
+#    trainable=True)
+#b1 = tf.Variable([[0.1] * len(actuations)], trainable=True)
+all_actuations = []
+for i in range(num_timesteps):
+    all_actuations.append(tf.Variable(0.2 * tf.random_normal(shape=(len(actuations),)), trainable=True))
 
 def main(sess):
   t = time.time()
@@ -66,9 +69,16 @@ def main(sess):
       controller_inputs.append(vel)
       controller_inputs.append(goal)
     controller_inputs = tf.concat(controller_inputs, axis=2)
-    intermediate = tf.matmul(W1, controller_inputs[0, 0, :, None])
-    actuation = tf.tanh(intermediate[:, 0] + b1) * actuation_strength
-    actuation = actuation[0]
+    #intermediate = tf.matmul(W1, controller_inputs[0, 0, :, None])
+    #actuation = tf.tanh(intermediate[:, 0] + b1) * actuation_strength
+    #actuation = actuation[0]
+    
+    
+    time_idx = int(previous_state.t // 0.01)
+    
+    actuation = all_actuations[time_idx]
+    
+
     debug = {'controller_inputs': controller_inputs, 'actuation': actuation}
     total_actuation = 0
     zeros = tf.zeros(shape=(1, num_particles))
@@ -94,7 +104,7 @@ def main(sess):
   # os.system('cd outputs && rm *.png')
 
   t = time.time()
-
+  #IPython.embed()
   final_state = sim.states[-1]['debug']['controller_inputs'][0, 0]
   final_position = [
       final_state[num_groups // 2 * 6], final_state[num_groups // 2 * 6 + 1]
@@ -124,14 +134,19 @@ def main(sess):
   counter = tf.Variable(trainable=False, initial_value=0, dtype=tf.int32)
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
-  opt = ly.optimize_loss(
-      loss=loss,
-      learning_rate=lr,
-      optimizer=partial(tf.train.AdamOptimizer, beta1=0.5, beta2=0.9),
-      variables=trainables,
-      global_step=counter)
+  optimizer = tf.contrib.opt.ScipyOptimizerInterface(loss, method='BFGS')
+  #opt = ly.optimize_loss(
+  #    loss=loss,
+  #    learning_rate=lr,
+  #    #optimizer=partial(tf.train.AdamOptimizer, beta1=0.5, beta2=0.9),
+  #    optimizer = tf.contrib.opt.ScipyOptimizerInterface(loss, method='BFGS'),
+  #    variables=trainables,
+  #    global_step=counter)
 
   sess.run(tf.global_variables_initializer())
+  with tf.Session() as session:
+    optimizer.minimize(session)
+  IPython.embed()
 
   # Optimization loop
   for i in range(1000000):
