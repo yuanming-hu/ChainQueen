@@ -20,9 +20,20 @@ class Simulation:
     self.num_particles = num_particles
     self.scale = 30
     self.grid_res = grid_res
+    self.dim = len(self.grid_res)
     if dx is None:
       dx = 1.0 / grid_res[0]
     self.batch_size = batch_size
+    
+    self.bc_parameter = np.zeros(shape=(1, ) + self.grid_res + (1,), dtype=np.float32)
+    self.bc_parameter += 0.5 # Coefficient of friction
+    self.bc_normal = np.zeros(shape=(1, ) + self.grid_res + (self.dim,), dtype=np.float32)
+    boundary_thickness = 3
+    self.bc_normal[:, :boundary_thickness] = (1, 0)
+    self.bc_normal[:, self.grid_res[0] - boundary_thickness - 1:] = (-1, 0)
+    self.bc_normal[:, :, :boundary_thickness] = (0, 1)
+    self.bc_normal[:, :, self.grid_res[1] - boundary_thickness - 1:] = (0, -1)
+
     self.initial_state = InitialSimulationState(self, controller)
     self.grad_state = InitialSimulationState(self, controller)
     self.updated_states = []
@@ -32,7 +43,7 @@ class Simulation:
     self.inv_dx = 1.0 / dx
     self.updated_state = UpdatedSimulationState(self, self.initial_state)
     self.controller = controller
-
+    
   def visualize_particles(self, pos):
     import math
     import cv2
@@ -52,57 +63,6 @@ class Simulation:
 
     cv2.imshow('Differentiable MPM Simulator', img)
     cv2.waitKey(1)
-
-  def visualize(self, i, r):
-    import math
-    import cv2
-    import numpy as np
-    pos = r['position'][0]
-    # mass = r['mass'][0]
-    # grid = r['grid'][0][:, :, 1:2]
-    # J = determinant(r['deformation_gradient'])[0]
-    #5 print(grid.min(), grid.max())
-    # grid = grid / (1e-5 + np.abs(grid).max()) * 4 + 0.5
-    # grid = np.clip(grid, 0, 1)
-    # kernel_sum = np.sum(r['kernels'][0], axis=(1, 2))
-    # if 0 < i < 3:
-    #   np.testing.assert_array_almost_equal(kernel_sum, 1, decimal=3)
-    #   np.testing.assert_array_almost_equal(
-    #       mass.sum(), num_particles, decimal=3)
-
-    scale = self.scale
-
-    # Pure-white background
-    img = np.ones(
-        (scale * self.grid_res[0], scale * self.grid_res[1], 3), dtype=np.float)
-
-    for i in range(len(pos)):
-      p = pos[i]
-      x, y = tuple(map(lambda x: math.ceil(x * scale), p))
-      #if 0 <= x < img.shape[0] and 0 <= y < img.shape[1]:
-      #  img[x, y] = (0, 0, 1)
-      cv2.circle(
-          img,
-          (y, x),
-          radius=1,
-          #color=(1, 1, float(J[i])),
-          color=(0.2, 0.2, 0.2),
-          thickness=-1)
-
-    cv2.line(
-        img, (int(self.grid_res[0] * scale * 0.101), 0),
-        (int(self.grid_res[0] * scale * 0.101), self.grid_res[1] * scale),
-        color=(0, 0, 0))
-
-    #mass = mass.swapaxes(0, 1)[::-1, :, ::-1]
-    #grid = grid.swapaxes(0, 1)[::-1, :, ::-1]
-    #grid = np.concatenate([grid, grid[:, :, 0:1] * 0], axis=2)
-    # mass = cv2.resize(
-    #     mass, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
-    # grid = cv2.resize(
-    #     grid, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
-
-    return img
 
   def initial_state_place_holder(self):
     return self.initial_state.to_tuple()

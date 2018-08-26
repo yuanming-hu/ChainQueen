@@ -68,6 +68,8 @@ def main(sess):
     controller_inputs = tf.concat(controller_inputs, axis=2)
     intermediate = tf.matmul(W1, controller_inputs[0, 0, :, None])
     actuation = tf.tanh(intermediate[:, 0] + b1) * actuation_strength
+    assert batch_size
+    # TODO: here seems to work only for batch_size = 1
     actuation = actuation[0]
     debug = {'controller_inputs': controller_inputs, 'actuation': actuation}
     total_actuation = 0

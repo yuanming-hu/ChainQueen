@@ -244,32 +244,38 @@ class UpdatedSimulationState(SimulationState):
     self.grid_velocity = self.grid_velocity / tf.maximum(1e-30, self.grid_mass)
 
     # Boundary conditions
-    if sticky:
-      self.grid_velocity = self.grid_velocity * self.sim.bc
-    else:
-      # TODO: use sim.bc
-      mask = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
-      mask_x = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
-      mask_y = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
+    ''''
+    mask = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
+    mask_x = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
+    mask_y = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
 
-      # bottom
-      mask[:, :, :3, :] = 1
-      mask_x[:, :, :3, 0] = 1
-      mask_y[:, :, :3, 1] = 1
+    # bottom
+    mask[:, :, :3, :] = 1
+    mask_x[:, :, :3, 0] = 1
+    mask_y[:, :, :3, 1] = 1
 
-      friction = 0.5
+    friction = 0.5
 
-      # X component
-      projected_bottom = tf.sign(self.grid_velocity) * tf.maximum(
-          tf.abs(self.grid_velocity) +
-          friction * tf.minimum(0.0, self.grid_velocity[:, :, :, 1, None]), 0.0)
-      self.grid_velocity = self.grid_velocity * (1 - mask) + (
-          mask_x * projected_bottom) + mask_y * tf.maximum(
-              self.grid_velocity, 0.0)
+    # X component
+    projected_bottom = tf.sign(self.grid_velocity) * tf.maximum(
+        tf.abs(self.grid_velocity) +
+        friction * tf.minimum(0.0, self.grid_velocity[:, :, :, 1, None]), 0.0)
+    self.grid_velocity = self.grid_velocity * (1 - mask) + (
+        mask_x * projected_bottom) + mask_y * tf.maximum(
+            self.grid_velocity, 0.0)
 
-      mask = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
-      mask[:, 3:self.sim.grid_res[0] - 3, :self.sim.grid_res[1] - 3] = 1
-      self.grid_velocity = self.grid_velocity * mask
+    mask = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
+    mask[:, 3:self.sim.grid_res[0] - 3, :self.sim.grid_res[1] - 3] = 1
+    self.grid_velocity = self.grid_velocity * mask
+    '''
+    normal_component_length = tf.reduce_sum(self.grid_velocity * self.sim.bc_normal, axis=3, keepdims=True)
+    perpendicular_component = self.grid_velocity - self.sim.bc_normal * normal_component_length
+    perpendicular_component_length = tf.norm(perpendicular_component, axis=3, keepdims=True)
+    normalized_perpendicular_component = perpendicular_component / tf.maximum(perpendicular_component_length, 1e-10)
+    perpendicular_component_length = tf.sign(perpendicular_component_length) * \
+                                     tf.maximum(tf.abs(perpendicular_component_length) +
+                                                tf.minimum(normal_component_length, 0) * self.sim.bc_parameter, 0)
+    self.grid_velocity = normal_component_length * self.sim.bc_normal + perpendicular_component_length * normalized_perpendicular_component
 
     # Resample velocity and local affine velocity field
     self.velocity *= 0
