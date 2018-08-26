@@ -2,6 +2,7 @@ import tensorflow as tf
 from vector_math import *
 import numpy as np
 from time_integration import InitialSimulationState, UpdatedSimulationState
+from memo import Memo
 
 
 class Simulation:
@@ -118,24 +119,29 @@ class Simulation:
   def initial_state_place_holder(self):
     return self.initial_state.to_tuples()
 
-  def run(self, initial, num_steps, initial_feed_dict={}):
+  def run(self, initial, num_steps, initial_feed_dict={}, iteration_feed_dict={}):
+    memo = Memo()
+    memo.initial_feed_dict = initial_feed_dict
+    memo.iteration_feed_dict = iteration_feed_dict
+    
     initial_evaluated = []
     for t in initial:
       if isinstance(t, tf.Tensor):
         initial_evaluated.append(self.sess.run(t, initial_feed_dict))
       else:
         initial_evaluated.append(t)
-    cache = [initial_evaluated]
+        
+    memo.steps = [initial_evaluated]
     for i in range(num_steps):
       feed_dict = {
-        self.initial_state.to_tuples(): cache[-1]
+        self.initial_state.to_tuples(): memo.steps[-1]
       }
 
-      cache.append(
+      memo.steps.append(
           self.sess.run(
               self.updated_state.to_tuples(),
               feed_dict=feed_dict))
-    return cache
+    return memo
   
   @staticmethod
   def replace_none_with_zero(grads, data):
@@ -148,14 +154,14 @@ class Simulation:
     return ret
     
 
-  def gradients(self, loss, cache, variables):
+  def gradients(self, loss, memo, variables):
     # loss = L(state)
     
     last_grad_sym = tf.gradients(
         ys=loss,
         xs=self.initial_state.to_tuples())
 
-    last_grad_sym_valid = self.replace_none_with_zero(last_grad_sym, cache[-1])
+    last_grad_sym_valid = self.replace_none_with_zero(last_grad_sym, memo.steps[-1])
     
     last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict={
         self.initial_state.to_tuples(): cache[-1]
@@ -174,18 +180,18 @@ class Simulation:
         xs=self.initial_state.to_tuples(),
         grad_ys=self.grad_state.to_tuples())
 
-    for i in reversed(range(len(cache))):
+    for i in reversed(range(len(memo.steps))):
       # last_grad:
       if any(step_grad_variables):
         grad += self.sess.run(step_grad_variables,
             feed_dict={
-                self.updated_state.to_tuples(): cache[i],
+                self.updated_state.to_tuples(): memo.steps[i],
                 self.grad_state.to_tuples(): last_grad_valid
             })
       if i != 0:
         last_grad_valid = self.sess.run(step_grad_states,
             feed_dict={
-                self.updated_state.to_tuples(): cache[i],
+                self.updated_state.to_tuples(): memo.steps[i],
                 self.grad_state.to_tuples(): last_grad_valid
             })
     

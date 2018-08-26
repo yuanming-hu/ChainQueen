@@ -150,9 +150,9 @@ class TestSimulator(unittest.TestCase):
           velocity[b, i * 10 + j] = (1 * (j - 4.5), -1 * (i - 4.5))
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
-    frames = sim.run(input_state, 100)
+    memo = sim.run(input_state, 100)
     for i in range(100):
-      sim.visualize_particles(frames[i][0][0])
+      sim.visualize_particles(memo.steps[i][0][0])
 
   def test_dilating_cube(self):
     gravity = (0, 0)
@@ -178,9 +178,9 @@ class TestSimulator(unittest.TestCase):
     input_state = sim.get_initial_state(
         position=position, velocity=velocity, youngs_modulus=youngs_modulus)
 
-    frames = sim.run(input_state, 100)
+    memo = sim.run(input_state, 100)
     for i in range(100):
-      sim.visualize_particles(frames[i][0][0])
+      sim.visualize_particles(memo.steps[i][0][0])
       
   def test_sess(self):
     print(sess.run(1))
