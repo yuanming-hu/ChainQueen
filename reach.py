@@ -9,11 +9,11 @@ import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
 
-lr = 1e-3
+lr = 1
 sample_density = 20
 group_num_particles = sample_density**2
 
-config = 'B'
+config = 'A'
 if config == 'A':
   # Robot A
   num_groups = 5
@@ -107,7 +107,13 @@ def main(sess):
   final_state = sim.initial_state['debug']['controller_inputs']
   s = head * 6
   final_position = final_state[:, :, s:s+2]
-  loss = tf.reduce_sum((final_position - goal) ** 2)
+  final_velocity = final_state[:, :, s + 2: s + 4]
+  gamma = 0.1
+  loss1 = tf.reduce_sum((final_position - goal) ** 2)
+  loss2 = gamma * tf.reduce_sum(final_velocity ** 2)
+
+  #loss = loss1 + loss2
+  loss = loss2
 
   initial_positions = [[]]
   for b in range(batch_size):
@@ -126,12 +132,17 @@ def main(sess):
 
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
-  sym = sim.gradients_sym(loss, variables=trainables)
+  sym = sim.gradients_sym(loss * lr, variables=trainables)
   sim.add_point_visualization(pos=final_position[:, 0], color=(1, 0, 0), radius=3)
   sim.add_point_visualization(pos=goal[:, 0], color=(0, 1, 0), radius=3)
+  sim.add_vector_visualization(pos=final_position[:, 0], vector=final_velocity[:, 0], color=(0, 0, 1), scale=50)
   
   # Optimization loop
+  cnt = 0
   while True:
+    cnt += 1
+    print('Batch #{}:'.format(cnt))
+
     t = time.time()
     goal_input = np.array([[[0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]]], dtype=np.float32)
     memo = sim.run(initial_state=initial_state, num_steps=10,
