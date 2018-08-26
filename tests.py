@@ -10,7 +10,7 @@ sess = tf.Session()
 class TestSimulator(unittest.TestCase):
 
   def assertAlmostEqualFloat32(self, a, b):
-    if abs(a - b) > 1e-5 * max(a, b):
+    if abs(a - b) > 1e-5 * max(max(a, b), 1e-3):
       self.assertEqual(a, b)
 
   def test_acceleration(self):
@@ -186,34 +186,38 @@ class TestSimulator(unittest.TestCase):
     print(sess.run(1))
 
   def test_initial_gradient(self):
-    gravity = (0, 0)
+    gravity = (0, 1)
     batch_size = 1
     dx = 0.03
-    num_particles = 100
+    N = 10
+    num_particles = N * N
+    steps = 10
+    dt = 1e-3
     sim = Simulation(
       grid_res=(30, 30),
       dx=dx,
       num_particles=num_particles,
       gravity=gravity,
-      dt=1e-3,
+      dt=dt,
       sess=sess)
     position = np.zeros(shape=(batch_size, num_particles, 2))
     youngs_modulus = np.zeros(shape=(batch_size, num_particles, 1))
     velocity_ph = tf.placeholder(shape=(2,), dtype=tf.float32)
-    velocity = tf.broadcast_to(velocity_ph[None, None, :], [batch_size, num_particles, 2])
+    velocity = velocity_ph[None, None, :] + tf.zeros(shape=[batch_size, num_particles, 2], dtype=tf.float32)
     for b in range(batch_size):
-      for i in range(10):
-        for j in range(10):
-          position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
+      for i in range(N):
+        for j in range(N):
+          position[b, i * N + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
     input_state = sim.get_initial_state(
       position=position, velocity=velocity, youngs_modulus=youngs_modulus)
 
     loss = tf.reduce_mean(sim.initial_state.center_of_mass()[:, 0])
-    frames = sim.run(input_state, 10, initial_feed_dict={velocity_ph: [3, 2]})
-    grad = sim.gradients(loss, frames, [velocity_ph])
-    print(velocity_ph)
+    memo = sim.run(input_state, steps, initial_feed_dict={velocity_ph: [3, 2]})
+    grad = sim.gradients(loss, memo, [velocity_ph])
     print(grad)
+    self.assertAlmostEqualFloat32(grad[0][0], steps * dt)
+    self.assertAlmostEqualFloat32(grad[0][1], 0)
     #for i in range(100):
     #  sim.visualize_particles(frames[i][0][0])
 

@@ -119,13 +119,14 @@ class Simulation:
   def initial_state_place_holder(self):
     return self.initial_state.to_tuple()
 
-  def run(self, initial, num_steps, initial_feed_dict={}, iteration_feed_dict={}):
+  def run(self, initial_state, num_steps, initial_feed_dict={}, iteration_feed_dict={}):
     memo = Memo()
     memo.initial_feed_dict = initial_feed_dict
     memo.iteration_feed_dict = iteration_feed_dict
+    memo.initial_state = initial_state
     
     initial_evaluated = []
-    for t in initial:
+    for t in initial_state:
       if isinstance(t, tf.Tensor):
         initial_evaluated.append(self.sess.run(t, initial_feed_dict))
       else:
@@ -163,8 +164,7 @@ class Simulation:
     last_grad_sym_valid = self.replace_none_with_zero(last_grad_sym, memo.steps[-1])
     
     last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict={
-        self.initial_state.to_tuple(): memo.steps[-1]
-    })
+        self.initial_state.to_tuple(): memo.steps[-1]})
     
     for v in variables:
       assert v.dtype == tf.float32
@@ -203,17 +203,25 @@ class Simulation:
                 self.grad_state.to_tuple(): last_grad_valid
             })
     
+    parameterized_initial_state = tuple([v for v in memo.initial_state if isinstance(v, tf.Tensor)])
+    parameterized_initial_state_indices = [i for i, v in enumerate(memo.initial_state)
+                                           if isinstance(v, tf.Tensor)]
+    
+    def pick(l):
+      return tuple(l[i] for i in parameterized_initial_state_indices)
+    
     initial_grad_sym = tf.gradients(
-      ys=self.initial_state.to_tuple(),
+      ys=parameterized_initial_state,
       xs=variables,
-      grad_ys=last_grad_sym_valid
+      grad_ys=pick(self.grad_state.to_tuple())
     )
     
     initial_grad_sym_valid = self.replace_none_with_zero(initial_grad_sym, variables)
+    
     if any(v is not None for v in initial_grad_sym_valid):
-      feed_dict = memo.initial_feed_dict.copy()
-      feed_dict[self.initial_state.to_tuple()] = memo.steps[0]
-      feed_dict[last_grad_sym_valid] = last_grad_valid
+      feed_dict = {}
+      feed_dict[parameterized_initial_state] = pick(memo.steps[0])
+      feed_dict[pick(self.grad_state.to_tuple())] = pick(last_grad_valid)
       grad_acc = self.sess.run(initial_grad_sym_valid, feed_dict=feed_dict)
       for g, a in zip(grad, grad_acc):
         g += a
