@@ -89,16 +89,17 @@ def main(sess):
       mask = particle_mask_from_group(group)
       act = act * mask
       # First PK stress here
-      act = 40 * make_matrix2d(zeros, zeros, zeros, act)
+      act = 10 * make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
       total_actuation = total_actuation + matmatmul(
           act, transpose(state['deformation_gradient']))
     return total_actuation, debug
 
   sim = Simulation(
-      dt=0.005,
+      dt=0.01,
       num_particles=num_particles,
       grid_res=(25, 25),
+      gravity=(0, -2),
       controller=controller,
       batch_size=batch_size,
       sess=sess)
@@ -122,7 +123,7 @@ def main(sess):
 
   sess.run(tf.global_variables_initializer())
   
-  initial_state = sim.get_initial_state(position=np.array(initial_positions), youngs_modulus=40)
+  initial_state = sim.get_initial_state(position=np.array(initial_positions), youngs_modulus=10)
 
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
@@ -134,15 +135,14 @@ def main(sess):
   while True:
     t = time.time()
     goal_input = np.array([[[0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]]], dtype=np.float32)
-    memo = sim.run(initial_state=initial_state, num_steps=10,
+    memo = sim.run(initial_state=initial_state, num_steps=50,
                    iteration_feed_dict={goal: goal_input}, loss=loss)
     grad = sim.eval_gradients(sym=sym, memo=memo)
-    print('loss', memo.loss)
     alpha = 1
     gradient_descent = [v.assign(v - alpha * g) for v, g in zip(trainables, grad)]
     sess.run(gradient_descent)
     sim.visualize(memo)
-    print('time', time.time() - t)
+    print('time {:.3f} loss {:.4f}'.format(time.time() - t, memo.loss))
 
 
 if __name__ == '__main__':
