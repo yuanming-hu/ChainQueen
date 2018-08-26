@@ -44,6 +44,7 @@ class Simulation:
         previous_state = new_state
 
       self.states = [self.initial_state] + self.updated_states
+    self.controller = controller
 
   def visualize_particles(self, pos):
     import math
@@ -119,7 +120,7 @@ class Simulation:
   def initial_state_place_holder(self):
     return self.initial_state.to_tuple()
 
-  def run(self, initial_state, num_steps, initial_feed_dict={}, iteration_feed_dict={}):
+  def run(self, num_steps, initial_state, initial_feed_dict={}, iteration_feed_dict={}):
     memo = Memo()
     memo.initial_feed_dict = initial_feed_dict
     memo.iteration_feed_dict = iteration_feed_dict
