@@ -2,7 +2,7 @@ from functools import partial
 import cv2
 import random
 import os
-from simulation import Simulation
+from simulation import Simulation, get_bounding_box_bc
 import time
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
@@ -14,6 +14,7 @@ sample_density = 20
 group_num_particles = sample_density**2
 
 config = 'B'
+
 if config == 'A':
   # Robot A
   num_groups = 5
@@ -23,6 +24,7 @@ if config == 'A':
   fixed_groups = []
   head = 2
 elif config == 'B':
+  # Finger
   num_groups = 4
   group_offsets = [(1, 0), (1, 1), (1.5, 1), (1, 2)]
   group_sizes = [(1, 1), (0.5, 1), (0.5, 1), (1, 1)]
@@ -40,7 +42,7 @@ elif config == 'C':
 else:
   print('Unknown config {}'.format(config))
 
-actuation_strength = 0.4
+actuation_strength = 5
 num_particles = group_num_particles * num_groups
 
 
@@ -92,19 +94,27 @@ def main(sess):
       mask = particle_mask_from_group(group)
       act = act * mask
       # First PK stress here
-      act = 20 * make_matrix2d(zeros, zeros, zeros, act)
+      act = make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
       total_actuation = total_actuation + matmatmul(
           act, transpose(state['deformation_gradient']))
     return total_actuation, debug
+  
+  res = (25, 25)
+  bc = get_bounding_box_bc(res)
+  
+  if config == 'B':
+    bc[0][:, :, :5] = -1 # Sticky
+    bc[1][:, :, :5] = 0 # Sticky
 
   sim = Simulation(
       dt=0.01,
       num_particles=num_particles,
-      grid_res=(25, 25),
+      grid_res=res,
       gravity=(0, -2),
       controller=controller,
       batch_size=batch_size,
+      bc=bc,
       sess=sess)
   print("Building time: {:.4f}s".format(time.time() - t))
 
@@ -142,7 +152,7 @@ def main(sess):
   for i in range(1000000):
     t = time.time()
     goal_input = np.array(
-        [[[0.50 + random.random() * 0.1, 0.6 + random.random() * 0.1]]],
+        [[[0.45 + random.random() * 0.1, 0.55 + random.random() * 0.1]]],
         dtype=np.float32)
     memo = sim.run(
         initial_state=initial_state,
@@ -157,7 +167,7 @@ def main(sess):
     sess.run(gradient_descent)
     print('iter {:5d} time {:.3f} loss {:.4f}'.format(
         i, time.time() - t, memo.loss))
-    if i % 10 == 0:
+    if i % 1 == 0:
       sim.visualize(memo)
 
 

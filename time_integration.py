@@ -267,6 +267,9 @@ class UpdatedSimulationState(SimulationState):
     self.grid_velocity = self.grid_velocity * mask
     '''
 
+    sticky_mask = tf.cast(self.sim.bc_parameter == -1, tf.float32)
+    self.grid_velocity *= (1 - sticky_mask)
+    
     mask = tf.cast(
         tf.reduce_sum(self.sim.bc_normal**2, axis=3, keepdims=True) != 0,
         tf.float32)

@@ -4,6 +4,16 @@ import numpy as np
 from time_integration import InitialSimulationState, UpdatedSimulationState
 from memo import Memo
 
+def get_bounding_box_bc(res, boundary_thickness=3):
+  bc_parameter = np.zeros(
+    shape=(1,) + res + (1,), dtype=np.float32)
+  bc_parameter += 0.5  # Coefficient of friction
+  bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np.float32)
+  bc_normal[:, :boundary_thickness] = (1, 0)
+  bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0)
+  bc_normal[:, :, :boundary_thickness] = (0, 1)
+  bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1)
+  return bc_parameter, bc_normal
 
 class Simulation:
 
@@ -15,6 +25,7 @@ class Simulation:
                gravity=(0, -9.8),
                dt=0.01,
                dx=None,
+               bc=None,
                batch_size=1):
     self.sess = sess
     self.num_particles = num_particles
@@ -25,17 +36,10 @@ class Simulation:
       dx = 1.0 / grid_res[0]
     self.batch_size = batch_size
 
-    self.bc_parameter = np.zeros(
-        shape=(1,) + self.grid_res + (1,), dtype=np.float32)
-    self.bc_parameter += 0.5  # Coefficient of friction
-    self.bc_normal = np.zeros(
-        shape=(1,) + self.grid_res + (self.dim,), dtype=np.float32)
-    boundary_thickness = 3
-    self.bc_normal[:, :boundary_thickness] = (1, 0)
-    self.bc_normal[:, self.grid_res[0] - boundary_thickness - 1:] = (-1, 0)
-    self.bc_normal[:, :, :boundary_thickness] = (0, 1)
-    self.bc_normal[:, :, self.grid_res[1] - boundary_thickness - 1:] = (0, -1)
-
+    if bc is None:
+      bc = get_bounding_box_bc(grid_res)
+      
+    self.bc_parameter, self.bc_normal = bc
     self.initial_state = InitialSimulationState(self, controller)
     self.grad_state = InitialSimulationState(self, controller)
     self.updated_states = []
@@ -55,13 +59,16 @@ class Simulation:
 
     scale = self.scale
 
+    b = 0
     # Pure-white background
     background = np.ones(
         (self.grid_res[0], self.grid_res[1], 3), dtype=np.float)
 
     for i in range(self.grid_res[0]):
       for j in range(self.grid_res[1]):
-        normal = self.bc_normal[0][i][j]
+        if self.bc_parameter[b][i][j] == -1:
+          background[i][j][0] = 0
+        normal = self.bc_normal[b][i][j]
         if np.linalg.norm(normal) != 0:
           background[i][j] *= 0.7
 
@@ -71,7 +78,7 @@ class Simulation:
     for i, (s, points) in enumerate(zip(memo.steps, memo.point_visualization)):
       if i % interval != 0:
         continue
-      pos = s[0][0] * self.inv_dx + 0.5
+      pos = s[b][0] * self.inv_dx + 0.5
 
       scale = self.scale
 
@@ -85,7 +92,7 @@ class Simulation:
         coord, color, radius = dot
         coord = (coord * self.inv_dx + 0.5) * scale
         cv2.circle(
-            img, (coord[0][1], coord[0][0]),
+            img, (coord[b][1], coord[b][0]),
             color=color,
             radius=radius,
             thickness=-1)
