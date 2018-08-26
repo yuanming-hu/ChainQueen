@@ -120,13 +120,13 @@ class TestSimulator(unittest.TestCase):
           position[b, i * 10 + j] = (((i + b * 3) * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
     input_state = sim.get_initial_state(
-        position=position, velocity=velocity, poissons_ratio=poissons_ratio)
+        position=position, velocity=velocity, poissons_ratio=poissons_ratio, youngs_modulus=100)
 
-    frames = sim.run(input_state, 1000, initial_feed_dict={
+    memo = sim.run(num_steps=1000, initial_state=input_state, initial_feed_dict={
       initial_velocity: [1, 0]
     })
-    for i in range(100):
-      sim.visualize_particles(frames[i * 10][0][1])
+    for i in range(1000):
+      sim.visualize_particles(memo.steps[i][0][1])
 
   def test_rotating_cube(self):
     gravity = (0, 0)
