@@ -12,20 +12,27 @@ from vector_math import *
 lr = 1e-3
 sample_density = 20
 group_num_particles = sample_density**2
-import IPython
 
 if True:
   # Robot A
-  num_groups = 5
-  group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
-  group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
-  actuations = [0, 4]
-else:
-  # Robot B
-  num_groups = 7
-  group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
-  group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
-  actuations = [0, 1, 5, 6]
+  
+  group_offsets = [(0, 0), (1, 0), 
+                   (0, 1),
+                    (0, 2), (1, 2), 
+                   (0, 3),
+                   (0, 4), (1, 4), 
+                   (0, 5),
+                   (0, 6), (1, 6), 
+                   (0, 7),
+                   (0, 8), (1, 8), 
+                   (0, 9)]
+  group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1),
+                (1, 1), (1, 1), (1, 1), (1, 1), (1, 1),
+                (1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
+  
+  num_groups = len(group_offsets)
+  
+  actuations = [14]
 
 actuation_strength = 0.4
 num_particles = group_num_particles * num_groups
@@ -135,7 +142,7 @@ def main(sess):
 
   # Optimization loop
   for i in range(1000000):
-    goal_input = [0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]
+    goal_input = [-0.5, 9.5]
     feed_dict = {
         sim.initial_state.to_tuples(): sim.get_initial_state(position=np.array(initial_positions)),
         goal: [[goal_input]]
