@@ -125,6 +125,10 @@ def main(sess):
   initial_state = sim.get_initial_state(position=np.array(initial_positions), youngs_modulus=40)
 
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+  sim.set_initial_state(initial_state=initial_state)
+  sym = sim.gradients_sym(loss, variables=trainables)
+  sim.add_point_visualization(pos=final_position[:, 0], color=(1, 0, 0), radius=3)
+  sim.add_point_visualization(pos=goal[:, 0], color=(0, 1, 0), radius=3)
   
   # Optimization loop
   while True:
@@ -132,10 +136,8 @@ def main(sess):
     goal_input = np.array([[[0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]]], dtype=np.float32)
     memo = sim.run(initial_state=initial_state, num_steps=10,
                    iteration_feed_dict={goal: goal_input}, loss=loss)
-    sym = sim.gradients_sym(loss, memo, variables=trainables)
     grad = sim.eval_gradients(sym=sym, memo=memo)
     print('loss', memo.loss)
-    dots = [(final_position[:, 0], (1, 0, 0), 3), (goal[:, 0], (0, 1, 0), 3)]
     alpha = 1
     gradient_descent = [v.assign(v - alpha * g) for v, g in zip(trainables, grad)]
     sess.run(gradient_descent)

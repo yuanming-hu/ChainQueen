@@ -43,8 +43,10 @@ class Simulation:
     self.inv_dx = 1.0 / dx
     self.updated_state = UpdatedSimulationState(self, self.initial_state)
     self.controller = controller
+    self.parameterized_initial_state = None
+    self.point_visualization = []
     
-  def visualize(self, memo, interval=1, dots=[]):
+  def visualize(self, memo, interval=1):
     import math
     import cv2
     import numpy as np
@@ -63,7 +65,7 @@ class Simulation:
           
     background = cv2.resize(background, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
     
-    for i, s in enumerate(memo.steps):
+    for i, (s, points) in enumerate(zip(memo.steps, memo.point_visualization)):
       if i % interval != 0:
         continue
       pos = s[0][0] * self.inv_dx + 0.5
@@ -76,15 +78,10 @@ class Simulation:
         x, y = tuple(map(lambda t: math.ceil(t * scale), p))
         cv2.circle(img, (y, x), radius=1, color=(0.2, 0.2, 0.2), thickness=-1)
         
-      for dot in dots:
+      for dot in points:
         coord, color, radius = dot
-        feed_dict = {
-          self.initial_state.to_tuple(): s,
-        }
-        feed_dict.update(memo.initial_feed_dict)
-        feed_dict.update(memo.iteration_feed_dict)
-        coord = (self.sess.run(coord[0], feed_dict) * self.inv_dx + 0.5) * scale
-        cv2.circle(img, (coord[1], coord[0]), color=color, radius=radius, thickness=-1)
+        coord = (coord * self.inv_dx + 0.5) * scale
+        cv2.circle(img, (coord[0][1], coord[0][0]), color=color, radius=radius, thickness=-1)
     
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
       cv2.imshow('Differentiable MPM Simulator', img)
@@ -92,8 +89,18 @@ class Simulation:
 
   def initial_state_place_holder(self):
     return self.initial_state.to_tuple()
+  
+  def evaluate_points(self, state, extra={}):
+    if self.point_visualization is None:
+      return []
+    pos_tensors = [p[0] for p in self.point_visualization]
+    feed_dict = {self.initial_state.to_tuple(): state}
+    feed_dict.update(extra)
+    pos = self.sess.run(pos_tensors, feed_dict=feed_dict)
+    return [(p,) + tuple(list(r)[1:]) for p, r in zip(pos, self.point_visualization)]
 
-  def run(self, num_steps, initial_state, initial_feed_dict={}, iteration_feed_dict={}, loss=None):
+  def run(self, num_steps, initial_state, initial_feed_dict={},
+          iteration_feed_dict={}, loss=None):
     memo = Memo()
     memo.initial_feed_dict = initial_feed_dict
     memo.iteration_feed_dict = iteration_feed_dict
@@ -107,6 +114,8 @@ class Simulation:
         initial_evaluated.append(t)
         
     memo.steps = [initial_evaluated]
+    memo.point_visualization.append(self.evaluate_points(memo.steps[0], iteration_feed_dict))
+    
     for i in range(num_steps):
       feed_dict = {
         self.initial_state.to_tuple(): memo.steps[-1]
@@ -117,6 +126,8 @@ class Simulation:
           self.sess.run(
               self.updated_state.to_tuple(),
               feed_dict=feed_dict))
+      memo.point_visualization.append(self.evaluate_points(memo.steps[-1], iteration_feed_dict))
+      
     if loss is not None:
       feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}
       feed_dict.update(iteration_feed_dict)
@@ -133,16 +144,16 @@ class Simulation:
         ret.append(g)
     return tuple(ret)
     
+  def set_initial_state(self, initial_state):
+    self.parameterized_initial_state = initial_state
 
-  def gradients_sym(self, loss, memo, variables):
+  def gradients_sym(self, loss, variables):
     # loss = loss(initial_state)
     variables = tuple(variables)
     
     last_grad_sym = tf.gradients(ys=loss, xs=self.initial_state.to_tuple())
 
-    last_grad_sym_valid = self.replace_none_with_zero(last_grad_sym, memo.steps[-1])
-    
-    
+    last_grad_sym_valid = self.replace_none_with_zero(last_grad_sym, self.initial_state.to_tuple())
     
     for v in variables:
       assert tf.convert_to_tensor(v).dtype == tf.float32, v
@@ -164,8 +175,8 @@ class Simulation:
     step_grad_states = self.replace_none_with_zero(step_grad_states, self.initial_state.to_tuple())
 
     
-    parameterized_initial_state = tuple([v for v in memo.initial_state if isinstance(v, tf.Tensor)])
-    parameterized_initial_state_indices = [i for i, v in enumerate(memo.initial_state)
+    parameterized_initial_state = tuple([v for v in self.parameterized_initial_state if isinstance(v, tf.Tensor)])
+    parameterized_initial_state_indices = [i for i, v in enumerate(self.parameterized_initial_state)
                                            if isinstance(v, tf.Tensor)]
 
     def pick(l):
@@ -270,3 +281,6 @@ class Simulation:
 
     return (position, initial_velocity, deformation_gradient, affine,
             particle_mass, particle_volume, youngs_modulus, poissons_ratio)
+  
+  def add_point_visualization(self, pos, color=(1, 0, 0), radius=3):
+    self.point_visualization.append((pos, color, radius))
