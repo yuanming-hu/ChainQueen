@@ -9,11 +9,11 @@ import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
 
-lr = 0.3
+lr = 0.1
 sample_density = 20
 group_num_particles = sample_density**2
 goal_range = 0.15
-batch_size = 8
+batch_size = 1
 actuation_strength = 8
 
 config = 'B'
@@ -119,7 +119,7 @@ def main(sess):
       dt=0.01,
       num_particles=num_particles,
       grid_res=res,
-      gravity=(0, -2),
+      gravity=(0, 0),
       controller=controller,
       batch_size=batch_size,
       bc=bc,
