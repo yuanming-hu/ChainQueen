@@ -11,39 +11,26 @@ class Simulation:
                sess,
                grid_res,
                num_particles,
-               num_time_steps=None,
                controller=None,
                gravity=(0, -9.8),
                dt=0.01,
-               dx=1,
+               dx=None,
                batch_size=1):
     self.sess = sess
-    self.num_time_steps = num_time_steps
     self.num_particles = num_particles
     self.scale = 30
     self.grid_res = grid_res
+    if dx is None:
+      dx = 1.0 / grid_res[0]
     self.batch_size = batch_size
-    self.initial_state = InitialSimulationState(self)
-    self.grad_state = InitialSimulationState(self)
+    self.initial_state = InitialSimulationState(self, controller)
+    self.grad_state = InitialSimulationState(self, controller)
     self.updated_states = []
     self.gravity = gravity
     self.dt = dt
     self.dx = dx
     self.inv_dx = 1.0 / dx
     self.updated_state = UpdatedSimulationState(self, self.initial_state)
-
-    # Boundary condition
-    previous_state = self.initial_state
-
-    # Controller is a function that takes states and generates action
-    if controller is not None:
-      assert num_time_steps is not None
-      for i in range(num_time_steps):
-        new_state = UpdatedSimulationState(self, previous_state, controller)
-        self.updated_states.append(new_state)
-        previous_state = new_state
-
-      self.states = [self.initial_state] + self.updated_states
     self.controller = controller
 
   def visualize_particles(self, pos):
@@ -120,7 +107,7 @@ class Simulation:
   def initial_state_place_holder(self):
     return self.initial_state.to_tuple()
 
-  def run(self, num_steps, initial_state, initial_feed_dict={}, iteration_feed_dict={}):
+  def run(self, num_steps, initial_state, initial_feed_dict={}, iteration_feed_dict={}, loss=None):
     memo = Memo()
     memo.initial_feed_dict = initial_feed_dict
     memo.iteration_feed_dict = iteration_feed_dict
@@ -138,11 +125,16 @@ class Simulation:
       feed_dict = {
         self.initial_state.to_tuple(): memo.steps[-1]
       }
+      feed_dict.update(iteration_feed_dict)
 
       memo.steps.append(
           self.sess.run(
               self.updated_state.to_tuple(),
               feed_dict=feed_dict))
+    if loss is not None:
+      feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}
+      feed_dict.update(iteration_feed_dict)
+      memo.loss = self.sess.run(loss, feed_dict=feed_dict)
     return memo
   
   @staticmethod
@@ -164,11 +156,14 @@ class Simulation:
 
     last_grad_sym_valid = self.replace_none_with_zero(last_grad_sym, memo.steps[-1])
     
-    last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict={
-        self.initial_state.to_tuple(): memo.steps[-1]})
+    feed_dict = {
+      self.initial_state.to_tuple(): memo.steps[-1]
+    }
+    feed_dict.update(memo.iteration_feed_dict)
+    last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict=feed_dict)
     
     for v in variables:
-      assert v.dtype == tf.float32
+      assert tf.convert_to_tensor(v).dtype == tf.float32, v
     grad = [np.zeros(shape=v.shape, dtype=np.float32) for v in variables]
 
     # partial S / partial var
@@ -189,20 +184,23 @@ class Simulation:
     
     for i in reversed(range(1, len(memo.steps))):
       if any(v is not None for v in step_grad_variables):
-        grad_acc = self.sess.run(step_grad_variables,
-            feed_dict={
-                self.updated_state.to_tuple(): memo.steps[i],
-                self.grad_state.to_tuple(): last_grad_valid
-            })
+        feed_dict = {
+          self.initial_state.to_tuple(): memo.steps[i - 1],
+          self.updated_state.to_tuple(): memo.steps[i],
+          self.grad_state.to_tuple(): last_grad_valid
+        }
+        feed_dict.update(memo.iteration_feed_dict)
+        grad_acc = self.sess.run(step_grad_variables, feed_dict=feed_dict)
         for g, a in zip(grad, grad_acc):
           g += a
       if i != 0:
-        last_grad_valid = self.sess.run(step_grad_states,
-            feed_dict={
-                self.initial_state.to_tuple(): memo.steps[i - 1],
-                self.updated_state.to_tuple(): memo.steps[i],
-                self.grad_state.to_tuple(): last_grad_valid
-            })
+        feed_dict={
+          self.initial_state.to_tuple(): memo.steps[i - 1],
+          self.updated_state.to_tuple(): memo.steps[i],
+          self.grad_state.to_tuple(): last_grad_valid
+        }
+        feed_dict.update(memo.iteration_feed_dict)
+        last_grad_valid = self.sess.run(step_grad_states, feed_dict=feed_dict)
     
     parameterized_initial_state = tuple([v for v in memo.initial_state if isinstance(v, tf.Tensor)])
     parameterized_initial_state_indices = [i for i, v in enumerate(memo.initial_state)
@@ -253,7 +251,10 @@ class Simulation:
     if particle_volume is None:
       particle_volume = np.ones(shape=(batch_size, num_particles, 1))
     if youngs_modulus is None:
-      youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * 10
+      youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * 0
+    if type(youngs_modulus) in [int, float]:
+      youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * youngs_modulus
+    
     if poissons_ratio is None:
       poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.3
 

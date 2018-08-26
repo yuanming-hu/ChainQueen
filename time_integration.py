@@ -92,7 +92,7 @@ class SimulationState:
 
 class InitialSimulationState(SimulationState):
 
-  def __init__(self, sim):
+  def __init__(self, sim, controller=None):
     super().__init__(sim)
     self.t = 0
     num_particles = sim.num_particles
@@ -124,7 +124,11 @@ class InitialSimulationState(SimulationState):
     self.kernels = tf.zeros(
         shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
                3, 3))
-
+    
+    self.controller = controller
+    if controller is not None:
+      self.actuation, self.debug = controller(self)
+      
 
 class UpdatedSimulationState(SimulationState):
 
@@ -184,9 +188,8 @@ class UpdatedSimulationState(SimulationState):
       self.stress_tensor1 = 2 * mu * matmatmul(
           self.deformation_gradient - r, transpose(self.deformation_gradient))
 
-      if controller:
-        act, self.debug = controller(previous_state)
-        self.stress_tensor1 += act
+      if previous_state.controller:
+        self.stress_tensor1 += previous_state.actuation
 
       self.stress_tensor2 = lam * (j - 1) * j * identity_matrix
 

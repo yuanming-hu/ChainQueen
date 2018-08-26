@@ -54,14 +54,14 @@ def main(sess):
   goal = tf.placeholder(tf.float32, [batch_size, 1, 2], name='goal')
 
   # Define your controller here
-  def controller(previous_state):
+  def controller(state):
     controller_inputs = []
     for i in range(num_groups):
       mask = particle_mask(i * group_num_particles,
                            (i + 1) * group_num_particles)[:, :, None] * (
                                1.0 / group_num_particles)
-      pos = tf.reduce_sum(mask * previous_state.position, axis=1, keepdims=True)
-      vel = tf.reduce_sum(mask * previous_state.velocity, axis=1, keepdims=True)
+      pos = tf.reduce_sum(mask * state.position, axis=1, keepdims=True)
+      vel = tf.reduce_sum(mask * state.velocity, axis=1, keepdims=True)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
       controller_inputs.append(goal)
@@ -77,25 +77,27 @@ def main(sess):
       mask = particle_mask_from_group(group)
       act = act * mask
       # First PK stress here
-      act = 4500 * make_matrix2d(zeros, zeros, zeros, act)
+      act = 40 * make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
       total_actuation = total_actuation + matmatmul(
-          act, transpose(previous_state['deformation_gradient']))
+          act, transpose(state['deformation_gradient']))
     return total_actuation, debug
 
   sim = Simulation(
+      dt=0.005,
       num_particles=num_particles,
       grid_res=(25, 25),
       controller=controller,
       batch_size=batch_size,
-      num_time_steps=1, # just for backward compatibility
       sess=sess)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   t = time.time()
 
-  #loss = (final_position[0] - sim.grid_res[0] * goal[0, 0, 0])**2 + (
-  #    final_position[1] - sim.grid_res[1] * goal[0, 0, 1])**2
+  final_state = sim.initial_state['debug']['controller_inputs']
+  s = num_groups // 2 * 6
+  final_position = final_state[:, :, s:s+2]
+  loss = tf.reduce_sum((final_position - goal) ** 2)
 
   initial_positions = [[]]
   for b in range(batch_size):
@@ -103,34 +105,28 @@ def main(sess):
       for x in range(sample_density):
         for y in range(sample_density):
           scale = 0.2
-          u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]
-              ) * scale + 0.2
-          v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
-              ) * scale + 0.1
-          initial_positions[b].append(
-              [sim.grid_res[0] * u, sim.grid_res[1] * v])
+          u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]) * scale + 0.2
+          v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]) * scale + 0.1
+          initial_positions[b].append([u, v])
   assert len(initial_positions[0]) == num_particles
-
-  trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
   sess.run(tf.global_variables_initializer())
   
-  initial_state = sim.get_initial_state(position=np.array(initial_positions))
+  initial_state = sim.get_initial_state(position=np.array(initial_positions), youngs_modulus=40)
 
+  trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+  
   # Optimization loop
   while True:
-    goal_input = [0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]
-    feed_dict = {
-        sim.initial_state.to_tuple(): initial_state,
-        goal: [[goal_input]]
-    }
-    memo = sim.run(initial_state=initial_state, num_steps=30)
-    '''
-    pos, l, _, evaluated = sess.run(
-        [final_position, loss, opt, results], feed_dict=feed_dict)
-    print('  loss', l)
-    '''
-
+    goal_input = np.array([[[0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]]], dtype=np.float32)
+    memo = sim.run(initial_state=initial_state, num_steps=60,
+                   iteration_feed_dict={goal: goal_input}, loss=loss)
+    print('loss', memo.loss)
+    grads = sim.gradients(loss, memo, variables=trainables)
+    alpha = 1
+    gradient_descent = [v.assign(v - alpha * g) for v, g in zip(trainables, grads)]
+    sess.run(gradient_descent)
+    
     for j, r in enumerate(memo.steps):
       sim.visualize_particles(r[0][0])
     print('time', time.time() - t)
