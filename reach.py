@@ -104,8 +104,6 @@ def main(sess):
       sess=sess)
   print("Building time: {:.4f}s".format(time.time() - t))
 
-  t = time.time()
-
   final_state = sim.initial_state['debug']['controller_inputs']
   s = head * 6
   final_position = final_state[:, :, s:s+2]
@@ -130,16 +128,18 @@ def main(sess):
   
   # Optimization loop
   while True:
+    t = time.time()
     goal_input = np.array([[[0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]]], dtype=np.float32)
-    memo = sim.run(initial_state=initial_state, num_steps=60,
+    memo = sim.run(initial_state=initial_state, num_steps=10,
                    iteration_feed_dict={goal: goal_input}, loss=loss)
+    sym = sim.gradients_sym(loss, memo, variables=trainables)
+    grad = sim.eval_gradients(sym=sym, memo=memo)
     print('loss', memo.loss)
     dots = [(final_position[:, 0], (1, 0, 0), 3), (goal[:, 0], (0, 1, 0), 3)]
-    grads = sim.gradients(loss, memo, variables=trainables)
     alpha = 1
-    gradient_descent = [v.assign(v - alpha * g) for v, g in zip(trainables, grads)]
+    gradient_descent = [v.assign(v - alpha * g) for v, g in zip(trainables, grad)]
     sess.run(gradient_descent)
-    sim.visualize(memo, dots=dots)
+    sim.visualize(memo)
     print('time', time.time() - t)
 
 

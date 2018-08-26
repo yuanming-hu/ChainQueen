@@ -134,7 +134,7 @@ class Simulation:
     return tuple(ret)
     
 
-  def gradients(self, loss, memo, variables):
+  def gradients_sym(self, loss, memo, variables):
     # loss = loss(initial_state)
     variables = tuple(variables)
     
@@ -142,15 +142,10 @@ class Simulation:
 
     last_grad_sym_valid = self.replace_none_with_zero(last_grad_sym, memo.steps[-1])
     
-    feed_dict = {
-      self.initial_state.to_tuple(): memo.steps[-1]
-    }
-    feed_dict.update(memo.iteration_feed_dict)
-    last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict=feed_dict)
+    
     
     for v in variables:
       assert tf.convert_to_tensor(v).dtype == tf.float32, v
-    grad = [np.zeros(shape=v.shape, dtype=np.float32) for v in variables]
 
     # partial S / partial var
     step_grad_variables = tf.gradients(
@@ -167,7 +162,50 @@ class Simulation:
         grad_ys=self.grad_state.to_tuple())
     
     step_grad_states = self.replace_none_with_zero(step_grad_states, self.initial_state.to_tuple())
+
     
+    parameterized_initial_state = tuple([v for v in memo.initial_state if isinstance(v, tf.Tensor)])
+    parameterized_initial_state_indices = [i for i, v in enumerate(memo.initial_state)
+                                           if isinstance(v, tf.Tensor)]
+
+    def pick(l):
+      return tuple(l[i] for i in parameterized_initial_state_indices)
+    
+    initial_grad_sym = tf.gradients(
+      ys=parameterized_initial_state,
+      xs=variables,
+      grad_ys=pick(self.grad_state.to_tuple())
+    )
+    
+    initial_grad_sym_valid = self.replace_none_with_zero(initial_grad_sym, variables)
+    
+    sym = {}
+    sym['last_grad_sym_valid'] = last_grad_sym_valid
+    sym['initial_grad_sym_valid'] = initial_grad_sym_valid
+    sym['step_grad_variables'] = step_grad_variables
+    sym['step_grad_states'] = step_grad_states
+    sym['parameterized_initial_state'] = parameterized_initial_state
+    sym['pick'] = pick
+    sym['variables'] = variables
+    
+    return sym
+
+  
+  def eval_gradients(self, sym, memo):
+    last_grad_sym_valid = sym['last_grad_sym_valid']
+    initial_grad_sym_valid = sym['initial_grad_sym_valid']
+    step_grad_variables = sym['step_grad_variables']
+    step_grad_states = sym['step_grad_states']
+    parameterized_initial_state = sym['parameterized_initial_state']
+    pick = sym['pick']
+    variables = sym['variables']
+
+    grad = [np.zeros(shape=v.shape, dtype=np.float32) for v in variables]
+    feed_dict = {
+      self.initial_state.to_tuple(): memo.steps[-1]
+    }
+    feed_dict.update(memo.iteration_feed_dict)
+    last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict=feed_dict)
     for i in reversed(range(1, len(memo.steps))):
       if any(v is not None for v in step_grad_variables):
         feed_dict = {
@@ -180,29 +218,15 @@ class Simulation:
         for g, a in zip(grad, grad_acc):
           g += a
       if i != 0:
-        feed_dict={
+        feed_dict = {
           self.initial_state.to_tuple(): memo.steps[i - 1],
           self.updated_state.to_tuple(): memo.steps[i],
           self.grad_state.to_tuple(): last_grad_valid
         }
         feed_dict.update(memo.iteration_feed_dict)
         last_grad_valid = self.sess.run(step_grad_states, feed_dict=feed_dict)
-    
-    parameterized_initial_state = tuple([v for v in memo.initial_state if isinstance(v, tf.Tensor)])
-    parameterized_initial_state_indices = [i for i, v in enumerate(memo.initial_state)
-                                           if isinstance(v, tf.Tensor)]
-    
-    def pick(l):
-      return tuple(l[i] for i in parameterized_initial_state_indices)
-    
-    initial_grad_sym = tf.gradients(
-      ys=parameterized_initial_state,
-      xs=variables,
-      grad_ys=pick(self.grad_state.to_tuple())
-    )
-    
-    initial_grad_sym_valid = self.replace_none_with_zero(initial_grad_sym, variables)
-    
+  
+  
     if any(v is not None for v in initial_grad_sym_valid):
       feed_dict = {}
       feed_dict[parameterized_initial_state] = pick(memo.steps[0])
@@ -210,7 +234,7 @@ class Simulation:
       grad_acc = self.sess.run(initial_grad_sym_valid, feed_dict=feed_dict)
       for g, a in zip(grad, grad_acc):
         g += a
-
+  
     return grad
 
   def get_initial_state(self,
