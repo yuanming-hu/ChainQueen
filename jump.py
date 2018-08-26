@@ -124,13 +124,12 @@ def main(sess):
     memo = sim.run(initial_state=initial_state, num_steps=60,
                    iteration_feed_dict={goal: goal_input}, loss=loss)
     print('loss', memo.loss)
+    dots = [(final_position[:, 0], (1, 0, 0), 3), (goal[:, 0], (0, 1, 0), 3)]
     grads = sim.gradients(loss, memo, variables=trainables)
     alpha = 1
     gradient_descent = [v.assign(v - alpha * g) for v, g in zip(trainables, grads)]
     sess.run(gradient_descent)
-    
-    for j, r in enumerate(memo.steps):
-      sim.visualize_particles(r[0][0])
+    sim.visualize(memo, dots=dots)
     print('time', time.time() - t)
 
 

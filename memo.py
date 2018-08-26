@@ -5,4 +5,5 @@ class Memo:
     self.initial_state = None
     self.initial_feed_dict = {}
     self.iteration_feed_dict = {}
+    self.dots = []
   

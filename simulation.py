@@ -44,7 +44,7 @@ class Simulation:
     self.updated_state = UpdatedSimulationState(self, self.initial_state)
     self.controller = controller
     
-  def visualize(self, memo, interval=1):
+  def visualize(self, memo, interval=1, dots=[]):
     import math
     import cv2
     import numpy as np
@@ -75,6 +75,16 @@ class Simulation:
       for p in pos:
         x, y = tuple(map(lambda t: math.ceil(t * scale), p))
         cv2.circle(img, (y, x), radius=1, color=(0.2, 0.2, 0.2), thickness=-1)
+        
+      for dot in dots:
+        coord, color, radius = dot
+        feed_dict = {
+          self.initial_state.to_tuple(): s,
+        }
+        feed_dict.update(memo.initial_feed_dict)
+        feed_dict.update(memo.iteration_feed_dict)
+        coord = (self.sess.run(coord[0], feed_dict) * self.inv_dx + 0.5) * scale
+        cv2.circle(img, (coord[1], coord[0]), color=color, radius=radius, thickness=-1)
     
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
       cv2.imshow('Differentiable MPM Simulator', img)
