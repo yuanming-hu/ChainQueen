@@ -12,20 +12,30 @@ from vector_math import *
 lr = 1e-3
 sample_density = 20
 group_num_particles = sample_density**2
-import IPython
 
-if True:
+config = 'B'
+if config == 'A':
   # Robot A
   num_groups = 5
   group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
   group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
   actuations = [0, 4]
-else:
+  head = 2
+elif config == 'B':
+  num_groups = 4
+  group_offsets = [(1, 0), (1, 1), (1.5, 1), (1, 2)]
+  group_sizes = [(1, 1), (0.5, 1), (0.5, 1), (1, 1)]
+  actuations = [1, 2]
+  head = 3
+elif config == 'C':
   # Robot B
   num_groups = 7
   group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
   group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
   actuations = [0, 1, 5, 6]
+  head = 3
+else:
+  print('Unknown config {}'.format(config))
 
 actuation_strength = 0.4
 num_particles = group_num_particles * num_groups
@@ -97,7 +107,7 @@ def main(sess):
   t = time.time()
 
   final_state = sim.initial_state['debug']['controller_inputs']
-  s = num_groups // 2 * 6
+  s = head * 6
   final_position = final_state[:, :, s:s+2]
   loss = tf.reduce_sum((final_position - goal) ** 2)
 
