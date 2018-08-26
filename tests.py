@@ -53,7 +53,7 @@ class TestSimulator(unittest.TestCase):
     self.assertAlmostEqual(center_of_mass()[1], y)
     for i in range(num_steps):
       input_state = sess.run(
-          next_state.to_tuples(),
+          next_state.to_tuple(),
           feed_dict={
               sim.initial_state_place_holder(): input_state
           })
@@ -212,6 +212,7 @@ class TestSimulator(unittest.TestCase):
     loss = tf.reduce_mean(sim.initial_state.center_of_mass()[:, 0])
     frames = sim.run(input_state, 10, initial_feed_dict={velocity_ph: [3, 2]})
     grad = sim.gradients(loss, frames, [velocity_ph])
+    print(velocity_ph)
     print(grad)
     #for i in range(100):
     #  sim.visualize_particles(frames[i][0][0])

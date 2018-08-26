@@ -152,7 +152,7 @@ def main(sess):
   for i in range(1000000):
     goal_input = [0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]
     feed_dict = {
-        sim.initial_state.to_tuples(): sim.get_initial_state(position=np.array(initial_positions)),
+        sim.initial_state.to_tuple(): sim.get_initial_state(position=np.array(initial_positions)),
         goal: [[goal_input]]
     }
     pos, l, _, evaluated = sess.run(

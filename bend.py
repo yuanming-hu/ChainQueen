@@ -144,7 +144,7 @@ def main(sess):
   for i in range(1000000):
     goal_input = [-0.5, 9.5]
     feed_dict = {
-        sim.initial_state.to_tuples(): sim.get_initial_state(position=np.array(initial_positions)),
+        sim.initial_state.to_tuple(): sim.get_initial_state(position=np.array(initial_positions)),
         goal: [[goal_input]]
     }
     pos, l, _, evaluated = sess.run(

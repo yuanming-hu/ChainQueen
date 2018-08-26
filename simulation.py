@@ -117,7 +117,7 @@ class Simulation:
     return img
 
   def initial_state_place_holder(self):
-    return self.initial_state.to_tuples()
+    return self.initial_state.to_tuple()
 
   def run(self, initial, num_steps, initial_feed_dict={}, iteration_feed_dict={}):
     memo = Memo()
@@ -134,12 +134,12 @@ class Simulation:
     memo.steps = [initial_evaluated]
     for i in range(num_steps):
       feed_dict = {
-        self.initial_state.to_tuples(): memo.steps[-1]
+        self.initial_state.to_tuple(): memo.steps[-1]
       }
 
       memo.steps.append(
           self.sess.run(
-              self.updated_state.to_tuples(),
+              self.updated_state.to_tuple(),
               feed_dict=feed_dict))
     return memo
   
@@ -151,64 +151,72 @@ class Simulation:
         ret.append(tf.zeros_like(t))
       else:
         ret.append(g)
-    return ret
+    return tuple(ret)
     
 
   def gradients(self, loss, memo, variables):
-    # loss = L(state)
+    # loss = loss(initial_state)
+    variables = tuple(variables)
     
-    last_grad_sym = tf.gradients(
-        ys=loss,
-        xs=self.initial_state.to_tuples())
+    last_grad_sym = tf.gradients(ys=loss, xs=self.initial_state.to_tuple())
 
     last_grad_sym_valid = self.replace_none_with_zero(last_grad_sym, memo.steps[-1])
     
     last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict={
-        self.initial_state.to_tuples(): cache[-1]
+        self.initial_state.to_tuple(): memo.steps[-1]
     })
     
-    grad = 0
+    for v in variables:
+      assert v.dtype == tf.float32
+    grad = [np.zeros(shape=v.shape, dtype=np.float32) for v in variables]
 
+    # partial S / partial var
     step_grad_variables = tf.gradients(
-        ys=self.updated_state.to_tuples(),
-        xs=variables,)
-        #grad_ys=self.grad_state.to_tuples())
+        ys=self.updated_state.to_tuple(),
+        xs=variables,
+        grad_ys=self.grad_state.to_tuple())
+    
+    step_grad_variables = self.replace_none_with_zero(step_grad_variables, variables)
 
-    print(step_grad_variables)
+    # partial S / partial S'
     step_grad_states = tf.gradients(
-        ys=self.updated_state.to_tuples(),
-        xs=self.initial_state.to_tuples(),
-        grad_ys=self.grad_state.to_tuples())
-
-    for i in reversed(range(len(memo.steps))):
-      # last_grad:
-      if any(step_grad_variables):
-        grad += self.sess.run(step_grad_variables,
+        ys=self.updated_state.to_tuple(),
+        xs=self.initial_state.to_tuple(),
+        grad_ys=self.grad_state.to_tuple())
+    
+    step_grad_states = self.replace_none_with_zero(step_grad_states, self.initial_state.to_tuple())
+    
+    for i in reversed(range(1, len(memo.steps))):
+      if any(v is not None for v in step_grad_variables):
+        grad_acc = self.sess.run(step_grad_variables,
             feed_dict={
-                self.updated_state.to_tuples(): memo.steps[i],
-                self.grad_state.to_tuples(): last_grad_valid
+                self.updated_state.to_tuple(): memo.steps[i],
+                self.grad_state.to_tuple(): last_grad_valid
             })
+        for g, a in zip(grad, grad_acc):
+          g += a
       if i != 0:
         last_grad_valid = self.sess.run(step_grad_states,
             feed_dict={
-                self.updated_state.to_tuples(): memo.steps[i],
-                self.grad_state.to_tuples(): last_grad_valid
+                self.initial_state.to_tuple(): memo.steps[i - 1],
+                self.updated_state.to_tuple(): memo.steps[i],
+                self.grad_state.to_tuple(): last_grad_valid
             })
     
     initial_grad_sym = tf.gradients(
-      ys=self.initial_state.to_tuples(),
+      ys=self.initial_state.to_tuple(),
       xs=variables,
       grad_ys=last_grad_sym_valid
     )
     
     initial_grad_sym_valid = self.replace_none_with_zero(initial_grad_sym, variables)
-    if any(initial_grad_sym_valid):
-      grad += self.sess.run(initial_grad_sym_valid,
-                            feed_dict={
-                              self.initial_state.to_tuples(): cache[0],
-                              self.grad_state: 1,
-                              self.last_grad_sym_valid: 1,
-                            })
+    if any(v is not None for v in initial_grad_sym_valid):
+      feed_dict = memo.initial_feed_dict.copy()
+      feed_dict[self.initial_state.to_tuple()] = memo.steps[0]
+      feed_dict[last_grad_sym_valid] = last_grad_valid
+      grad_acc = self.sess.run(initial_grad_sym_valid, feed_dict=feed_dict)
+      for g, a in zip(grad, grad_acc):
+        g += a
 
     return grad
 
