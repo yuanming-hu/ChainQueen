@@ -125,8 +125,7 @@ class TestSimulator(unittest.TestCase):
     memo = sim.run(num_steps=1000, initial_state=input_state, initial_feed_dict={
       initial_velocity: [1, 0]
     })
-    for i in range(1000):
-      sim.visualize_particles(memo.steps[i][0][1])
+    sim.visualize(memo, interval=5)
 
   def test_rotating_cube(self):
     gravity = (0, 0)
@@ -150,9 +149,8 @@ class TestSimulator(unittest.TestCase):
           velocity[b, i * 10 + j] = (1 * (j - 4.5), -1 * (i - 4.5))
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
-    memo = sim.run(input_state, 100)
-    for i in range(100):
-      sim.visualize_particles(memo.steps[i][0][0])
+    memo = sim.run(100, input_state)
+    sim.visualize(memo)
 
   def test_dilating_cube(self):
     gravity = (0, 0)
@@ -178,11 +176,12 @@ class TestSimulator(unittest.TestCase):
     input_state = sim.get_initial_state(
         position=position, velocity=velocity, youngs_modulus=youngs_modulus)
 
-    memo = sim.run(input_state, 100)
-    for i in range(100):
-      sim.visualize_particles(memo.steps[i][0][0])
-      
+    memo = sim.run(100, input_state)
+    sim.visualize(memo)
+    
   def test_sess(self):
+    return
+    # This is NOT going to work.
     print(sess.run(1))
 
   def test_initial_gradient(self):
@@ -213,13 +212,10 @@ class TestSimulator(unittest.TestCase):
       position=position, velocity=velocity, youngs_modulus=youngs_modulus)
 
     loss = tf.reduce_mean(sim.initial_state.center_of_mass()[:, 0])
-    memo = sim.run(input_state, steps, initial_feed_dict={velocity_ph: [3, 2]})
+    memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: [3, 2]})
     grad = sim.gradients(loss, memo, [velocity_ph])
-    print(grad)
     self.assertAlmostEqualFloat32(grad[0][0], steps * dt)
     self.assertAlmostEqualFloat32(grad[0][1], 0)
-    #for i in range(100):
-    #  sim.visualize_particles(frames[i][0][0])
 
 
 if __name__ == '__main__':

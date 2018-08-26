@@ -271,7 +271,6 @@ class UpdatedSimulationState(SimulationState):
     
     mask = tf.cast(tf.reduce_sum(self.sim.bc_normal ** 2, axis=3, keepdims=True) != 0, tf.float32)
     normal_component_length = tf.reduce_sum(self.grid_velocity * self.sim.bc_normal, axis=3, keepdims=True)
-    # normal_component = normal_component_length * self.sim.bc_normal
     perpendicular_component = self.grid_velocity - self.sim.bc_normal * normal_component_length
     perpendicular_component_length = tf.sqrt(tf.reduce_sum(perpendicular_component ** 2, axis=3, keepdims=True) + 1e-7)
     normalized_perpendicular_component = perpendicular_component / tf.maximum(perpendicular_component_length, 1e-7)

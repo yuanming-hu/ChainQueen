@@ -44,25 +44,41 @@ class Simulation:
     self.updated_state = UpdatedSimulationState(self, self.initial_state)
     self.controller = controller
     
-  def visualize_particles(self, pos):
+  def visualize(self, memo, interval=1):
     import math
     import cv2
     import numpy as np
-    pos = pos * self.inv_dx
-
+    
     scale = self.scale
 
-    img = np.ones(
-        (scale * self.grid_res[0], scale * self.grid_res[1], 3), dtype=np.float)
-
-    for p in pos:
-      x, y = tuple(map(lambda t: math.ceil(t * scale), p))
-      cv2.circle(img, (y, x), radius=1, color=(0.2, 0.2, 0.2), thickness=-1)
-
-    img = img.swapaxes(0, 1)[::-1, :, ::-1]
-
-    cv2.imshow('Differentiable MPM Simulator', img)
-    cv2.waitKey(1)
+    # Pure-white background
+    background = np.ones(
+      (self.grid_res[0], self.grid_res[1], 3), dtype=np.float)
+    
+    for i in range(self.grid_res[0]):
+      for j in range(self.grid_res[1]):
+        normal = self.bc_normal[0][i][j]
+        if np.linalg.norm(normal) != 0:
+          background[i][j] *= 0.7
+          
+    background = cv2.resize(background, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+    
+    for i, s in enumerate(memo.steps):
+      if i % interval != 0:
+        continue
+      pos = s[0][0] * self.inv_dx + 0.5
+    
+      scale = self.scale
+    
+      img = background.copy()
+    
+      for p in pos:
+        x, y = tuple(map(lambda t: math.ceil(t * scale), p))
+        cv2.circle(img, (y, x), radius=1, color=(0.2, 0.2, 0.2), thickness=-1)
+    
+      img = img.swapaxes(0, 1)[::-1, :, ::-1]
+      cv2.imshow('Differentiable MPM Simulator', img)
+      cv2.waitKey(1)
 
   def initial_state_place_holder(self):
     return self.initial_state.to_tuple()
@@ -211,7 +227,7 @@ class Simulation:
     if particle_volume is None:
       particle_volume = np.ones(shape=(batch_size, num_particles, 1))
     if youngs_modulus is None:
-      youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * 0
+      youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * 10
     if type(youngs_modulus) in [int, float]:
       youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * youngs_modulus
     

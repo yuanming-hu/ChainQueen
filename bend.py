@@ -161,6 +161,7 @@ def main(sess):
           radius=8,
           color=(0.0, 0.9, 0.0),
           thickness=-1)
+      
       if j != 0:
         for k in range(len(actuations)):
           act = r['debug']['actuation'][k]
