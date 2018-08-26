@@ -268,18 +268,19 @@ class UpdatedSimulationState(SimulationState):
     mask[:, 3:self.sim.grid_res[0] - 3, :self.sim.grid_res[1] - 3] = 1
     self.grid_velocity = self.grid_velocity * mask
     '''
+    
     mask = tf.cast(tf.reduce_sum(self.sim.bc_normal ** 2, axis=3, keepdims=True) != 0, tf.float32)
     normal_component_length = tf.reduce_sum(self.grid_velocity * self.sim.bc_normal, axis=3, keepdims=True)
     # normal_component = normal_component_length * self.sim.bc_normal
     perpendicular_component = self.grid_velocity - self.sim.bc_normal * normal_component_length
-    perpendicular_component_length = tf.norm(perpendicular_component, axis=3, keepdims=True)
-    normalized_perpendicular_component = perpendicular_component / tf.maximum(perpendicular_component_length, 1e-10)
+    perpendicular_component_length = tf.sqrt(tf.reduce_sum(perpendicular_component ** 2, axis=3, keepdims=True) + 1e-7)
+    normalized_perpendicular_component = perpendicular_component / tf.maximum(perpendicular_component_length, 1e-7)
     perpendicular_component_length = tf.sign(perpendicular_component_length) * \
                                      tf.maximum(tf.abs(perpendicular_component_length) +
                                                 tf.minimum(normal_component_length, 0) * self.sim.bc_parameter, 0)
     projected_velocity = sim.bc_normal * tf.maximum(normal_component_length, 0) + perpendicular_component_length * normalized_perpendicular_component
     self.grid_velocity = self.grid_velocity * (1 - mask) + mask * projected_velocity
-
+    
     # Resample velocity and local affine velocity field
     self.velocity *= 0
     for i in range(3):
