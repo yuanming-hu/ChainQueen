@@ -24,6 +24,10 @@ class SimulationState:
     self.grid_velocity = None
     self.kernels = None
     self.debug = None
+    
+  def center_of_mass(self):
+    return tf.reduce_sum(self.position * self.particle_mass, axis=1) *\
+           (1 / tf.reduce_sum(self.particle_mass, axis=1))
 
   def get_state_names(self):
     return [
@@ -62,7 +66,7 @@ class SimulationState:
         ret_filtered[k] = v
     return ret_filtered
 
-  def to_tuples(self):
+  def to_tuple(self):
     evaluated = self.get_evaluated()
     return tuple([evaluated[k] for k in self.get_state_names()])
 
@@ -126,10 +130,10 @@ class UpdatedSimulationState(SimulationState):
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
-    self.particle_mass = previous_state.particle_mass
-    self.particle_volume = previous_state.particle_volume
-    self.youngs_modulus = previous_state.youngs_modulus
-    self.poissons_ratio = previous_state.poissons_ratio
+    self.particle_mass = tf.identity(previous_state.particle_mass)
+    self.particle_volume = tf.identity(previous_state.particle_volume)
+    self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
+    self.poissons_ratio = tf.identity(previous_state.poissons_ratio)
 
     self.t = previous_state.t + self.sim.dt
     self.grid_velocity = tf.zeros(
