@@ -54,9 +54,7 @@ class TestSimulator(unittest.TestCase):
     for i in range(num_steps):
       input_state = sess.run(
           next_state.to_tuple(),
-          feed_dict={
-              sim.initial_state_place_holder(): input_state
-          })
+          feed_dict={sim.initial_state_place_holder(): input_state})
 
       # This will work if we use Verlet
       # self.assertAlmostEqual(center_of_mass()[1], 15.0 - t * t * 0.5 * g)
@@ -113,18 +111,23 @@ class TestSimulator(unittest.TestCase):
     position = np.zeros(shape=(batch_size, num_particles, 2))
     poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.45
     initial_velocity = tf.placeholder(shape=(2,), dtype=tf.float32)
-    velocity = tf.broadcast_to(initial_velocity[None, None, :], shape=(batch_size, num_particles, 2))
+    velocity = tf.broadcast_to(
+        initial_velocity[None, None, :], shape=(batch_size, num_particles, 2))
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
           position[b, i * 10 + j] = (((i + b * 3) * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
     input_state = sim.get_initial_state(
-        position=position, velocity=velocity, poissons_ratio=poissons_ratio, youngs_modulus=100)
+        position=position,
+        velocity=velocity,
+        poissons_ratio=poissons_ratio,
+        youngs_modulus=100)
 
-    memo = sim.run(num_steps=1000, initial_state=input_state, initial_feed_dict={
-      initial_velocity: [1, 0]
-    })
+    memo = sim.run(
+        num_steps=1000,
+        initial_state=input_state,
+        initial_feed_dict={initial_velocity: [1, 0]})
     sim.visualize(memo, interval=5)
 
   def test_rotating_cube(self):
@@ -178,7 +181,7 @@ class TestSimulator(unittest.TestCase):
 
     memo = sim.run(100, input_state)
     sim.visualize(memo)
-    
+
   def test_sess(self):
     return
     # This is NOT going to work.
@@ -193,23 +196,24 @@ class TestSimulator(unittest.TestCase):
     steps = 10
     dt = 1e-3
     sim = Simulation(
-      grid_res=(30, 30),
-      dx=dx,
-      num_particles=num_particles,
-      gravity=gravity,
-      dt=dt,
-      sess=sess)
+        grid_res=(30, 30),
+        dx=dx,
+        num_particles=num_particles,
+        gravity=gravity,
+        dt=dt,
+        sess=sess)
     position = np.zeros(shape=(batch_size, num_particles, 2))
     youngs_modulus = np.zeros(shape=(batch_size, num_particles, 1))
     velocity_ph = tf.placeholder(shape=(2,), dtype=tf.float32)
-    velocity = velocity_ph[None, None, :] + tf.zeros(shape=[batch_size, num_particles, 2], dtype=tf.float32)
+    velocity = velocity_ph[None, None, :] + tf.zeros(
+        shape=[batch_size, num_particles, 2], dtype=tf.float32)
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):
           position[b, i * N + j] = ((i * 0.5 + 12.75) * dx,
-                                     (j * 0.5 + 12.75) * dx)
+                                    (j * 0.5 + 12.75) * dx)
     input_state = sim.get_initial_state(
-      position=position, velocity=velocity, youngs_modulus=youngs_modulus)
+        position=position, velocity=velocity, youngs_modulus=youngs_modulus)
 
     loss = tf.reduce_mean(sim.initial_state.center_of_mass()[:, 0])
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: [3, 2]})

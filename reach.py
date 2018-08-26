@@ -20,12 +20,14 @@ if config == 'A':
   group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
   group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
   actuations = [0, 4]
+  fixed_groups = []
   head = 2
 elif config == 'B':
   num_groups = 4
   group_offsets = [(1, 0), (1, 1), (1.5, 1), (1, 2)]
   group_sizes = [(1, 1), (0.5, 1), (0.5, 1), (1, 1)]
   actuations = [1, 2]
+  fixed_groups = [0]
   head = 3
 elif config == 'C':
   # Robot B
@@ -33,6 +35,7 @@ elif config == 'C':
   group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
   group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
   actuations = [0, 1, 5, 6]
+  fixed_groups = []
   head = 3
 else:
   print('Unknown config {}'.format(config))
@@ -89,7 +92,7 @@ def main(sess):
       mask = particle_mask_from_group(group)
       act = act * mask
       # First PK stress here
-      act = 10 * make_matrix2d(zeros, zeros, zeros, act)
+      act = 20 * make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
       total_actuation = total_actuation + matmatmul(
           act, transpose(state['deformation_gradient']))
@@ -107,8 +110,8 @@ def main(sess):
 
   final_state = sim.initial_state['debug']['controller_inputs']
   s = head * 6
-  final_position = final_state[:, :, s:s+2]
-  loss = tf.reduce_sum((final_position - goal) ** 2)
+  final_position = final_state[:, :, s:s + 2]
+  loss = tf.reduce_sum((final_position - goal)**2)
 
   initial_positions = [[]]
   for b in range(batch_size):
@@ -116,33 +119,46 @@ def main(sess):
       for x in range(sample_density):
         for y in range(sample_density):
           scale = 0.2
-          u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]) * scale + 0.2
-          v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]) * scale + 0.1
+          u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]
+              ) * scale + 0.2
+          v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
+              ) * scale + 0.1
           initial_positions[b].append([u, v])
   assert len(initial_positions[0]) == num_particles
 
   sess.run(tf.global_variables_initializer())
-  
-  initial_state = sim.get_initial_state(position=np.array(initial_positions), youngs_modulus=10)
+
+  initial_state = sim.get_initial_state(
+      position=np.array(initial_positions), youngs_modulus=10)
 
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
   sym = sim.gradients_sym(loss, variables=trainables)
-  sim.add_point_visualization(pos=final_position[:, 0], color=(1, 0, 0), radius=3)
+  sim.add_point_visualization(
+      pos=final_position[:, 0], color=(1, 0, 0), radius=3)
   sim.add_point_visualization(pos=goal[:, 0], color=(0, 1, 0), radius=3)
-  
+
   # Optimization loop
-  while True:
+  for i in range(1000000):
     t = time.time()
-    goal_input = np.array([[[0.50 + random.random() * 0.0, 0.6 + random.random() * 0.0]]], dtype=np.float32)
-    memo = sim.run(initial_state=initial_state, num_steps=50,
-                   iteration_feed_dict={goal: goal_input}, loss=loss)
+    goal_input = np.array(
+        [[[0.50 + random.random() * 0.1, 0.6 + random.random() * 0.1]]],
+        dtype=np.float32)
+    memo = sim.run(
+        initial_state=initial_state,
+        num_steps=100,
+        iteration_feed_dict={goal: goal_input},
+        loss=loss)
     grad = sim.eval_gradients(sym=sym, memo=memo)
-    alpha = 1
-    gradient_descent = [v.assign(v - alpha * g) for v, g in zip(trainables, grad)]
+    alpha = 0.01
+    gradient_descent = [
+        v.assign(v - alpha * g) for v, g in zip(trainables, grad)
+    ]
     sess.run(gradient_descent)
-    sim.visualize(memo)
-    print('time {:.3f} loss {:.4f}'.format(time.time() - t, memo.loss))
+    print('iter {:5d} time {:.3f} loss {:.4f}'.format(
+        i, time.time() - t, memo.loss))
+    if i % 10 == 0:
+      sim.visualize(memo)
 
 
 if __name__ == '__main__':
