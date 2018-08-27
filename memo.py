@@ -6,3 +6,5 @@ class Memo:
     self.initial_feed_dict = {}
     self.iteration_feed_dict = {}
     self.point_visualization = []
+    self.vector_visualization = []
+    

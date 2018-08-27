@@ -9,14 +9,15 @@ import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
 
-lr = 0.1
+lr = 1
+
 sample_density = 20
 group_num_particles = sample_density**2
 goal_range = 0.15
 batch_size = 1
 actuation_strength = 8
 
-config = 'B'
+config = 'A'
 
 if config == 'A':
   # Robot A
@@ -128,8 +129,14 @@ def main(sess):
 
   final_state = sim.initial_state['debug']['controller_inputs']
   s = head * 6
-  final_position = final_state[:, s:s + 2]
-  loss = tf.reduce_mean((final_position - goal)**2)
+  
+  final_position = final_state[:, :, s:s+2]
+  final_velocity = final_state[:, :, s + 2: s + 4]
+  gamma = 0.1
+  loss1 = tf.reduce_sum((final_position - goal) ** 2)
+  loss2 = gamma * tf.reduce_sum(final_velocity ** 2)
+
+  loss = loss2
 
   initial_positions = [[] for _ in range(batch_size)]
   for b in range(batch_size):
@@ -151,10 +158,12 @@ def main(sess):
 
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
+  
   sym = sim.gradients_sym(loss, variables=trainables)
-  sim.add_point_visualization(
-      pos=final_position[:], color=(1, 0, 0), radius=3)
-  sim.add_point_visualization(pos=goal[:], color=(0, 1, 0), radius=3)
+  sim.add_point_visualization(pos=goal, color=(0, 1, 0), radius=3)
+  sim.add_vector_visualization(pos=final_position, vector=final_velocity, color=(0, 0, 1), scale=50)
+ 
+  sim.add_point_visualization(pos=final_position, color=(1, 0, 0), radius=3)
 
   goal_input = np.array(
     [[0.5 + (random.random() - 0.5) * goal_range * 2,

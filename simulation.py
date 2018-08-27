@@ -51,7 +51,8 @@ class Simulation:
     self.controller = controller
     self.parameterized_initial_state = None
     self.point_visualization = []
-
+    self.vector_visualization = []
+    
   def visualize(self, memo, interval=1):
     import math
     import cv2
@@ -71,11 +72,9 @@ class Simulation:
         normal = self.bc_normal[b][i][j]
         if np.linalg.norm(normal) != 0:
           background[i][j] *= 0.7
-
     background = cv2.resize(
         background, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
-
-    for i, (s, points) in enumerate(zip(memo.steps, memo.point_visualization)):
+    for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0:
         continue
       pos = s[b][0] * self.inv_dx + 0.5
@@ -91,12 +90,14 @@ class Simulation:
       for dot in points:
         coord, color, radius = dot
         coord = (coord * self.inv_dx + 0.5) * scale
-        cv2.circle(
-            img, (coord[b][1], coord[b][0]),
-            color=color,
-            radius=radius,
-            thickness=-1)
+        cv2.circle(img, (coord[0][1], coord[0][0]), color=color, radius=radius, thickness=-1)
 
+      for line in vectors:
+        pos, vec, color, gamma = line
+        pos = (pos * self.inv_dx + 0.5) * scale
+        vec = vec * gamma + pos
+        cv2.line(img, (pos[0][1], pos[0][0]), (vec[0][1], vec[0][0]), color = color, thickness = 1)
+    
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
       cv2.imshow('Differentiable MPM Simulator', img)
       cv2.waitKey(1)
@@ -113,6 +114,17 @@ class Simulation:
     pos = self.sess.run(pos_tensors, feed_dict=feed_dict)
     return [(p,) + tuple(list(r)[1:])
             for p, r in zip(pos, self.point_visualization)]
+
+  def evaluate_vectors(self, state, extra = {}):
+    if self.vector_visualization is None:
+      return []
+    pos_tensors = [v[0] for v in self.vector_visualization]
+    vec_tensors = [v[1] for v in self.vector_visualization]
+    feed_dict = {self.initial_state.to_tuple(): state}
+    feed_dict.update(extra)
+    pos = self.sess.run(pos_tensors, feed_dict=feed_dict)
+    vec = self.sess.run(vec_tensors, feed_dict=feed_dict)
+    return [(p,v) + tuple(list(r)[2:]) for p, v, r in zip(pos, vec, self.vector_visualization)]
 
   def run(self,
           num_steps,
@@ -133,18 +145,20 @@ class Simulation:
         initial_evaluated.append(t)
 
     memo.steps = [initial_evaluated]
-    memo.point_visualization.append(
-        self.evaluate_points(memo.steps[0], iteration_feed_dict))
+    memo.point_visualization.append(self.evaluate_points(memo.steps[0], iteration_feed_dict))
+    memo.vector_visualization.append(self.evaluate_vectors(memo.steps[0], iteration_feed_dict))
 
     for i in range(num_steps):
       feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}
       feed_dict.update(iteration_feed_dict)
 
       memo.steps.append(
-          self.sess.run(self.updated_state.to_tuple(), feed_dict=feed_dict))
-      memo.point_visualization.append(
-          self.evaluate_points(memo.steps[-1], iteration_feed_dict))
-
+          self.sess.run(
+              self.updated_state.to_tuple(),
+              feed_dict=feed_dict))
+      memo.point_visualization.append(self.evaluate_points(memo.steps[-1], iteration_feed_dict))
+      memo.vector_visualization.append(self.evaluate_vectors(memo.steps[-1], iteration_feed_dict))
+      
     if loss is not None:
       feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}
       feed_dict.update(iteration_feed_dict)
@@ -304,3 +318,6 @@ class Simulation:
 
   def add_point_visualization(self, pos, color=(1, 0, 0), radius=3):
     self.point_visualization.append((pos, color, radius))
+  
+  def add_vector_visualization(self, pos, vector, color=(1, 0, 0), scale=10):
+    self.vector_visualization.append((pos, vector, color, scale))
