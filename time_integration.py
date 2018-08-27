@@ -24,7 +24,7 @@ class SimulationState:
     self.grid_velocity = None
     self.kernels = None
     self.debug = None
-    
+
   def center_of_mass(self):
     return tf.reduce_sum(self.position * self.particle_mass, axis=1) *\
            (1 / tf.reduce_sum(self.particle_mass, axis=1))
@@ -115,20 +115,18 @@ class InitialSimulationState(SimulationState):
     self.poissons_ratio = tf.placeholder(
         tf.float32, [self.sim.batch_size, num_particles, 1],
         name='poissons_ratio')
-    self.grid_mass = tf.zeros(
-        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
-               1))
+    self.grid_mass = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
+                                     self.sim.grid_res[1], 1))
     self.grid_velocity = tf.zeros(
         shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
                dim))
-    self.kernels = tf.zeros(
-        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
-               3, 3))
-    
+    self.kernels = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
+                                   self.sim.grid_res[1], 3, 3))
+
     self.controller = controller
     if controller is not None:
       self.actuation, self.debug = controller(self)
-      
+
 
 class UpdatedSimulationState(SimulationState):
 
@@ -158,8 +156,8 @@ class UpdatedSimulationState(SimulationState):
         ],
         axis=2)
     # print('base indices', base_indices.shape)
-    self.grid_mass = tf.zeros(
-        shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], 1))
+    self.grid_mass = tf.zeros(shape=(batch_size, self.sim.grid_res[0],
+                                     self.sim.grid_res[1], 1))
 
     # Compute stress tensor (Kirchhoff stress instead of First Piola-Kirchhoff stress)
     self.deformation_gradient = previous_state.deformation_gradient
@@ -198,8 +196,8 @@ class UpdatedSimulationState(SimulationState):
     # Rasterize momentum and velocity
     # ... and apply gravity
 
-    self.grid_velocity = tf.zeros(
-        shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], dim))
+    self.grid_velocity = tf.zeros(shape=(batch_size, self.sim.grid_res[0],
+                                         self.sim.grid_res[1], dim))
 
     self.kernels = self.compute_kernels(previous_state.position * sim.inv_dx)
     assert self.kernels.shape == (batch_size, num_particles, 3, 3, 1)
@@ -236,8 +234,8 @@ class UpdatedSimulationState(SimulationState):
             indices=base_indices + delta_indices,
             updates=grid_velocity_contributions + grid_force_contributions)
     assert self.grid_mass.shape == (batch_size, self.sim.grid_res[0],
-                                    self.sim.grid_res[1], 1), 'shape={}'.format(
-                                        self.grid_mass.shape)
+                                    self.sim.grid_res[1],
+                                    1), 'shape={}'.format(self.grid_mass.shape)
 
     self.grid_velocity += self.grid_mass * np.array(
         self.sim.gravity)[None, None, None, :] * self.sim.dt
@@ -268,18 +266,29 @@ class UpdatedSimulationState(SimulationState):
     mask[:, 3:self.sim.grid_res[0] - 3, :self.sim.grid_res[1] - 3] = 1
     self.grid_velocity = self.grid_velocity * mask
     '''
+
+    sticky_mask = tf.cast(self.sim.bc_parameter == -1, tf.float32)
+    self.grid_velocity *= (1 - sticky_mask)
     
-    mask = tf.cast(tf.reduce_sum(self.sim.bc_normal ** 2, axis=3, keepdims=True) != 0, tf.float32)
-    normal_component_length = tf.reduce_sum(self.grid_velocity * self.sim.bc_normal, axis=3, keepdims=True)
+    mask = tf.cast(
+        tf.reduce_sum(self.sim.bc_normal**2, axis=3, keepdims=True) != 0,
+        tf.float32)
+    normal_component_length = tf.reduce_sum(
+        self.grid_velocity * self.sim.bc_normal, axis=3, keepdims=True)
     perpendicular_component = self.grid_velocity - self.sim.bc_normal * normal_component_length
-    perpendicular_component_length = tf.sqrt(tf.reduce_sum(perpendicular_component ** 2, axis=3, keepdims=True) + 1e-7)
-    normalized_perpendicular_component = perpendicular_component / tf.maximum(perpendicular_component_length, 1e-7)
+    perpendicular_component_length = tf.sqrt(
+        tf.reduce_sum(perpendicular_component**2, axis=3, keepdims=True) + 1e-7)
+    normalized_perpendicular_component = perpendicular_component / tf.maximum(
+        perpendicular_component_length, 1e-7)
     perpendicular_component_length = tf.sign(perpendicular_component_length) * \
                                      tf.maximum(tf.abs(perpendicular_component_length) +
                                                 tf.minimum(normal_component_length, 0) * self.sim.bc_parameter, 0)
-    projected_velocity = sim.bc_normal * tf.maximum(normal_component_length, 0) + perpendicular_component_length * normalized_perpendicular_component
-    self.grid_velocity = self.grid_velocity * (1 - mask) + mask * projected_velocity
-    
+    projected_velocity = sim.bc_normal * tf.maximum(
+        normal_component_length,
+        0) + perpendicular_component_length * normalized_perpendicular_component
+    self.grid_velocity = self.grid_velocity * (
+        1 - mask) + mask * projected_velocity
+
     # Resample velocity and local affine velocity field
     self.velocity *= 0
     for i in range(3):

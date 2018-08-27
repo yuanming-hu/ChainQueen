@@ -1,5 +1,5 @@
-
 class Memo:
+
   def __init__(self):
     self.steps = []
     self.initial_state = None
@@ -7,4 +7,4 @@ class Memo:
     self.iteration_feed_dict = {}
     self.point_visualization = []
     self.vector_visualization = []
-  
+    
