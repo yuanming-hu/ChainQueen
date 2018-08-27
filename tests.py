@@ -217,7 +217,10 @@ class TestSimulator(unittest.TestCase):
 
     loss = tf.reduce_mean(sim.initial_state.center_of_mass()[:, 0])
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: [3, 2]})
-    grad = sim.gradients(loss, memo, [velocity_ph])
+    
+    sim.set_initial_state(input_state)
+    sym = sim.gradients_sym(loss=loss, variables=[velocity_ph])
+    grad = sim.eval_gradients(sym, memo)
     self.assertAlmostEqualFloat32(grad[0][0], steps * dt)
     self.assertAlmostEqualFloat32(grad[0][1], 0)
 

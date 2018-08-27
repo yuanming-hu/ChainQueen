@@ -1,5 +1,3 @@
-from functools import partial
-import cv2
 import random
 import os
 from simulation import Simulation, get_bounding_box_bc
@@ -9,7 +7,7 @@ import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
 
-lr = 1
+lr = 0.1
 
 sample_density = 20
 group_num_particles = sample_density**2
@@ -26,6 +24,7 @@ if config == 'A':
   group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
   actuations = [0, 4]
   head = 2
+  gravity = (0, -2)
 elif config == 'B':
   # Finger
   num_groups = 3
@@ -33,6 +32,7 @@ elif config == 'B':
   group_sizes = [(0.5, 2), (0.5, 2), (1, 1)]
   actuations = [0, 1]
   head = 2
+  gravity = (0, 0)
 elif config == 'C':
   # Robot B
   num_groups = 7
@@ -41,6 +41,7 @@ elif config == 'C':
   actuations = [0, 1, 5, 6]
   fixed_groups = []
   head = 3
+  gravity = (0, -2)
 else:
   print('Unknown config {}'.format(config))
 
@@ -120,7 +121,7 @@ def main(sess):
       dt=0.01,
       num_particles=num_particles,
       grid_res=res,
-      gravity=(0, 0),
+      gravity=gravity,
       controller=controller,
       batch_size=batch_size,
       bc=bc,
@@ -130,13 +131,13 @@ def main(sess):
   final_state = sim.initial_state['debug']['controller_inputs']
   s = head * 6
   
-  final_position = final_state[:, :, s:s+2]
-  final_velocity = final_state[:, :, s + 2: s + 4]
+  final_position = final_state[:, s:s+2]
+  final_velocity = final_state[:, s + 2: s + 4]
   gamma = 0.1
   loss1 = tf.reduce_sum((final_position - goal) ** 2)
-  loss2 = gamma * tf.reduce_sum(final_velocity ** 2)
+  loss2 = tf.reduce_sum(final_velocity ** 2)
 
-  loss = loss2
+  loss = loss1 + gamma * loss2
 
   initial_positions = [[] for _ in range(batch_size)]
   for b in range(batch_size):

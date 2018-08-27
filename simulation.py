@@ -128,13 +128,15 @@ class Simulation:
 
   def run(self,
           num_steps,
-          initial_state,
+          initial_state=None,
           initial_feed_dict={},
           iteration_feed_dict={},
           loss=None):
     memo = Memo()
     memo.initial_feed_dict = initial_feed_dict
     memo.iteration_feed_dict = iteration_feed_dict
+    if initial_state is None:
+      initial_state = self.initial_state
     memo.initial_state = initial_state
 
     initial_evaluated = []
