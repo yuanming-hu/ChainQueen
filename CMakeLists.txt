@@ -10,30 +10,17 @@ set(TAICHI_PROJECT_LIBRARIES ${TAICHI_PROJECT_LIBRARIES} ${TAICHI_PROJECT_NAME} 
 if ($ENV{CUDA_ARCH})
     message("CUDA Arch: $ENV{CUDA_ARCH}")
     find_package(CUDA 8.0 REQUIRED)
-    set (CUDA_HOST_COMPILER g++)
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -arch=compute_$ENV{CUDA_ARCH} -code=sm_$ENV{CUDA_ARCH} -Xcompiler "-fPIC" --maxrregcount 64 --use_fast_math --ptxas-options=-allow-expensive-optimizations=true,-O3)
-    if ($ENV{CUDA_ARCH} LESS 60)
-        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -std=c++11)
-    else()
-        # __CUDA_ARCH__ is 0 here, and cannot be redefined...
-    endif()
-
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -D__CUDA_ARCH___=$ENV{CUDA_ARCH}0)
-    set(CUDA_PROPAGATE_HOST_FLAGS OFF)
-    cuda_add_library(cudmpm ${PROJECT_SOURCES_CUDA})
+    set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
+    #set(CUDA_NVCC_FLAGS ${CMAKE_CXX_FLAGS} ${CUDA_NVCC_FLAGS} -arch=compute_$ENV{CUDA_ARCH} -code=sm_$ENV{CUDA_ARCH} -Xcompiler "-fPIC" --maxrregcount 64 --use_fast_math --ptxas-options=-allow-expensive-optimizations=true,-O3)
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -code=sm_$ENV{CUDA_ARCH} -arch=compute_$ENV{CUDA_ARCH} -Xcompiler "-fPIC" --maxrregcount 64 --use_fast_math --ptxas-options=-allow-expensive-optimizations=true,-O3)
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -D__CUDA_ARCH___=$ENV{CUDA_ARCH}0 -std=c++14)
+    message("NVCC Flags: ${CUDA_NVCC_FLAGS}")
+    set(CUDA_PROPAGATE_HOST_FLAGS ON)
+    cuda_add_library(cudmpm SHARED ${PROJECT_SOURCES_CUDA})
 else()
     message("Environment variable CUDA_ARCH not found. Not using CUDA.")
 endif()
 
 add_library(taichi_${TAICHI_PROJECT_NAME} SHARED ${PROJECT_SOURCES})
-
 target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CORE_LIBRARY_NAME} ${SHARED_LIBS} cudmpm)
-
-if ($ENV{CUDA_ARCH})
-    target_link_libraries(taichi_${TAICHI_PROJECT_NAME})
-endif()
-
-if ($ENV{TC_NEED_ZLIB})
-    target_link_libraries(taichi_${TAICHI_PROJECT_NAME} z)
-endif()
 
