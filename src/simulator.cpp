@@ -22,6 +22,7 @@ class DMPMSimulator3D {
 };
 
 auto test_cuda = []() {
+  test();
   int N = 10;
   std::vector<real> a(N), b(N);
   for (int i = 0; i < N; i++) {
