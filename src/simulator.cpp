@@ -29,7 +29,7 @@ auto test_cuda = []() {
     a[i] = i;
     b[i] = i * 2;
   }
-  saxpy_cuda(N, 2.5_f, a.data(), b.data());
+  saxpy_cuda(N, 2.0_f, a.data(), b.data());
   for (int i = 0; i < N; i++) {
     TC_ASSERT(b[i] == i * 4);
   }

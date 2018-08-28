@@ -14,8 +14,9 @@ __global__ void saxpy_g(int n, real a, real *x, real *y) {
   }
 }
 
-void saxpy_cuda(int n, real alpha, real *x, real *y) {
+void saxpy_cuda(int N, real alpha, real *x, real *y) {
   real* d_x, *d_y;
+  /*
   cudaMalloc(&d_x, n * sizeof(real));
   cudaMalloc(&d_y, n * sizeof(real));
   cudaMemcpy(d_x, x, n * sizeof(real), cudaMemcpyHostToDevice);
@@ -32,6 +33,25 @@ void saxpy_cuda(int n, real alpha, real *x, real *y) {
   cudaFree(d_x);
   cudaFree(d_y);
   printf("done\n");
+  */
+
+  cudaMalloc(&d_x, N*sizeof(float));
+  cudaMalloc(&d_y, N*sizeof(float));
+
+  cudaMemcpy(d_x, x, N*sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_y, y, N*sizeof(float), cudaMemcpyHostToDevice);
+
+  saxpy_g<<<(N+255)/256, 256>>>(N, 2.0f, d_x, d_y);
+
+  cudaMemcpy(y, d_y, N*sizeof(float), cudaMemcpyDeviceToHost);
+
+  float maxError = 0.0f;
+  for (int i = 0; i < N; i++)
+    maxError = max(maxError, abs(y[i]-i * 4));
+  printf("Max error: %f\n", maxError);
+
+  cudaFree(d_x);
+  cudaFree(d_y);
 }
 
 void test() {
@@ -51,7 +71,6 @@ void test() {
   cudaMemcpy(d_x, x, N*sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(d_y, y, N*sizeof(float), cudaMemcpyHostToDevice);
 
-  // Perform SAXPY on 1M elements
   saxpy_g<<<(N+255)/256, 256>>>(N, 2.0f, d_x, d_y);
 
   cudaMemcpy(y, d_y, N*sizeof(float), cudaMemcpyDeviceToHost);
