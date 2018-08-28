@@ -1,5 +1,6 @@
 #include <taichi/common/util.h>
 #include <taichi/common/task.h>
+#include <taichi/testing.h>
 #include "kernels.h"
 
 TC_NAMESPACE_BEGIN
@@ -12,6 +13,7 @@ class DMPMSimulator3D {
   struct State {};
 
   void forward(const State &state) {
+    
   }
 
   void backward(const State &initial_state, const State &new_state) {
@@ -22,7 +24,6 @@ class DMPMSimulator3D {
 };
 
 auto test_cuda = []() {
-  test();
   int N = 10;
   std::vector<real> a(N), b(N);
   for (int i = 0; i < N; i++) {
@@ -31,7 +32,7 @@ auto test_cuda = []() {
   }
   saxpy_cuda(N, 2.0_f, a.data(), b.data());
   for (int i = 0; i < N; i++) {
-    TC_ASSERT(b[i] == i * 4);
+    TC_ASSERT_EQUAL(b[i], i * 4.0_f, 1e-5_f);
   }
 };
 
