@@ -1,3 +1,5 @@
+#pragma once
+
 using real = float;
 
 class Vector {
@@ -10,6 +12,10 @@ public:
     for (int i = 0; i < dim; i++) {
       d[i] = x;
     }
+  }
+
+  inline real operator [] (int i) {
+    return d[i];
   }
 };
 

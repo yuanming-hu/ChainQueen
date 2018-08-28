@@ -2,18 +2,21 @@
 #include <taichi/common/task.h>
 #include <taichi/testing.h>
 #include "kernels.h"
+#include "particle.h"
 
 TC_NAMESPACE_BEGIN
 
 class DMPMSimulator3D {
  public:
+  State state;
+
   DMPMSimulator3D() {
+    // TODO: initialize the state
   }
 
-  struct State {};
 
-  void forward(const State &state) {
-    
+  void advance() {
+    ::advance(state);
   }
 
   void backward(const State &initial_state, const State &new_state) {
