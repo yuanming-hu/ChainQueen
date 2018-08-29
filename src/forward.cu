@@ -1,6 +1,7 @@
 #include "kernels.h"
 #include "linalg.h"
 #include "particle.h"
+#include "svd.cuh"
 
 struct State : public StateBase {
   TC_FORCE_INLINE __device__ int linearized_offset(int x, int y, int z) const {
