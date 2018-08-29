@@ -7,11 +7,11 @@ import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
 
-lr = 0.1
+lr = 0.5
 
 sample_density = 20
 group_num_particles = sample_density**2
-goal_range = 0.15
+goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
@@ -110,7 +110,7 @@ def main(sess):
         act, transpose(state['deformation_gradient']))
     return total_actuation, debug
   
-  res = (25, 25)
+  res = (30, 30)
   bc = get_bounding_box_bc(res)
   
   if config == 'B':
@@ -118,7 +118,7 @@ def main(sess):
     bc[1][:, :, :5] = 0 # Sticky
 
   sim = Simulation(
-      dt=0.01,
+      dt=0.005,
       num_particles=num_particles,
       grid_res=res,
       gravity=gravity,
@@ -133,7 +133,7 @@ def main(sess):
   
   final_position = final_state[:, s:s+2]
   final_velocity = final_state[:, s + 2: s + 4]
-  gamma = 0.1
+  gamma = 0.0
   loss1 = tf.reduce_sum((final_position - goal) ** 2)
   loss2 = tf.reduce_sum(final_velocity ** 2)
 
@@ -175,7 +175,7 @@ def main(sess):
     t = time.time()
     memo = sim.run(
         initial_state=initial_state,
-        num_steps=100,
+        num_steps=150,
         iteration_feed_dict={goal: goal_input},
         loss=loss)
     grad = sim.eval_gradients(sym=sym, memo=memo)
