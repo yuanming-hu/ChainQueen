@@ -8,7 +8,7 @@ TC_NAMESPACE_BEGIN
 
 class DMPMSimulator3D {
  public:
-  State state;
+  StateBase state;
 
   DMPMSimulator3D() {
     // TODO: initialize the state
@@ -19,7 +19,7 @@ class DMPMSimulator3D {
     ::advance(state);
   }
 
-  void backward(const State &initial_state, const State &new_state) {
+  void backward(const StateBase &initial_state, const StateBase &new_state) {
   }
 
   void test() {

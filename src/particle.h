@@ -1,16 +1,23 @@
 #pragma once
 
-#include "linalg.h"
 
-struct State {
-  Vector *x;
-  Vector *v;
-  Matrix *F;
-  Matrix *C;
+struct StateBase {
+  using real = float;
 
-  Vector gravity;
+  static constexpr int dim = 3;
+  int num_particles;
+  real *x_storage;
+  real *v_storage;
+  real *F_storage;
+  real *C_storage;
+
+  int res[3];
+  real *grid_storage;
+  int num_cells;
+
+  real gravity[3];
   real dx;
   real dt;
 };
 
-void advance(State &state);
+void advance(StateBase &state);
