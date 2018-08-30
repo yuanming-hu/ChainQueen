@@ -19,8 +19,12 @@ struct State : public StateBase {
     return res[2] * (res[1] * x + y) + z;
   }
 
+  TC_FORCE_INLINE __device__ real *grid_node(int offset) const {
+    return grid_storage + (dim + 1) * offset;
+  }
+
   TC_FORCE_INLINE __device__ real *grid_node(int x, int y, int z) const {
-    return grid_storage + (dim + 1) * (res[2] * (res[1] * x + y) + z);
+    return grid_node(linearized_offset(x, y, z));
   }
 
   TC_FORCE_INLINE __device__ Matrix get_matrix(real *p, int part_id) const {
@@ -56,7 +60,6 @@ struct State : public StateBase {
   // TC_FORCE_INLINE __device__ get_cell
 };
 
-constexpr int dim = 3;
 constexpr int spline_size = 3;
 
 __global__ void saxpy(int n, real a, real *x, real *y) {
@@ -86,6 +89,31 @@ void saxpy_cuda(int N, real alpha, real *x, real *y) {
 
 // Gather data from SOA
 // Ensure coalesced global memory access
+
+__device__ void svd(Matrix &A, Matrix &U, Matrix &sig, Matrix &V) {
+  // clang-format off
+  sig[0][1] = sig[0][2] = sig[1][0] = sig[1][2] = sig[2][0] = sig[2][1] = 0;
+  svd(
+      A[0][0], A[0][1], A[0][2],
+      A[1][0], A[1][1], A[1][2],
+      A[2][0], A[2][1], A[2][2],
+      U[0][0], U[0][1], U[0][2],
+      U[1][0], U[1][1], U[1][2],
+      U[2][0], U[2][1], U[2][2],
+      sig[0][0], sig[1][1], sig[2][2],
+      V[0][0], V[0][1], V[0][2],
+      V[1][0], V[1][1], V[1][2],
+      V[2][0], V[2][1], V[2][2]
+  );
+  // clang-format on
+}
+
+__device__ void polar_decomp(Matrix &A, Matrix &R, Matrix &S) {
+  Matrix U, sig, V;
+  svd(A, U, sig, V);
+  R = U * transposed(V);
+  S = V * sig * transposed(V);
+}
 
 // Do not consider sorting for now. Use atomics instead.
 
@@ -129,8 +157,14 @@ __global__ void P2G(State &state) {
 
   Matrix stress;
   Matrix F = state.get_F(part_id);
+  // Fixed corotated
 
-  // stress = -4 * inv_dx * inv_dx * dt * volume * stress;
+  real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
+  real J = determinant(F);
+  Matrix r, s;
+  polar_decomp(F, r, s);
+  stress = -4 * inv_dx * inv_dx * dt * volume *
+           (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
 
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -178,24 +212,6 @@ void sort(State &state) {
 __global__ void G2P(State &state) {
 }
 
-__device__ void svd(Matrix &A, Matrix &U, Matrix &sig, Matrix &V) {
-  // clang-format off
-    sig[0][1] = sig[0][2] = sig[1][0] = sig[1][2] = sig[2][0] = sig[2][1] = 0;
-    svd(
-        A[0][0], A[0][1], A[0][2],
-        A[1][0], A[1][1], A[1][2],
-        A[2][0], A[2][1], A[2][2],
-        U[0][0], U[0][1], U[0][2],
-        U[1][0], U[1][1], U[1][2],
-        U[2][0], U[2][1], U[2][2],
-        sig[0][0], sig[1][1], sig[2][2],
-        V[0][0], V[0][1], V[0][2],
-        V[1][0], V[1][1], V[1][2],
-        V[2][0], V[2][1], V[2][2]
-    );
-  // clang-format on
-}
-
 __global__ void test_svd(int n, Matrix *A, Matrix *U, Matrix *sig, Matrix *V) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < n) {
@@ -232,6 +248,17 @@ void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
   }
 }
 
+__global__ void normalize_grid(State &state) {
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id < state.num_cells) {
+    auto node = state.grid_node(id);
+    int inv_m = max(1e-30f, node[dim + 1]);
+    node[0] *= inv_m;
+    node[1] *= inv_m;
+    node[2] *= inv_m;
+  }
+}
+
 void advance(State &state) {
   cudaMemset(state.grid_storage,
              state.grid_size() * (state.dim + 1) * sizeof(real), 0);
@@ -239,11 +266,9 @@ void advance(State &state) {
   static constexpr int block_size = 128;
   int num_blocks = (state.num_particles + block_size - 1) / block_size;
   P2G<<<num_blocks, block_size>>>(state);
-  // This should be done in tf
-  /*
+  // TODO: This should be done in tf
   int num_blocks_grid = state.grid_size();
   normalize_grid<<<(num_blocks_grid + block_size - 1) / block_size,
                    block_size>>>(state);
-                   */
   G2P<<<num_blocks, block_size>>>(state);
 }

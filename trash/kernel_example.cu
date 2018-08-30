@@ -1,6 +1,7 @@
 #include "kernel_example.h"
 #include "tensorflow/core/util/cuda_kernel_helper.h"
 
+/*
 using namespace tensorflow;
 
 using GPUDevice = Eigen::GpuDevice;
@@ -33,3 +34,4 @@ void ExampleFunctor<GPUDevice, T>::operator()(const GPUDevice &d,
 // Explicitly instantiate functors for the types of OpKernels registered.
 template struct ExampleFunctor<GPUDevice, float>;
 template struct ExampleFunctor<GPUDevice, int32>;
+*/
