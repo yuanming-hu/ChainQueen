@@ -16,10 +16,14 @@ goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
-nn_control = True
+nn_control = False
+num_acts = 4
 
 config = 'B'
-num_steps = 150
+if config == 'A':
+  num_steps = 150
+else:
+  num_steps = 200
 
 if config == 'A':
   # Robot A
@@ -69,8 +73,10 @@ if nn_control:
       trainable=True)
   b1 = tf.Variable([0.0] * len(actuations), trainable=True)
 else:
-  actuation_seq = tf.Variable(6.0 * tf.random_uniform(shape=(1, num_steps+1, num_actuators), dtype=np.float32), trainable=True)
+  actuation_seq = tf.Variable(tf.random_normal(shape=(1, num_acts, num_actuators), dtype=np.float32), trainable=True)
 
+def step_callback(dec_vec):
+  pass
 
 def main(sess):
   t = time.time()
@@ -106,7 +112,7 @@ def main(sess):
       actuation = tf.tanh(intermediate + b1[None, :]) * actuation_strength
     else:
       #IPython.embed()
-      actuation = tf.expand_dims(actuation_seq[0, state.step_count, :], 0)
+      actuation = tf.expand_dims(actuation_seq[0, state.step_count // (num_steps // num_acts), :], 0)
     debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation}
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
@@ -189,6 +195,26 @@ def main(sess):
       0.5 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
     dtype=np.float32)
   # Optimization loop
+  #IPython.embed()
+  #In progress code
+  '''
+  memo = sim.run(
+        initial_state=initial_state,
+        num_steps=num_steps,
+        iteration_feed_dict={goal: goal_input},
+        loss=loss)
+  IPython.embed()
+  
+  
+  def loss_callback():
+    memo = sim.run(
+        initial_state=initial_state,
+        num_steps=num_steps,
+        iteration_feed_dict={goal: goal_input},
+        loss=loss)
+    
+    return loss
+  '''
   for i in range(1000000):
     t = time.time()
     memo = sim.run(
@@ -205,6 +231,14 @@ def main(sess):
         i, time.time() - t, memo.loss))
     if i % 1 == 0:
       sim.visualize(memo)
+    
+  #in progress code
+  '''
+  optimizer = tf.contrib.opt.ScipyOptimizerInterface(
+    loss, method='BFGS')
+  optimizer.minimize(sess, loss_callback=loss_callback)
+  '''
+
 
 
 if __name__ == '__main__':
