@@ -17,6 +17,7 @@ batch_size = 1
 actuation_strength = 8
 
 nn_control = False
+use_bfgs = False
 num_acts = 200
 
 config = 'B'
@@ -170,14 +171,17 @@ def main(sess):
           initial_positions[b].append([u, v])
   assert len(initial_positions[0]) == num_particles
 
-  #TODO: is this correct in NN case too?
-  B = tf.Variable(tf.eye(num_actuators * num_acts)) #need this for hessian approx
+  
+  trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+  if use_bfgs:
+    B = [tf.Variable(tf.eye(tf.size(trainable)), trainable=False) for trainable in trainables]
+  
   sess.run(tf.global_variables_initializer())
 
   initial_state = sim.get_initial_state(
       position=np.array(initial_positions), youngs_modulus=10)
 
-  trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+  
   sim.set_initial_state(initial_state=initial_state)
   
   sym = sim.gradients_sym(loss, variables=trainables)
@@ -229,29 +233,36 @@ def main(sess):
     #BFGS update:
     #IPython.embed()
     
-    bfgs = []
-    #TODO: for now, assuming there is only one trainable and one grad for ease
-    v = trainables[0]
-    g = grad[0]
-    g_flat = ly.flatten(g) 
-    v_flat = ly.flatten(v)
-    if i > 0:  
-      y_flat = tf.squeeze(g_flat - old_g_flat)
-      s_flat = tf.squeeze(v_flat - old_v_flat)
-      B_s_flat = tf.tensordot(B, s_flat, 1)
-      term_1 = -tf.tensordot(B_s_flat, tf.transpose(B_s_flat), 0) / tf.tensordot(s_flat, B_s_flat, 1)
-      term_2 = tf.tensordot(y_flat, y_flat, 0) / tf.tensordot(y_flat, s_flat, 1)
-      B_update = [B.assign(B + term_1 + term_2)]
-      sess.run(B_update)
-      
-    search_dir = -lr * tf.matmul(tf.linalg.inv(B), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
-    search_dir_reshape = tf.reshape(search_dir, g.shape)
-    bfgs += [v.assign(v + search_dir_reshape)]
-    old_g_flat = g_flat
-    old_v_flat = v_flat.eval()
-      #TODO: B upate
-    sess.run(bfgs)
-    
+    if use_bfgs:
+      bfgs = [None] * len(grad)
+      B_update = [None] * len(grad)    
+      #TODO: for now, assuming there is only one trainable and one grad for ease
+      for v, g, idx in zip(trainables, grad, range(len(grad))):
+        g_flat = ly.flatten(g) 
+        v_flat = ly.flatten(v)
+        if B[idx] == None:
+            B[idx] = tf.eye(tf.size(v_flat))
+        if i > 0:          
+          y_flat = tf.squeeze(g_flat - old_g_flat)
+          s_flat = tf.squeeze(v_flat - old_v_flat)
+          B_s_flat = tf.tensordot(B[idx], s_flat, 1)
+          term_1 = -tf.tensordot(B_s_flat, tf.transpose(B_s_flat), 0) / tf.tensordot(s_flat, B_s_flat, 1)
+          term_2 = tf.tensordot(y_flat, y_flat, 0) / tf.tensordot(y_flat, s_flat, 1)
+          B_update[idx] = B[idx].assign(B[idx] + term_1 + term_2)        
+          sess.run(B_update)
+          
+        search_dir = -lr * tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
+        search_dir_reshape = tf.reshape(search_dir, g.shape)
+        bfgs[idx] = [v.assign(v + search_dir_reshape)]
+        old_g_flat = g_flat
+        old_v_flat = v_flat.eval()
+          #TODO: B upate
+      sess.run(bfgs)
+    else:
+      gradient_descent = [
+        v.assign(v - lr * g) for v, g in zip(trainables, grad)
+      ]
+      sess.run(gradient_descent)
       
       
     print('iter {:5d} time {:.3f} loss {:.4f}'.format(
