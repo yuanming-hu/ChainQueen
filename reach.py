@@ -6,6 +6,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
+import IPython
 
 lr = 0.5
 
@@ -15,7 +16,7 @@ goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
-config = 'A'
+config = 'B'
 
 if config == 'A':
   # Robot A
@@ -166,9 +167,15 @@ def main(sess):
  
   sim.add_point_visualization(pos=final_position, color=(1, 0, 0), radius=3)
 
-  goal_input = np.array(
-    [[0.5 + (random.random() - 0.5) * goal_range * 2,
-      0.6 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
+  if config == 'A':
+    goal_input = np.array(
+      [[0.5 + (random.random() - 0.5) * goal_range * 2,
+        0.6 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
+      dtype=np.float32)
+  elif config == 'B':
+    goal_input = np.array(
+    [[0.75 + (random.random() - 0.5) * goal_range * 2,
+      0.5 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
     dtype=np.float32)
   # Optimization loop
   for i in range(1000000):
