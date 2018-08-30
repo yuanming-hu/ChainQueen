@@ -3,6 +3,7 @@
 #include "particle.h"
 #include "svd.cuh"
 #include "../../../../../../../opt/cuda/include/driver_types.h"
+#include "../../../../../../../opt/cuda/include/cuda_runtime_api.h"
 #include <cstdio>
 #include <vector>
 
@@ -88,7 +89,56 @@ struct State : public StateBase {
   TC_FORCE_INLINE __device__ void set_C(int part_id, Matrix m) {
     return set_matrix(C_storage, part_id, m);
   }
-  // TC_FORCE_INLINE __device__ get_cell
+
+  /*
+  int num_particles;
+
+  real *x_storage;
+  real *v_storage;
+  real *F_storage;
+  real *C_storage;
+  real *grid_storage;
+
+  int res[3];
+  int num_cells;
+
+  real gravity[3];
+  real dx, inv_dx;
+  real dt;
+  */
+
+  State(int res[dim], int num_particles, real dx, real dt, real gravity[dim]) {
+    this->num_cells = 1;
+    for (int i = 0; i < dim; i++) {
+      this->res[i] = res[i];
+      this->num_cells *= res[i];
+      this->gravity[i] = gravity[i];
+    }
+    this->num_particles = num_particles;
+    this->dx = dx;
+    this->inv_dx = 1.0f / dx;
+    this->dt = dt;
+
+    cudaMalloc(&x_storage, sizeof(real) * dim * num_particles);
+    cudaMalloc(&v_storage, sizeof(real) * dim * num_particles);
+    cudaMalloc(&F_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&C_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
+
+    std::vector<Matrix> F_initial(num_particles);
+    for (int i = 0; i < num_particles; i++) {
+      F_initial[i] = Matrix(1.0f);
+    }
+    cudaMemcpy(F_storage, F_initial.data(), sizeof(Matrix) * num_particles,
+               cudaMemcpyHostToDevice);
+  }
+
+  __host__ std::vector<real> fetch_x() {
+    std::vector<real> host_x(dim * num_particles);
+    cudaMemcpy(host_x.data(), x_storage, sizeof(real) * dim * num_particles,
+               cudaMemcpyDeviceToHost);
+    return host_x;
+  }
 };
 
 constexpr int spline_size = 3;
