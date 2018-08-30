@@ -29,7 +29,23 @@ class Vector {
   TC_FORCE_INLINE __host__ __device__ real &operator[](int i) {
     return d[i];
   }
+
+  __device__ Vector operator-(const Vector &o) {
+    Vector ret;
+    for (int i = 0; i < dim; i++) {
+      ret[i] = d[i] - o[i];
+    }
+    return ret;
+  }
 };
+
+__device__ Vector operator*(real alpha, const Vector &o) {
+  Vector ret;
+  for (int i = 0; i < dim; i++) {
+    ret[i] = alpha * o[i];
+  }
+  return ret;
+}
 
 class Matrix {
  public:
@@ -135,4 +151,8 @@ __device__ Matrix operator*(real alpha, const Matrix &o) {
     }
   }
   return ret;
+}
+
+TC_FORCE_INLINE __device__ real sqr(real x) {
+  return x * x;
 }

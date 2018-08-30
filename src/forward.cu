@@ -115,16 +115,48 @@ __device__ void polar_decomp(Matrix &A, Matrix &R, Matrix &S) {
   S = V * sig * transposed(V);
 }
 
-TC_FORCE_INLINE __device__ real sqr(real x) {
-  return x * x;
-}
+struct TransferCommon {
+  int base_coord[dim];
+  Vector fx;
+  real weight[dim][spline_size];
+  real dx, inv_dx;
+
+  TC_FORCE_INLINE __device__ TransferCommon(const State &state, Vector x) {
+    dx = state.dx;
+    inv_dx = state.inv_dx;
+    for (int p = 0; p < dim; p++) {
+      base_coord[p] = int(x[p] * inv_dx - 0.5);
+    }
+    for (int i = 0; i < dim; i++) {
+      fx[i] = x[i] * inv_dx - base_coord[i];
+    }
+
+    // B-Spline weights
+    for (int i = 0; i < dim; ++i) {
+      weight[i][0] = 0.5f * sqr(1.5f - fx[i]);
+      weight[i][1] = 0.75f * sqr(fx[i] - 1);
+      weight[i][2] = 0.5f * sqr(fx[i] - 0.5);
+    }
+
+  }
+
+  TC_FORCE_INLINE __device__ real w(int i, int j, int k) {
+    return weight[0][i] * weight[1][j] * weight[2][k];
+  }
+
+  TC_FORCE_INLINE __device__ Vector dpos(int i, int j, int k) {
+    return dx * (Vector(i, j, k) - fx);
+  }
+};
+
+using BSplineWeights = real[dim][spline_size];
 
 // Do not consider sorting for now. Use atomics instead.
 
 __global__ void P2G(State &state) {
   // One particle per thread
 
-  auto inv_dx = real(1.0) / state.dx;
+  auto inv_dx = state.inv_dx;
 
   // constexpr int scratch_size = 8;
   //__shared__ real scratch[dim + 1][scratch_size][scratch_size][scratch_size];
@@ -140,24 +172,8 @@ __global__ void P2G(State &state) {
   real dt = state.dt;
 
   Vector x = state.get_x(part_id), v = state.get_v(part_id);
-  int base_coord[3];
-  for (int p = 0; p < dim; p++) {
-    base_coord[p] = int(x[p] * inv_dx - 0.5);
-  }
 
-  Vector fx;
-  for (int i = 0; i < dim; i++) {
-    fx[i] = x[i] * inv_dx - base_coord[i];
-  }
-
-  real weight[dim][spline_size];
-
-  // B-Spline weights
-  for (int v = 0; v < dim; ++v) {
-    weight[v][0] = 0.5f * sqr(1.5f - fx[v]);
-    weight[v][1] = 0.75f * sqr(fx[v] - 1);
-    weight[v][2] = 0.5f * sqr(fx[v] - 0.5);
-  }
+  TransferCommon tc(state, x);
 
   Matrix stress;
   Matrix F = state.get_F(part_id);
@@ -176,39 +192,19 @@ __global__ void P2G(State &state) {
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       for (int k = 0; k < 3; k++) {
-        auto w = weight[0][i] * weight[1][j] * weight[2][k];
-
-        // val[0] = mass * w;
-        Vector dpos;
-
-        /*
-        // reduce in warp
-        for (int iter = 1; iter <= mark; iter <<= 1) {
-          T tmp[4];
-          for (int i = 0; i < 4; ++i)
-            tmp[i] = __shfl_down(val[i], iter);
-          if (interval >= iter)
-            for (int i = 0; i < 4; ++i)
-              val[i] += tmp[i];
-        }
-
-        // cross-warp atomic
-        for (int r = 0; r < dim + 1; r++) {
-          atomicAdd();
-        }
-        */
-
-        // scatter mass
+        auto w = tc.w(i, j, k);
+        Vector dpos = tc.dpos(i, j, k);
 
         real contrib[dim + 1];
+
         auto tmp = affine * dpos;
         contrib[0] = tmp[0] * w;
         contrib[1] = tmp[1] * w;
         contrib[2] = tmp[2] * w;
         contrib[3] = mass * w;
 
-        auto node = state.grid_node(base_coord[0] + i, base_coord[1] + j,
-                                    base_coord[2] + k);
+        auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
+                                    tc.base_coord[2] + k);
         for (int p = 0; p <= dim + 1; p++) {
           atomicAdd(&node[p], contrib[p]);
         }

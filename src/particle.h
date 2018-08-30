@@ -16,7 +16,7 @@ struct StateBase {
   int num_cells;
 
   real gravity[3];
-  real dx;
+  real dx, inv_dx;
   real dt;
 };
 
