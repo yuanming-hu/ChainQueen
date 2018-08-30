@@ -213,7 +213,7 @@ struct TransferCommon {
     // B-Spline weights
     for (int i = 0; i < dim; ++i) {
       weight[i][0] = 0.5f * sqr(1.5f - fx[i]);
-      weight[i][1] = 0.75f * sqr(fx[i] - 1);
+      weight[i][1] = 0.75f - sqr(fx[i] - 1);
       weight[i][2] = 0.5f * sqr(fx[i] - 0.5f);
     }
   }
@@ -373,9 +373,6 @@ __global__ void normalize_grid(State state) {
   int boundary = 3;
   if (id < state.num_cells) {
     auto node = state.grid_node(id);
-    for (int i = 0; i < dim; i++) {
-      node[i] += 1;
-    }
     if (node[dim] > 0) {
       real inv_m = 1.0f / node[dim];
       node[0] *= inv_m;
@@ -383,7 +380,6 @@ __global__ void normalize_grid(State state) {
       node[2] *= inv_m;
       for (int i = 0; i < dim; i++) {
         node[i] += state.gravity[i] * state.dt;
-        //node[i] += state.gravity[i];
       }
       int x = id / (state.res[1] * state.res[2]),
           y = id / state.res[2] % state.res[1], z = id % state.res[2];
@@ -404,7 +400,7 @@ void advance(State &state) {
              state.num_cells * (state.dim + 1) * sizeof(real), 0);
   static constexpr int block_size = 128;
   int num_blocks = (state.num_particles + block_size - 1) / block_size;
-  //P2G<<<num_blocks, block_size>>>(state);
+  //  P2G<<<num_blocks, block_size>>>(state);
 
   auto err = cudaThreadSynchronize();
 
