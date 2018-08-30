@@ -126,7 +126,7 @@ __global__ void P2G(State &state) {
 
   auto inv_dx = real(1.0) / state.dx;
 
-  //constexpr int scratch_size = 8;
+  // constexpr int scratch_size = 8;
   //__shared__ real scratch[dim + 1][scratch_size][scratch_size][scratch_size];
 
   // load from global memory
@@ -149,7 +149,6 @@ __global__ void P2G(State &state) {
   for (int i = 0; i < dim; i++) {
     fx[i] = x[i] * inv_dx - base_coord[i];
   }
-
 
   real weight[dim][spline_size];
 
@@ -262,12 +261,29 @@ void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
 
 __global__ void normalize_grid(State &state) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
+  int boundary = 3;
   if (id < state.num_cells) {
     auto node = state.grid_node(id);
-    int inv_m = max(1e-30f, node[dim + 1]);
-    node[0] *= inv_m;
-    node[1] *= inv_m;
-    node[2] *= inv_m;
+    if (node[dim + 1] > 0) {
+      real inv_m = 1.0f / node[dim + 1];
+      node[0] *= inv_m;
+      node[1] *= inv_m;
+      node[2] *= inv_m;
+      for (int i = 0; i < dim; i++) {
+        // TODO: optimize
+        node[i] += state.gravity[i] * state.dt;
+      }
+      int x = id / (state.res[1] * state.res[2]),
+          y = id / state.res[2] % state.res[1], z = id % state.res[2];
+      if (x < boundary || y < boundary || y < boundary ||
+          x + boundary >= state.res[0] || y + boundary >= state.res[1] ||
+          z + boundary >= state.res[2]) {
+        // All sticky for now
+        for (int i = 0; i < dim; i++) {
+          node[i] = 0;
+        }
+      }
+    }
   }
 }
 
