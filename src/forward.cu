@@ -3,6 +3,8 @@
 #include "particle.h"
 #include "svd.cuh"
 #include "../../../../../../../opt/cuda/include/driver_types.h"
+#include <cstdio>
+#include <vector>
 
 struct State : public StateBase {
   TC_FORCE_INLINE __device__ int linearized_offset(int x, int y, int z) const {
@@ -185,7 +187,7 @@ __global__ void test_svd(int n, Matrix *A, Matrix *U, Matrix *sig, Matrix *V) {
   }
 }
 
-void cuda_test_svd(int n, real *A, real *U, real *sig, real *V) {
+void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
   Matrix *d_A, *d_U, *d_sig, *d_V;
 
   cudaMalloc(&d_A, sizeof(Matrix) * (unsigned int)(n));
@@ -197,15 +199,21 @@ void cuda_test_svd(int n, real *A, real *U, real *sig, real *V) {
 
   test_svd<<<(n + 127) / 128, 128>>>(n, d_A, d_U, d_sig, d_V);
 
+  std::vector<Matrix> h_U(n), h_sig(n), h_V(n);
+  cudaMemcpy(h_U.data(), d_U, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_sig.data(), d_sig, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_V.data(), d_V, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
+
   for (int p = 0; p < n; p++) {
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
-        U[p * 12 + 4 * i + j] = d_U[p][i][j];
-        sig[p * 12 + 4 * i + j] = d_sig[p][i][j];
-        V[p * 12 + 4 * i + j] = d_V[p][i][j];
+        U[p * 12 + 4 * i + j] = h_U[p][i][j];
+        sig[p * 12 + 4 * i + j] = h_sig[p][i][j];
+        V[p * 12 + 4 * i + j] = h_V[p][i][j];
       }
     }
   }
+  printf("here\n");
 }
 
 void advance(State &state) {
