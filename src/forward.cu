@@ -410,3 +410,34 @@ void advance(State &state) {
                    block_size>>>(state);
   G2P<<<num_blocks, block_size>>>(state);
 }
+
+void initialize_mpm3d_state(void *&state_) {
+  int res[dim];
+  int n = 100;
+  res[0] = 100;
+  res[1] = 100;
+  res[2] = 100;
+  int part_n = 30;
+  for (int i = 0; i < part_n; i++) {
+  }
+  int num_particles = part_n * part_n * part_n;
+
+  real gravity[dim];
+  for (int i = 0; i < dim; i++) {
+    gravity[i] = 0;
+  }
+  gravity[1] = -9.8;
+
+  // State(int res[dim], int num_particles, real dx, real dt, real
+  state_ = new State(res, num_particles, 1.0f / n, 1e-4f, gravity);
+}
+
+void advance_mpm3d_state(void *state_) {
+  State *state = reinterpret_cast<State *>(state_);
+  advance(*state);
+}
+
+std::vector<float> fetch_mpm3d_particles(void *state_) {
+  State *state = reinterpret_cast<State *>(state_);
+  return state->fetch_x();
+}

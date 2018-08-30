@@ -1,6 +1,7 @@
 #include <taichi/common/util.h>
 #include <taichi/common/task.h>
 #include <taichi/testing.h>
+#include <taichi/io/optix.h>
 #include "kernels.h"
 #include "particle.h"
 
@@ -24,6 +25,18 @@ class DMPMSimulator3D {
   void test() {
   }
 };
+
+auto gpu_mpm3d = []() {
+  void *states;
+  initialize_mpm3d_state(states);
+  for (int i = 0; i < 100; i++) {
+    advance_mpm3d_state(states);
+    fetch_mpm3d_particles(states);
+    OptiXScene scene;
+  }
+};
+
+TC_REGISTER_TASK(gpu_mpm3d);
 
 auto test_cuda = []() {
   int N = 10;
