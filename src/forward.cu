@@ -204,12 +204,13 @@ void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
   cudaMemcpy(h_sig.data(), d_sig, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
   cudaMemcpy(h_V.data(), d_V, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
 
+  // Taichi uses column-first storage
   for (int p = 0; p < n; p++) {
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
-        U[p * 12 + 4 * i + j] = h_U[p][i][j];
-        sig[p * 12 + 4 * i + j] = h_sig[p][i][j];
-        V[p * 12 + 4 * i + j] = h_V[p][i][j];
+        U[p * 12 + 4 * i + j] = h_U[p][j][i];
+        sig[p * 12 + 4 * i + j] = h_sig[p][j][i];
+        V[p * 12 + 4 * i + j] = h_V[p][j][i];
       }
     }
   }

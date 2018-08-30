@@ -54,7 +54,7 @@ auto test_cuda_svd = []() {
     auto matA = Matrix(1) + 0.5_f * Matrix::rand();
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
-        A_flattened.push_back(matA[i][j]);
+        A_flattened.push_back(matA(i, j));
       }
     }
     A[p] = matA;
@@ -65,7 +65,7 @@ auto test_cuda_svd = []() {
 
   constexpr real tolerance = 3e-5_f32;
   for (int i = 0; i < N; i++) {
-    auto matA = transposed(A[i]);
+    auto matA = A[i];
     auto matU = U[i];
     auto matV = V[i];
     auto matSig = sig[i];
@@ -73,7 +73,7 @@ auto test_cuda_svd = []() {
     TC_ASSERT_EQUAL(matSig, Matrix(matSig.diag()), tolerance);
     TC_ASSERT_EQUAL(Matrix(1), matU * transposed(matU), tolerance);
     TC_ASSERT_EQUAL(Matrix(1), matV * transposed(matV), tolerance);
-    TC_ASSERT_EQUAL(matA, transposed(matU) * matSig * (matV), tolerance);
+    TC_ASSERT_EQUAL(matA, matU * matSig * transposed(matV), tolerance);
 
     /*
       polar_decomp(m, R, S);
