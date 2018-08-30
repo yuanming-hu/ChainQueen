@@ -213,7 +213,6 @@ void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
       }
     }
   }
-  printf("here\n");
 }
 
 void advance(State &state) {

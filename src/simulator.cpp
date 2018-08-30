@@ -41,7 +41,7 @@ auto test_cuda = []() {
 TC_REGISTER_TASK(test_cuda);
 
 auto test_cuda_svd = []() {
-  int N = 10;
+  int N = 12800;
   using Matrix = Matrix3f;
   std::vector<Matrix> A, U, sig, V;
   A.resize(N);
@@ -51,13 +51,13 @@ auto test_cuda_svd = []() {
 
   std::vector<real> A_flattened;
   for (int p = 0; p < N; p++) {
-    auto matA = Matrix::rand();
+    auto matA = Matrix(1) + 0.5_f * Matrix::rand();
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
         A_flattened.push_back(matA[i][j]);
       }
     }
-    A.push_back(matA);
+    A[p] = matA;
   }
 
   test_svd_cuda(N, (real *)A_flattened.data(), (real *)U.data(),
@@ -65,15 +65,15 @@ auto test_cuda_svd = []() {
 
   constexpr real tolerance = 3e-5_f32;
   for (int i = 0; i < N; i++) {
-    auto matA = A[i];
+    auto matA = transposed(A[i]);
     auto matU = U[i];
     auto matV = V[i];
     auto matSig = sig[i];
 
-    TC_CHECK_EQUAL(matA, matU * matSig * transposed(matV), tolerance);
-    TC_CHECK_EQUAL(Matrix(1), matU * transposed(matU), tolerance);
-    TC_CHECK_EQUAL(Matrix(1), matV * transposed(matV), tolerance);
-    TC_CHECK_EQUAL(matSig, Matrix(matSig.diag()), tolerance);
+    TC_ASSERT_EQUAL(matSig, Matrix(matSig.diag()), tolerance);
+    TC_ASSERT_EQUAL(Matrix(1), matU * transposed(matU), tolerance);
+    TC_ASSERT_EQUAL(Matrix(1), matV * transposed(matV), tolerance);
+    TC_ASSERT_EQUAL(matA, transposed(matU) * matSig * (matV), tolerance);
 
     /*
       polar_decomp(m, R, S);

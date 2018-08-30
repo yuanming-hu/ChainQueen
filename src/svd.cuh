@@ -115,7 +115,7 @@ __device__ __forceinline__ void svd(float a11,
   //###########################################################
   // Solve symmetric eigenproblem using Jacobi iteration
   //###########################################################
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 6; i++) {
     Ssh.f = Ss21.f * 0.5f;
     Stmp5.f = __fsub_rn(Ss11.f, Ss22.f);
 
