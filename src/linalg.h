@@ -30,6 +30,14 @@ class Vector {
     return d[i];
   }
 
+  __device__ Vector operator+(const Vector &o) {
+    Vector ret;
+    for (int i = 0; i < dim; i++) {
+      ret[i] = d[i] + o[i];
+    }
+    return ret;
+  }
+
   __device__ Vector operator-(const Vector &o) {
     Vector ret;
     for (int i = 0; i < dim; i++) {
@@ -76,7 +84,7 @@ class Matrix {
   TC_FORCE_INLINE __device__ Matrix(real x = 0) {
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
-        d[i][j] = x;
+        d[i][j] = (i == j) ? x : 0;
       }
     }
   }
@@ -126,6 +134,16 @@ class Matrix {
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         ret[i] += d[i][j] * v[j];
+      }
+    }
+    return ret;
+  }
+
+  static __device__ Matrix outer_product(const Vector &col, const Vector &row) {
+    Matrix ret;
+    for (int i = 0; i < dim; i++) {
+      for (int j = 0; j < dim; j++) {
+        ret[i][j] = row[i] * col[j];
       }
     }
     return ret;

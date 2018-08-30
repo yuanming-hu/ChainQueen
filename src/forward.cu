@@ -36,27 +36,58 @@ struct State : public StateBase {
         p[part_id + 8 * num_particles]);
   }
 
+  TC_FORCE_INLINE __device__ void set_matrix(real *p,
+                                             int part_id,
+                                             Matrix m) const {
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        p[part_id + (i * 3 + j) * num_particles] = m[i][j];
+      }
+    }
+  }
+
   TC_FORCE_INLINE __device__ Vector get_vector(real *p, int part_id) {
     return Vector(p[part_id], p[part_id + num_particles],
                   p[part_id + num_particles * 2]);
   }
 
-  TC_FORCE_INLINE __device__ Vector get_v(int part_id) {
-    return get_vector(v_storage, part_id);
+  TC_FORCE_INLINE __device__ void set_vector(real *p, int part_id, Vector v) {
+    for (int i = 0; i < dim; i++) {
+      p[part_id + num_particles * i] = v[i];
+    }
   }
 
   TC_FORCE_INLINE __device__ Vector get_x(int part_id) {
     return get_vector(x_storage, part_id);
   }
 
+  TC_FORCE_INLINE __device__ void set_x(int part_id, Vector x) {
+    return set_vector(x_storage, part_id, x);
+  }
+
+  TC_FORCE_INLINE __device__ Vector get_v(int part_id) {
+    return get_vector(v_storage, part_id);
+  }
+
+  TC_FORCE_INLINE __device__ void set_v(int part_id, Vector x) {
+    return set_vector(v_storage, part_id, x);
+  }
+
   TC_FORCE_INLINE __device__ Matrix get_F(int part_id) {
     return get_matrix(F_storage, part_id);
+  }
+
+  TC_FORCE_INLINE __device__ void set_F(int part_id, Matrix m) {
+    return set_matrix(F_storage, part_id, m);
   }
 
   TC_FORCE_INLINE __device__ Matrix get_C(int part_id) {
     return get_matrix(C_storage, part_id);
   }
 
+  TC_FORCE_INLINE __device__ void set_C(int part_id, Matrix m) {
+    return set_matrix(C_storage, part_id, m);
+  }
   // TC_FORCE_INLINE __device__ get_cell
 };
 
@@ -137,7 +168,6 @@ struct TransferCommon {
       weight[i][1] = 0.75f * sqr(fx[i] - 1);
       weight[i][2] = 0.5f * sqr(fx[i] - 0.5);
     }
-
   }
 
   TC_FORCE_INLINE __device__ real w(int i, int j, int k) {
@@ -153,54 +183,55 @@ using BSplineWeights = real[dim][spline_size];
 
 // Do not consider sorting for now. Use atomics instead.
 
+// One particle per thread
 __global__ void P2G(State &state) {
-  // One particle per thread
-
-  auto inv_dx = state.inv_dx;
-
   // constexpr int scratch_size = 8;
   //__shared__ real scratch[dim + 1][scratch_size][scratch_size][scratch_size];
 
-  // load from global memory
-  int part_id = 0;  // TODO
+  int part_id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (part_id >= state.num_particles) {
+    return;
+  }
 
+  auto inv_dx = state.inv_dx;
+  real dt = state.dt;
+
+  Vector x = state.get_x(part_id), v = state.get_v(part_id);
   real mass = 1;    // TODO: variable mass
   real volume = 1;  // TODO: variable vol
   real E = 10000;   // TODO: variable E
   real nu = 0.3;    // TODO: variable nu
-
-  real dt = state.dt;
-
-  Vector x = state.get_x(part_id), v = state.get_v(part_id);
-
-  TransferCommon tc(state, x);
-
-  Matrix stress;
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
+
+  TransferCommon tc(state, x);
 
   // Fixed corotated
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
   real J = determinant(F);
   Matrix r, s;
   polar_decomp(F, r, s);
-  stress = -4 * inv_dx * inv_dx * dt * volume *
-           (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+  Matrix stress =
+      -4 * inv_dx * inv_dx * dt * volume *
+      (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
 
   auto affine = stress + mass * C;
+
+  Vector mv = mass * v;
 
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       for (int k = 0; k < 3; k++) {
-        auto w = tc.w(i, j, k);
         Vector dpos = tc.dpos(i, j, k);
 
         real contrib[dim + 1];
 
-        auto tmp = affine * dpos;
-        contrib[0] = tmp[0] * w;
-        contrib[1] = tmp[1] * w;
-        contrib[2] = tmp[2] * w;
+        auto tmp = affine * dpos + mass * v;
+
+        auto w = tc.w(i, j, k);
+        contrib[0] = mv[0] + tmp[0] * w;
+        contrib[1] = mv[1] + tmp[1] * w;
+        contrib[2] = mv[2] + tmp[2] * w;
         contrib[3] = mass * w;
 
         auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
@@ -217,6 +248,39 @@ void sort(State &state) {
 }
 
 __global__ void G2P(State &state) {
+  int part_id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (part_id >= state.num_particles) {
+    return;
+  }
+
+  auto inv_dx = state.inv_dx;
+  real dt = state.dt;
+
+  Vector x = state.get_x(part_id);
+  Vector v;
+  Matrix F = state.get_F(part_id);
+  Matrix C;
+
+  TransferCommon tc(state, x);
+
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      for (int k = 0; k < 3; k++) {
+        Vector dpos = tc.dpos(i, j, k);
+
+        auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
+                                    tc.base_coord[2] + k);
+        auto node_v = Vector(node[0], node[1], node[2]);
+
+        auto w = tc.w(i, j, k);
+        v = v + w * node_v;
+        C = C + Matrix::outer_product(w * node_v, 4 * inv_dx * inv_dx * dpos);
+      }
+    }
+  }
+  state.set_x(part_id, x + state.dt * v);
+  state.set_v(part_id, v);
+  state.set_F(part_id, (Matrix(1) + dt * C) * F);
 }
 
 __global__ void test_svd(int n, Matrix *A, Matrix *U, Matrix *sig, Matrix *V) {
