@@ -115,6 +115,10 @@ __device__ void polar_decomp(Matrix &A, Matrix &R, Matrix &S) {
   S = V * sig * transposed(V);
 }
 
+TC_FORCE_INLINE __device__ real sqr(real x) {
+  return x * x;
+}
+
 // Do not consider sorting for now. Use atomics instead.
 
 __global__ void P2G(State &state) {
@@ -122,8 +126,8 @@ __global__ void P2G(State &state) {
 
   auto inv_dx = real(1.0) / state.dx;
 
-  constexpr int scratch_size = 8;
-  __shared__ real scratch[dim + 1][scratch_size][scratch_size][scratch_size];
+  //constexpr int scratch_size = 8;
+  //__shared__ real scratch[dim + 1][scratch_size][scratch_size][scratch_size];
 
   // load from global memory
   int part_id = 0;  // TODO
@@ -136,29 +140,31 @@ __global__ void P2G(State &state) {
   real dt = state.dt;
 
   Vector x = state.get_x(part_id), v = state.get_v(part_id);
-
-  real weight[dim][spline_size];
-  // Compute B-Spline weights
-  for (int v = 0; v < dim; ++v) {
-    real d0 = x[v] * inv_dx;
-    real z = ((real)1.5 - d0);
-    weight[v][0] = (real)0.5 * z * z;
-    d0 = d0 - 1.0f;
-    weight[v][1] = (real)0.75 - d0 * d0;
-    z = (real)1.5 - (1.0f - d0);
-    weight[v][2] = (real)0.5 * z * z;
+  int base_coord[3];
+  for (int p = 0; p < dim; p++) {
+    base_coord[p] = int(x[p] * inv_dx - 0.5);
   }
 
-  real val[dim + 1];
+  Vector fx;
+  for (int i = 0; i < dim; i++) {
+    fx[i] = x[i] * inv_dx - base_coord[i];
+  }
 
-  int base_coord[3];
-  for (int p = 0; p < 3; p++)
-    base_coord[p] = int(x[p] * inv_dx - 0.5);
+
+  real weight[dim][spline_size];
+
+  // B-Spline weights
+  for (int v = 0; v < dim; ++v) {
+    weight[v][0] = 0.5f * sqr(1.5f - fx[v]);
+    weight[v][1] = 0.75f * sqr(fx[v] - 1);
+    weight[v][2] = 0.5f * sqr(fx[v] - 0.5);
+  }
 
   Matrix stress;
   Matrix F = state.get_F(part_id);
-  // Fixed corotated
+  Matrix C = state.get_C(part_id);
 
+  // Fixed corotated
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
   real J = determinant(F);
   Matrix r, s;
@@ -166,13 +172,14 @@ __global__ void P2G(State &state) {
   stress = -4 * inv_dx * inv_dx * dt * volume *
            (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
 
+  auto affine = stress + mass * C;
+
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       for (int k = 0; k < 3; k++) {
         auto w = weight[0][i] * weight[1][j] * weight[2][k];
-        int base_coord[dim];
 
-        val[0] = mass * w;
+        // val[0] = mass * w;
         Vector dpos;
 
         /*
@@ -194,7 +201,12 @@ __global__ void P2G(State &state) {
 
         // scatter mass
 
-        real contrib[dim + 1] = {0};
+        real contrib[dim + 1];
+        auto tmp = affine * dpos;
+        contrib[0] = tmp[0] * w;
+        contrib[1] = tmp[1] * w;
+        contrib[2] = tmp[2] * w;
+        contrib[3] = mass * w;
 
         auto node = state.grid_node(base_coord[0] + i, base_coord[1] + j,
                                     base_coord[2] + k);

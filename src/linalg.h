@@ -22,7 +22,11 @@ class Vector {
     }
   }
 
-  TC_FORCE_INLINE __host__ __device__ real operator[](int i) {
+  TC_FORCE_INLINE __host__ __device__ real operator[](int i) const {
+    return d[i];
+  }
+
+  TC_FORCE_INLINE __host__ __device__ real &operator[](int i) {
     return d[i];
   }
 };
@@ -96,6 +100,16 @@ class Matrix {
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         ret[i][j] = d[i][j] - o[i][j];
+      }
+    }
+    return ret;
+  }
+
+  __device__ Vector operator*(const Vector &v) {
+    Vector ret;
+    for (int i = 0; i < dim; i++) {
+      for (int j = 0; j < dim; j++) {
+        ret[i] += d[i][j] * v[j];
       }
     }
     return ret;
