@@ -40,7 +40,7 @@ auto gpu_mpm3d = []() {
   for (int i = 0; i < 30; i++) {
     for (int j = 0; j < 30; j++) {
       for (int k = 0; k < 30; k++) {
-        initial_positions.push_back(j * 0.005_f + 0.4_f);
+        initial_positions.push_back(j * 0.005_f + 0.6_f);
       }
     }
   }
@@ -53,7 +53,7 @@ auto gpu_mpm3d = []() {
   }
   initialize_mpm3d_state(states, initial_positions.data());
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 10; i++) {
     auto x = fetch_mpm3d_particles(states);
     OptiXScene scene;
     for (int p = 0; p < 30 * 30 * 30; p++) {

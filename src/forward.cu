@@ -203,18 +203,18 @@ struct TransferCommon {
   TC_FORCE_INLINE __device__ TransferCommon(const State &state, Vector x) {
     dx = state.dx;
     inv_dx = state.inv_dx;
-    for (int p = 0; p < dim; p++) {
-      base_coord[p] = int(x[p] * inv_dx - 0.5);
-    }
     for (int i = 0; i < dim; i++) {
-      fx[i] = x[i] * inv_dx - base_coord[i];
+      base_coord[i] = int(x[i] * inv_dx - 0.5);
+      real f = x[i] * inv_dx - (real)base_coord[i];
+      static_assert(std::is_same<std::decay_t<decltype(fx[i])>, real>::value);
+      fx[i] = f;
     }
 
     // B-Spline weights
     for (int i = 0; i < dim; ++i) {
       weight[i][0] = 0.5f * sqr(1.5f - fx[i]);
       weight[i][1] = 0.75f * sqr(fx[i] - 1);
-      weight[i][2] = 0.5f * sqr(fx[i] - 0.5);
+      weight[i][2] = 0.5f * sqr(fx[i] - 0.5f);
     }
   }
 
@@ -317,7 +317,6 @@ __global__ void G2P(State state) {
     for (int j = 0; j < 3; j++) {
       for (int k = 0; k < 3; k++) {
         Vector dpos = tc.dpos(i, j, k);
-
         auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
                                     tc.base_coord[2] + k);
         auto node_v = Vector(node[0], node[1], node[2]);
@@ -374,14 +373,17 @@ __global__ void normalize_grid(State state) {
   int boundary = 3;
   if (id < state.num_cells) {
     auto node = state.grid_node(id);
-    if (node[dim + 1] > 0) {
-      real inv_m = 1.0f / node[dim + 1];
+    for (int i = 0; i < dim; i++) {
+      node[i] += 1;
+    }
+    if (node[dim] > 0) {
+      real inv_m = 1.0f / node[dim];
       node[0] *= inv_m;
       node[1] *= inv_m;
       node[2] *= inv_m;
       for (int i = 0; i < dim; i++) {
-        // TODO: optimize
         node[i] += state.gravity[i] * state.dt;
+        //node[i] += state.gravity[i];
       }
       int x = id / (state.res[1] * state.res[2]),
           y = id / state.res[2] % state.res[1], z = id % state.res[2];
@@ -402,7 +404,7 @@ void advance(State &state) {
              state.num_cells * (state.dim + 1) * sizeof(real), 0);
   static constexpr int block_size = 128;
   int num_blocks = (state.num_particles + block_size - 1) / block_size;
-  P2G<<<num_blocks, block_size>>>(state);
+  //P2G<<<num_blocks, block_size>>>(state);
 
   auto err = cudaThreadSynchronize();
 
