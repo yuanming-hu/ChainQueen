@@ -170,6 +170,8 @@ def main(sess):
           initial_positions[b].append([u, v])
   assert len(initial_positions[0]) == num_particles
 
+  #TODO: is this correct in NN case too?
+  B = tf.Variable(tf.eye(num_actuators * num_acts)) #need this for hessian approx
   sess.run(tf.global_variables_initializer())
 
   initial_state = sim.get_initial_state(
@@ -215,6 +217,7 @@ def main(sess):
     
     return loss
   '''
+  
   for i in range(1000000):
     t = time.time()
     memo = sim.run(
@@ -223,10 +226,34 @@ def main(sess):
         iteration_feed_dict={goal: goal_input},
         loss=loss)
     grad = sim.eval_gradients(sym=sym, memo=memo)
-    gradient_descent = [
-        v.assign(v - lr * g) for v, g in zip(trainables, grad)
-    ]
-    sess.run(gradient_descent)
+    #BFGS update:
+    #IPython.embed()
+    
+    bfgs = []
+    #TODO: for now, assuming there is only one trainable and one grad for ease
+    v = trainables[0]
+    g = grad[0]
+    g_flat = ly.flatten(g) 
+    v_flat = ly.flatten(v)
+    if i > 0:  
+      y_flat = tf.squeeze(g_flat - old_g_flat)
+      s_flat = tf.squeeze(v_flat - old_v_flat)
+      B_s_flat = tf.tensordot(B, s_flat, 1)
+      term_1 = -tf.tensordot(B_s_flat, tf.transpose(B_s_flat), 0) / tf.tensordot(s_flat, B_s_flat, 1)
+      term_2 = tf.tensordot(y_flat, y_flat, 0) / tf.tensordot(y_flat, s_flat, 1)
+      B_update = [B.assign(B + term_1 + term_2)]
+      sess.run(B_update)
+      
+    search_dir = -lr * tf.matmul(tf.linalg.inv(B), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
+    search_dir_reshape = tf.reshape(search_dir, g.shape)
+    bfgs += [v.assign(v + search_dir_reshape)]
+    old_g_flat = g_flat
+    old_v_flat = v_flat.eval()
+      #TODO: B upate
+    sess.run(bfgs)
+    
+      
+      
     print('iter {:5d} time {:.3f} loss {:.4f}'.format(
         i, time.time() - t, memo.loss))
     if i % 1 == 0:
