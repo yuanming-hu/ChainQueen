@@ -7,6 +7,22 @@ set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 set(TAICHI_PROJECT_LIBRARIES ${TAICHI_PROJECT_LIBRARIES} ${TAICHI_PROJECT_NAME} PARENT_SCOPE)
 
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c
+        "import tensorflow as tf; import sys;\
+        sys.stdout.write(tf.sysconfig.get_include())"
+        OUTPUT_VARIABLE TF_INCLUDE_DIRS)
+
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c
+        "import tensorflow as tf; import sys;\
+        sys.stdout.write(tf.sysconfig.get_lib())"
+        OUTPUT_VARIABLE TF_LIBRARY_DIR)
+
+message("Including tensorflow include dir: ${TF_INCLUDE_DIRS}")
+message("          tensorflow library dir: ${TF_LIBRARY_DIR}")
+include_directories(${TF_INCLUDE_DIRS})
+
+#TF_LFLAGS=( $(python3 -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))') )
+
 if ($ENV{CUDA_ARCH})
     message("CUDA Arch: $ENV{CUDA_ARCH}")
     find_package(CUDA 8.0 REQUIRED)
@@ -22,5 +38,5 @@ else()
 endif()
 
 add_library(taichi_${TAICHI_PROJECT_NAME} SHARED ${PROJECT_SOURCES})
-target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CORE_LIBRARY_NAME} ${SHARED_LIBS} cudmpm)
+target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CORE_LIBRARY_NAME} ${SHARED_LIBS} cudmpm ${TF_LIBRARY_DIR}/libtensorflow_framework.so)
 

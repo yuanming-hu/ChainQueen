@@ -7,6 +7,14 @@
 #include <vector>
 
 struct State : public StateBase {
+  State() {
+    num_cells = res[0] * res[1] * res[2];
+  }
+
+  TC_FORCE_INLINE __host__ __device__ int grid_size() {
+    return num_cells;
+  }
+
   TC_FORCE_INLINE __device__ int linearized_offset(int x, int y, int z) const {
     return res[2] * (res[1] * x + y) + z;
   }
@@ -36,6 +44,16 @@ struct State : public StateBase {
   TC_FORCE_INLINE __device__ Vector get_x(int part_id) {
     return get_vector(x_storage, part_id);
   }
+
+  TC_FORCE_INLINE __device__ Matrix get_F(int part_id) {
+    return get_matrix(F_storage, part_id);
+  }
+
+  TC_FORCE_INLINE __device__ Matrix get_C(int part_id) {
+    return get_matrix(C_storage, part_id);
+  }
+
+  // TC_FORCE_INLINE __device__ get_cell
 };
 
 constexpr int dim = 3;
@@ -110,6 +128,7 @@ __global__ void P2G(State &state) {
     base_coord[p] = int(x[p] * inv_dx - 0.5);
 
   Matrix stress;
+  Matrix F = state.get_F(part_id);
 
   // stress = -4 * inv_dx * inv_dx * dt * volume * stress;
 
@@ -157,9 +176,6 @@ void sort(State &state) {
 }
 
 __global__ void G2P(State &state) {
-}
-
-__global__ void normalize_grid(State &state) {
 }
 
 __device__ void svd(Matrix &A, Matrix &U, Matrix &sig, Matrix &V) {
@@ -217,10 +233,17 @@ void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
 }
 
 void advance(State &state) {
-  sort(state);
+  cudaMemset(state.grid_storage,
+             state.grid_size() * (state.dim + 1) * sizeof(real), 0);
+  // sort(state);
   static constexpr int block_size = 128;
   int num_blocks = (state.num_particles + block_size - 1) / block_size;
   P2G<<<num_blocks, block_size>>>(state);
-  // normalize_grid<<<>>>(state);
+  // This should be done in tf
+  /*
+  int num_blocks_grid = state.grid_size();
+  normalize_grid<<<(num_blocks_grid + block_size - 1) / block_size,
+                   block_size>>>(state);
+                   */
   G2P<<<num_blocks, block_size>>>(state);
 }
