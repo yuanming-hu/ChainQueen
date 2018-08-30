@@ -6,6 +6,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
+import IPython
 
 lr = 0.5
 
@@ -15,7 +16,10 @@ goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
-config = 'A'
+nn_control = True
+
+config = 'B'
+num_steps = 150
 
 if config == 'A':
   # Robot A
@@ -46,6 +50,7 @@ else:
   print('Unknown config {}'.format(config))
 
 num_particles = group_num_particles * num_groups
+num_actuators = len(actuations)
 
 
 def particle_mask(start, end):
@@ -58,10 +63,13 @@ def particle_mask_from_group(g):
 
 
 # NN weights
-W1 = tf.Variable(
-    0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))),
-    trainable=True)
-b1 = tf.Variable([0.0] * len(actuations), trainable=True)
+if nn_control:
+  W1 = tf.Variable(
+      0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))),
+      trainable=True)
+  b1 = tf.Variable([0.0] * len(actuations), trainable=True)
+else:
+  actuation_seq = tf.Variable(6.0 * tf.random_uniform(shape=(1, num_steps+1, num_actuators), dtype=np.float32), trainable=True)
 
 
 def main(sess):
@@ -70,7 +78,7 @@ def main(sess):
   goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
 
   # Define your controller here
-  def controller(state):
+  def controller(state):    
     controller_inputs = []
     for i in range(num_groups):
       mask = particle_mask(i * group_num_particles,
@@ -87,14 +95,18 @@ def main(sess):
     controller_inputs = controller_inputs[:, :, None]
     assert controller_inputs.shape == (batch_size, 6 * num_groups, 1)
     # Batch, 6 * num_groups, 1
-    intermediate = tf.matmul(W1[None, :, :] +
-                             tf.zeros(shape=[batch_size, 1, 1]), controller_inputs)
-    # Batch, #actuations, 1
-    assert intermediate.shape == (batch_size, len(actuations), 1)
-    assert intermediate.shape[2] == 1
-    intermediate = intermediate[:, :, 0]
-    # Batch, #actuations
-    actuation = tf.tanh(intermediate + b1[None, :]) * actuation_strength
+    if nn_control:
+      intermediate = tf.matmul(W1[None, :, :] +
+                               tf.zeros(shape=[batch_size, 1, 1]), controller_inputs)
+      # Batch, #actuations, 1
+      assert intermediate.shape == (batch_size, len(actuations), 1)
+      assert intermediate.shape[2] == 1
+      intermediate = intermediate[:, :, 0]
+      # Batch, #actuations
+      actuation = tf.tanh(intermediate + b1[None, :]) * actuation_strength
+    else:
+      #IPython.embed()
+      actuation = tf.expand_dims(actuation_seq[0, state.step_count, :], 0)
     debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation}
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
@@ -166,16 +178,22 @@ def main(sess):
  
   sim.add_point_visualization(pos=final_position, color=(1, 0, 0), radius=3)
 
-  goal_input = np.array(
-    [[0.5 + (random.random() - 0.5) * goal_range * 2,
-      0.6 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
+  if config == 'A':
+    goal_input = np.array(
+      [[0.5 + (random.random() - 0.5) * goal_range * 2,
+        0.6 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
+      dtype=np.float32)
+  elif config == 'B':
+    goal_input = np.array(
+    [[0.75 + (random.random() - 0.5) * goal_range * 2,
+      0.5 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
     dtype=np.float32)
   # Optimization loop
   for i in range(1000000):
     t = time.time()
     memo = sim.run(
         initial_state=initial_state,
-        num_steps=150,
+        num_steps=num_steps,
         iteration_feed_dict={goal: goal_input},
         loss=loss)
     grad = sim.eval_gradients(sym=sym, memo=memo)
