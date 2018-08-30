@@ -59,4 +59,8 @@ class Matrix {
       }
     }
   }
+
+  TC_FORCE_INLINE __device__ real *operator[](int i) {
+    return d[i];
+  }
 };

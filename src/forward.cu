@@ -108,7 +108,7 @@ __global__ void P2G(State &state) {
 
   Matrix stress;
 
-  //stress = -4 * inv_dx * inv_dx * dt * volume * stress;
+  // stress = -4 * inv_dx * inv_dx * dt * volume * stress;
 
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -118,7 +118,6 @@ __global__ void P2G(State &state) {
 
         val[0] = mass * w;
         Vector dpos;
-
 
         /*
         // reduce in warp
@@ -141,8 +140,6 @@ __global__ void P2G(State &state) {
 
         real contrib[dim + 1] = {0};
 
-
-
         auto node = state.grid_node(base_coord[0] + i, base_coord[1] + j,
                                     base_coord[2] + k);
         for (int p = 0; p <= dim + 1; p++) {
@@ -160,6 +157,42 @@ __global__ void G2P(State &state) {
 }
 
 __global__ void normalize_grid(State &state) {
+}
+
+__device__ void svd(const Matrix &A,
+                    const Matrix &U,
+                    const Matrix &sig,
+                    const Matrix &v) {
+  // clang-format off
+    sig[0][1] = sig[0][2] = sig[1][0] = sig[1][2] = sig[2][0] = sig[2][1] = 0;
+    svd(
+        A[0][0], A[0][1], A[0][2],
+        A[1][0], A[1][1], A[1][2],
+        A[2][0], A[2][1], A[2][2],
+        U[0][0], U[0][1], U[0][2],
+        U[1][0], U[1][1], U[1][2],
+        U[2][0], U[2][1], U[2][2],
+        sig[0][0], sig[1][1], sig[2][2],
+        V[0][0], V[0][1], V[0][2],
+        V[1][0], V[1][1], V[1][2],
+        V[2][0], V[2][1], V[2][2],
+    );
+  // clang-format on
+}
+
+__global__ void test_svd(int n, Matrix *input, Matrix *) {
+}
+
+void cuda_test_svd(int n, real *input_, real *output0_, real *output1_) {
+  using tMatrix = float[3][4];
+  auto input = reinterpret_cast<tMatrix *>(input_);
+  auto output0 = reinterpret_cast<tMatrix *>(output0_);
+  auto output1 = reinterpret_cast<tMatrix *>(output1_);
+
+  auto d_input = cudaMalloc(sizeof(Matrix) * n);
+  auto d_output0 = cudaMalloc(sizeof(Matrix) * n);
+  auto d_output1 = cudaMalloc(sizeof(Matrix) * n);
+
 }
 
 void advance(State &state) {
