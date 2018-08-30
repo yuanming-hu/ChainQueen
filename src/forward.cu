@@ -284,7 +284,7 @@ __global__ void P2G(State &state) {
 
         auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
                                     tc.base_coord[2] + k);
-        for (int p = 0; p <= dim + 1; p++) {
+        for (int p = 0; p < dim + 1; p++) {
           atomicAdd(&node[p], contrib[p]);
         }
       }
@@ -401,6 +401,10 @@ void advance(State &state) {
   static constexpr int block_size = 128;
   int num_blocks = (state.num_particles + block_size - 1) / block_size;
   P2G<<<num_blocks, block_size>>>(state);
+
+  auto err = cudaThreadSynchronize();
+
+  printf("Launch: %s\n", cudaGetErrorString(err));
   return;
   // TODO: This should be done in tf
   int num_blocks_grid = state.grid_size();
