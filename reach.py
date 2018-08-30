@@ -17,7 +17,7 @@ batch_size = 1
 actuation_strength = 8
 
 nn_control = False
-num_acts = 4
+num_acts = 200
 
 config = 'B'
 if config == 'A':
@@ -73,7 +73,7 @@ if nn_control:
       trainable=True)
   b1 = tf.Variable([0.0] * len(actuations), trainable=True)
 else:
-  actuation_seq = tf.Variable(tf.random_normal(shape=(1, num_acts, num_actuators), dtype=np.float32), trainable=True)
+  actuation_seq = tf.Variable(0.1 * tf.random_normal(shape=(1, num_acts, num_actuators), dtype=np.float32), trainable=True)
 
 def step_callback(dec_vec):
   pass
