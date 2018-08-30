@@ -22,6 +22,7 @@ class SimulationState:
     self.controller_states = None
     self.grid_mass = None
     self.grid_velocity = None
+    self.step_count = None
     self.kernels = None
     self.debug = None
 
@@ -32,7 +33,7 @@ class SimulationState:
   def get_state_names(self):
     return [
         'position', 'velocity', 'deformation_gradient', 'affine',
-        'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio'
+        'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio', 'step_count'
     ]
 
   def get_evaluated(self):
@@ -58,6 +59,7 @@ class SimulationState:
         'particle_volume': self.particle_volume,
         'youngs_modulus': self.youngs_modulus,
         'poissons_ratio': self.poissons_ratio,
+        'step_count': self.step_count,
         'debug': self.debug
     }
     ret_filtered = {}
@@ -122,6 +124,7 @@ class InitialSimulationState(SimulationState):
                dim))
     self.kernels = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
                                    self.sim.grid_res[1], 3, 3))
+    self.step_count = tf.zeros(shape=(), dtype=np.int32)
 
     self.controller = controller
     if controller is not None:
@@ -136,6 +139,7 @@ class UpdatedSimulationState(SimulationState):
     self.particle_volume = tf.identity(previous_state.particle_volume)
     self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
     self.poissons_ratio = tf.identity(previous_state.poissons_ratio)
+    self.step_count = previous_state.step_count + 1
 
     self.t = previous_state.t + self.sim.dt
     self.grid_velocity = tf.zeros(

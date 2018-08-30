@@ -316,7 +316,7 @@ class Simulation:
       poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.3
 
     return (position, initial_velocity, deformation_gradient, affine,
-            particle_mass, particle_volume, youngs_modulus, poissons_ratio)
+            particle_mass, particle_volume, youngs_modulus, poissons_ratio, 0)
 
   def add_point_visualization(self, pos, color=(1, 0, 0), radius=3):
     self.point_visualization.append((pos, color, radius))
