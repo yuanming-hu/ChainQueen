@@ -14,7 +14,6 @@ class DMPMSimulator3D {
     // TODO: initialize the state
   }
 
-
   void advance() {
     ::advance(state);
   }
@@ -40,5 +39,51 @@ auto test_cuda = []() {
 };
 
 TC_REGISTER_TASK(test_cuda);
+
+auto test_cuda_svd = []() {
+  int N = 10;
+  using Matrix = Matrix3f;
+  std::vector<Matrix> A, U, sig, V;
+  A.resize(N);
+  U.resize(N);
+  sig.resize(N);
+  V.resize(N);
+
+  std::vector<real> A_flattened;
+  for (int p = 0; p < N; p++) {
+    auto matA = Matrix::rand();
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        A_flattened.push_back(matA[i][j]);
+      }
+    }
+    A.push_back(matA);
+  }
+
+  test_svd_cuda(N, (real *)A_flattened.data(), (real *)U.data(),
+                (real *)sig.data(), (real *)V.data());
+
+  constexpr real tolerance = 3e-5_f32;
+  for (int i = 0; i < N; i++) {
+    auto matA = A[i];
+    auto matU = U[i];
+    auto matV = V[i];
+    auto matSig = sig[i];
+
+    TC_CHECK_EQUAL(matA, matU * matSig * transposed(matV), tolerance);
+    TC_CHECK_EQUAL(Matrix(1), matU * transposed(matU), tolerance);
+    TC_CHECK_EQUAL(Matrix(1), matV * transposed(matV), tolerance);
+    TC_CHECK_EQUAL(matSig, Matrix(matSig.diag()), tolerance);
+
+    /*
+      polar_decomp(m, R, S);
+      TC_CHECK_EQUAL(m, R * S, tolerance);
+      TC_CHECK_EQUAL(Matrix(1), R * transposed(R), tolerance);
+      TC_CHECK_EQUAL(S, transposed(S), tolerance);
+     */
+  }
+};
+
+TC_REGISTER_TASK(test_cuda_svd);
 
 TC_NAMESPACE_END

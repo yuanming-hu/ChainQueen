@@ -2,6 +2,7 @@
 #include "linalg.h"
 #include "particle.h"
 #include "svd.cuh"
+#include "../../../../../../../opt/cuda/include/driver_types.h"
 
 struct State : public StateBase {
   TC_FORCE_INLINE __device__ int linearized_offset(int x, int y, int z) const {
@@ -159,10 +160,7 @@ __global__ void G2P(State &state) {
 __global__ void normalize_grid(State &state) {
 }
 
-__device__ void svd(const Matrix &A,
-                    const Matrix &U,
-                    const Matrix &sig,
-                    const Matrix &v) {
+__device__ void svd(Matrix &A, Matrix &U, Matrix &sig, Matrix &V) {
   // clang-format off
     sig[0][1] = sig[0][2] = sig[1][0] = sig[1][2] = sig[2][0] = sig[2][1] = 0;
     svd(
@@ -175,24 +173,39 @@ __device__ void svd(const Matrix &A,
         sig[0][0], sig[1][1], sig[2][2],
         V[0][0], V[0][1], V[0][2],
         V[1][0], V[1][1], V[1][2],
-        V[2][0], V[2][1], V[2][2],
+        V[2][0], V[2][1], V[2][2]
     );
   // clang-format on
 }
 
-__global__ void test_svd(int n, Matrix *input, Matrix *) {
+__global__ void test_svd(int n, Matrix *A, Matrix *U, Matrix *sig, Matrix *V) {
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id < n) {
+    svd(A[id], U[id], sig[id], V[id]);
+  }
 }
 
-void cuda_test_svd(int n, real *input_, real *output0_, real *output1_) {
-  using tMatrix = float[3][4];
-  auto input = reinterpret_cast<tMatrix *>(input_);
-  auto output0 = reinterpret_cast<tMatrix *>(output0_);
-  auto output1 = reinterpret_cast<tMatrix *>(output1_);
+void cuda_test_svd(int n, real *A, real *U, real *sig, real *V) {
+  Matrix *d_A, *d_U, *d_sig, *d_V;
 
-  auto d_input = cudaMalloc(sizeof(Matrix) * n);
-  auto d_output0 = cudaMalloc(sizeof(Matrix) * n);
-  auto d_output1 = cudaMalloc(sizeof(Matrix) * n);
+  cudaMalloc(&d_A, sizeof(Matrix) * (unsigned int)(n));
+  cudaMemcpy(d_A, A, sizeof(Matrix) * n, cudaMemcpyHostToDevice);
 
+  cudaMalloc(&d_U, sizeof(Matrix) * (unsigned int)(n));
+  cudaMalloc(&d_sig, sizeof(Matrix) * (unsigned int)(n));
+  cudaMalloc(&d_V, sizeof(Matrix) * (unsigned int)(n));
+
+  test_svd<<<(n + 127) / 128, 128>>>(n, d_A, d_U, d_sig, d_V);
+
+  for (int p = 0; p < n; p++) {
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        U[p * 12 + 4 * i + j] = d_U[p][i][j];
+        sig[p * 12 + 4 * i + j] = d_sig[p][i][j];
+        V[p * 12 + 4 * i + j] = d_V[p][i][j];
+      }
+    }
+  }
 }
 
 void advance(State &state) {

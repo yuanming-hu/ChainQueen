@@ -21,7 +21,7 @@ class Vector {
     }
   }
 
-  TC_FORCE_INLINE __device__ real operator[](int i) {
+  TC_FORCE_INLINE __host__ __device__ real operator[](int i) {
     return d[i];
   }
 };
@@ -60,7 +60,7 @@ class Matrix {
     }
   }
 
-  TC_FORCE_INLINE __device__ real *operator[](int i) {
+  TC_FORCE_INLINE __host__ __device__ real *operator[](int i) {
     return d[i];
   }
 };
