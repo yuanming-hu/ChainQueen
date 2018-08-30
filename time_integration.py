@@ -25,9 +25,9 @@ class SimulationState:
     self.kernels = None
     self.debug = None
 
-  def center_of_mass(self):
-    return tf.reduce_sum(self.position * self.particle_mass, axis=1) *\
-           (1 / tf.reduce_sum(self.particle_mass, axis=1))
+  def center_of_mass(self, left = None, right = None):
+    return tf.reduce_sum(self.position[:, left:right] * self.particle_mass[:, left:right], axis=1) *\
+           (1 / tf.reduce_sum(self.particle_mass[:, left:right], axis=1))
 
   def get_state_names(self):
     return [
