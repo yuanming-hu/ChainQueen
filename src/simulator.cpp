@@ -67,7 +67,7 @@ auto gpu_mpm3d = []() {
       scene.particles.push_back(particle);
     }
     write_to_binary_file(scene, fmt::format("{:05d}.tcb", i));
-    for (int j = 0; j < 1; j++) {
+    for (int j = 0; j < 100; j++) {
       advance_mpm3d_state(states);
     }
   }

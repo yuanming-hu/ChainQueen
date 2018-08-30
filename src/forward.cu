@@ -254,7 +254,6 @@ __global__ void P2G(State state) {
 
   TransferCommon tc(state, x);
 
-
   // Fixed corotated
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
   real J = determinant(F);
@@ -269,7 +268,7 @@ __global__ void P2G(State state) {
 
   Vector mv = mass * v;
 
-  //printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
+  // printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       for (int k = 0; k < 3; k++) {
@@ -329,7 +328,7 @@ __global__ void G2P(State state) {
       }
     }
   }
-  // state.set_x(part_id, x + state.dt * v);
+  state.set_x(part_id, x + state.dt * v);
   state.set_v(part_id, v);
   state.set_F(part_id, (Matrix(1) + dt * C) * F);
 }
@@ -407,7 +406,8 @@ void advance(State &state) {
 
   auto err = cudaThreadSynchronize();
 
-  printf("Launch: %s\n", cudaGetErrorString(err));
+  if (err)
+    printf("Launch: %s\n", cudaGetErrorString(err));
   // TODO: This should be done in tf
   int num_blocks_grid = state.grid_size();
   normalize_grid<<<(num_blocks_grid + block_size - 1) / block_size,
