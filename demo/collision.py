@@ -1,3 +1,6 @@
+import sys
+sys.path.append('..')
+
 import random
 import time
 from simulation import Simulation, get_bounding_box_bc
