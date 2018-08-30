@@ -232,7 +232,7 @@ using BSplineWeights = real[dim][spline_size];
 // Do not consider sorting for now. Use atomics instead.
 
 // One particle per thread
-__global__ void P2G(State &state) {
+__global__ void P2G(State state) {
   // constexpr int scratch_size = 8;
   //__shared__ real scratch[dim + 1][scratch_size][scratch_size][scratch_size];
 
@@ -254,9 +254,11 @@ __global__ void P2G(State &state) {
 
   TransferCommon tc(state, x);
 
+
   // Fixed corotated
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
   real J = determinant(F);
+
   Matrix r, s;
   polar_decomp(F, r, s);
   Matrix stress =
@@ -267,6 +269,7 @@ __global__ void P2G(State &state) {
 
   Vector mv = mass * v;
 
+  //printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       for (int k = 0; k < 3; k++) {
@@ -292,10 +295,10 @@ __global__ void P2G(State &state) {
   }
 }
 
-void sort(State &state) {
+void sort(State state) {
 }
 
-__global__ void G2P(State &state) {
+__global__ void G2P(State state) {
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
     return;
@@ -367,7 +370,7 @@ void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
   }
 }
 
-__global__ void normalize_grid(State &state) {
+__global__ void normalize_grid(State state) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   int boundary = 3;
   if (id < state.num_cells) {
@@ -405,7 +408,6 @@ void advance(State &state) {
   auto err = cudaThreadSynchronize();
 
   printf("Launch: %s\n", cudaGetErrorString(err));
-  return;
   // TODO: This should be done in tf
   int num_blocks_grid = state.grid_size();
   normalize_grid<<<(num_blocks_grid + block_size - 1) / block_size,
