@@ -2,8 +2,6 @@
 #include "linalg.h"
 #include "particle.h"
 #include "svd.cuh"
-#include "../../../../../../../opt/cuda/include/driver_types.h"
-#include "../../../../../../../opt/cuda/include/cuda_runtime_api.h"
 #include <cstdio>
 #include <vector>
 
@@ -135,7 +133,7 @@ struct State : public StateBase {
 
   __host__ std::vector<real> fetch_x() {
     std::vector<real> host_x(dim * num_particles);
-    cudaMemcpy(host_x.data(), x_storage, sizeof(real) * dim * num_particles,
+    cudaMemcpy(host_x.data(), x_storage, sizeof(Vector) * num_particles,
                cudaMemcpyDeviceToHost);
     return host_x;
   }
@@ -249,7 +247,7 @@ __global__ void P2G(State &state) {
   Vector x = state.get_x(part_id), v = state.get_v(part_id);
   real mass = 1;    // TODO: variable mass
   real volume = 1;  // TODO: variable vol
-  real E = 10000;   // TODO: variable E
+  real E = 0000;    // TODO: variable E
   real nu = 0.3;    // TODO: variable nu
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
@@ -328,7 +326,7 @@ __global__ void G2P(State &state) {
       }
     }
   }
-  state.set_x(part_id, x + state.dt * v);
+  // state.set_x(part_id, x + state.dt * v);
   state.set_v(part_id, v);
   state.set_F(part_id, (Matrix(1) + dt * C) * F);
 }
@@ -399,11 +397,11 @@ __global__ void normalize_grid(State &state) {
 
 void advance(State &state) {
   cudaMemset(state.grid_storage,
-             state.grid_size() * (state.dim + 1) * sizeof(real), 0);
-  // sort(state);
+             state.num_cells * (state.dim + 1) * sizeof(real), 0);
   static constexpr int block_size = 128;
   int num_blocks = (state.num_particles + block_size - 1) / block_size;
   P2G<<<num_blocks, block_size>>>(state);
+  return;
   // TODO: This should be done in tf
   int num_blocks_grid = state.grid_size();
   normalize_grid<<<(num_blocks_grid + block_size - 1) / block_size,
@@ -411,7 +409,7 @@ void advance(State &state) {
   G2P<<<num_blocks, block_size>>>(state);
 }
 
-void initialize_mpm3d_state(void *&state_) {
+void initialize_mpm3d_state(void *&state_, float *intiial_positions) {
   int res[dim];
   int n = 100;
   res[0] = 100;
@@ -426,10 +424,14 @@ void initialize_mpm3d_state(void *&state_) {
   for (int i = 0; i < dim; i++) {
     gravity[i] = 0;
   }
-  gravity[1] = -9.8;
+  gravity[1] = -9.8f;
 
   // State(int res[dim], int num_particles, real dx, real dt, real
-  state_ = new State(res, num_particles, 1.0f / n, 1e-4f, gravity);
+  auto state = new State(res, num_particles, 1.0f / n, 1e-4f, gravity);
+  state_ = state;
+
+  cudaMemcpy(state->x_storage, intiial_positions,
+             sizeof(Vector) * num_particles, cudaMemcpyHostToDevice);
 }
 
 void advance_mpm3d_state(void *state_) {
