@@ -313,8 +313,13 @@ def main(sess):
           term_2 = tf.tensordot(y_flat, y_flat, 0) / tf.tensordot(y_flat, s_flat, 1)
           B_update[idx] = B[idx].assign(B[idx] + term_1 + term_2)    
           sess.run([B_update[idx]])
-          
-        search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
+        
+        
+        if tf.abs(tf.matrix_determinant(B[idx])).eval() < 1e-6:
+          sess.run( [ B[idx].assign(tf.eye(tf.size(v_flat))) ] )
+        search_dir = -tf.matrix_solve_ls(B[idx],tf.transpose(g_flat), l2_regularizer=0.0, fast=True) #adding regularizer for stability
+
+        #search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
         search_dir_reshape = tf.reshape(search_dir, g.shape)
         search_dirs[idx] = search_dir_reshape
         old_g_flat[idx] = g_flat
