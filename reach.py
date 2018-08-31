@@ -7,6 +7,7 @@ import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
 import IPython
+import copy
 
 lr = 1.0
 
@@ -16,8 +17,8 @@ goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
-nn_control = False
-use_bfgs = True
+nn_control = True
+use_bfgs = False
 wolfe_search = False
 num_acts = 200
 
@@ -37,10 +38,17 @@ if config == 'A':
   gravity = (0, -2)
 elif config == 'B':
   # Finger
-  num_groups = 3
-  group_offsets = [(1, 0), (1.5, 0), (1, 2)]
-  group_sizes = [(0.5, 2), (0.5, 2), (1, 1)]
-  actuations = [0, 1]
+  num_links = 4
+  group_sizes = []
+  group_offsets = []
+  actuations = []
+  group_size = [(0.5, 2 / num_links), (0.5, 2 / num_links), (1, 1 / num_links)]
+  for i in range(num_links):
+    group_offsets += [(1, group_size[0][1] *i + 0), (1.5, group_size[1][1] *i + 0), (1, group_size[2][1] *i + 2)]
+    group_sizes += copy.deepcopy(group_size)
+    actuations += [0  + 3*i, 1 + 3*i]
+  num_groups = len(group_sizes)
+  
   head = 2
   gravity = (0, 0)
 elif config == 'C':
@@ -173,7 +181,7 @@ def main(sess):
   assert len(initial_positions[0]) == num_particles
 
   initial_state = sim.get_initial_state(
-      position=np.array(initial_positions), youngs_modulus=tf.Variable(10.0 * tf.ones(shape = [1, num_particles, 1], dtype = tf.float32), trainable=True))
+      position=np.array(initial_positions), youngs_modulus=tf.Variable(10.0 * tf.ones(shape=[1, num_particles, 1], dtype = tf.float32), trainable = True))
       
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   if use_bfgs:
@@ -356,7 +364,7 @@ def main(sess):
       print('stepped!!')
     else:
       gradient_descent = [
-        v.assign(v + lr * g) for v, g in zip(trainables, grad)
+        v.assign(v - lr * g) for v, g in zip(trainables, grad)
       ]
       sess.run(gradient_descent)
       
