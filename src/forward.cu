@@ -10,7 +10,7 @@ struct State : public StateBase {
     num_cells = res[0] * res[1] * res[2];
   }
 
-  TC_FORCE_INLINE __host__ __device__ int grid_size() {
+  TC_FORCE_INLINE __host__ __device__ int grid_size() const {
     return num_cells;
   }
 
@@ -123,9 +123,11 @@ struct State : public StateBase {
     cudaMalloc(&C_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
 
-    std::vector<Matrix> F_initial(num_particles);
+    std::vector<real> F_initial(num_particles * dim * dim, 0);
     for (int i = 0; i < num_particles; i++) {
-      F_initial[i] = Matrix(1.0f);
+      F_initial[i] = 1;
+      F_initial[i + num_particles * 4] = 1;
+      F_initial[i + num_particles * 8] = 1;
     }
     cudaMemcpy(F_storage, F_initial.data(), sizeof(Matrix) * num_particles,
                cudaMemcpyHostToDevice);
@@ -247,7 +249,7 @@ __global__ void P2G(State state) {
   Vector x = state.get_x(part_id), v = state.get_v(part_id);
   real mass = 1;    // TODO: variable mass
   real volume = 1;  // TODO: variable vol
-  real E = 0000;    // TODO: variable E
+  real E = 10;    // TODO: variable E
   real nu = 0.3;    // TODO: variable nu
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
@@ -265,8 +267,7 @@ __global__ void P2G(State state) {
       (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
 
   auto affine = stress + mass * C;
-
-  Vector mv = mass * v;
+  //auto affine = Matrix(0);
 
   // printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
   for (int i = 0; i < 3; i++) {
@@ -279,9 +280,9 @@ __global__ void P2G(State state) {
         auto tmp = affine * dpos + mass * v;
 
         auto w = tc.w(i, j, k);
-        contrib[0] = mv[0] + tmp[0] * w;
-        contrib[1] = mv[1] + tmp[1] * w;
-        contrib[2] = mv[2] + tmp[2] * w;
+        contrib[0] = tmp[0] * w;
+        contrib[1] = tmp[1] * w;
+        contrib[2] = tmp[2] * w;
         contrib[3] = mass * w;
 
         auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
@@ -387,25 +388,29 @@ __global__ void normalize_grid(State state) {
           x + boundary >= state.res[0] || y + boundary >= state.res[1] ||
           z + boundary >= state.res[2]) {
         // All sticky for now
+        /*
         for (int i = 0; i < dim; i++) {
           node[i] = 0;
         }
+        */
+        node[1] = max(0.0f, node[1]);
       }
     }
   }
 }
 
-void advance(State &state) {
+void advance(const State &state) {
   cudaMemset(state.grid_storage,
-             state.num_cells * (state.dim + 1) * sizeof(real), 0);
+             0, state.num_cells * (state.dim + 1) * sizeof(real));
   static constexpr int block_size = 128;
   int num_blocks = (state.num_particles + block_size - 1) / block_size;
-  //  P2G<<<num_blocks, block_size>>>(state);
+  P2G<<<num_blocks, block_size>>>(state);
 
   auto err = cudaThreadSynchronize();
-
-  if (err)
+  if (err) {
     printf("Launch: %s\n", cudaGetErrorString(err));
+    exit(-1);
+  }
   // TODO: This should be done in tf
   int num_blocks_grid = state.grid_size();
   normalize_grid<<<(num_blocks_grid + block_size - 1) / block_size,
@@ -431,7 +436,7 @@ void initialize_mpm3d_state(void *&state_, float *intiial_positions) {
   gravity[1] = -9.8f;
 
   // State(int res[dim], int num_particles, real dx, real dt, real
-  auto state = new State(res, num_particles, 1.0f / n, 1e-4f, gravity);
+  auto state = new State(res, num_particles, 1.0f / n, 1e-3f, gravity);
   state_ = state;
 
   cudaMemcpy(state->x_storage, intiial_positions,
