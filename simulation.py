@@ -111,6 +111,7 @@ class Simulation:
     pos_tensors = [p[0] for p in self.point_visualization]
     feed_dict = {self.initial_state.to_tuple(): state}
     feed_dict.update(extra)
+    
     pos = self.sess.run(pos_tensors, feed_dict=feed_dict)
     return [(p,) + tuple(list(r)[1:])
             for p, r in zip(pos, self.point_visualization)]

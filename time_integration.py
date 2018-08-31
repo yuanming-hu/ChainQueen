@@ -166,7 +166,6 @@ class UpdatedSimulationState(SimulationState):
     # Compute stress tensor (Kirchhoff stress instead of First Piola-Kirchhoff stress)
     self.deformation_gradient = previous_state.deformation_gradient
 
-    nu = 0.3
     # Lame parameters
     mu = self.youngs_modulus / (2 * (1 + self.poissons_ratio))
     lam = self.youngs_modulus * self.poissons_ratio / ((

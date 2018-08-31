@@ -180,17 +180,15 @@ def main(sess):
           initial_positions[b].append([u, v])
   assert len(initial_positions[0]) == num_particles
 
+  youngs_modulus =tf.Variable(10.0 * tf.ones(shape = [1, num_particles, 1], dtype = tf.float32), trainable=True)
   initial_state = sim.get_initial_state(
-      position=np.array(initial_positions), youngs_modulus=tf.Variable(10.0 * tf.ones(shape=[1, num_particles, 1], dtype = tf.float32), trainable = True))
+      position=np.array(initial_positions), youngs_modulus=tf.identity(youngs_modulus))
       
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   if use_bfgs:
     B = [tf.Variable(tf.eye(tf.size(trainable)), trainable=False) for trainable in trainables]
   
   sess.run(tf.global_variables_initializer())
-
-  
-
   
   sim.set_initial_state(initial_state=initial_state)
   
@@ -367,10 +365,6 @@ def main(sess):
         v.assign(v - lr * g) for v, g in zip(trainables, grad)
       ]
       sess.run(gradient_descent)
-      
-      
-      
-      
       
     print('iter {:5d} time {:.3f} loss {:.4f}'.format(
         i, time.time() - t, memo.loss))
