@@ -143,7 +143,7 @@ class Matrix {
     Matrix ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
-        ret[i][j] = row[i] * col[j];
+        ret[i][j] = col[i] * row[j];
       }
     }
     return ret;

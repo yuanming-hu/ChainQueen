@@ -267,7 +267,6 @@ __global__ void P2G(State state) {
       (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
 
   auto affine = stress + mass * C;
-  //auto affine = Matrix(0);
 
   // printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
   for (int i = 0; i < 3; i++) {

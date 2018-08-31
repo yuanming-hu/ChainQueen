@@ -60,7 +60,7 @@ auto gpu_mpm3d = []() {
       OptiXParticle particle;
       auto scale = 5_f;
       particle.position_and_radius =
-          Vector4(x[p] * scale, x[p + num_particles] * scale,
+          Vector4(x[p] * scale, (x[p + num_particles] - 0.02f) * scale,
                   x[p + 2 * num_particles] * scale, 0.01);
       if (p == 123)
         TC_P(particle.position_and_radius);
