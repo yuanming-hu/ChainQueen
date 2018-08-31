@@ -17,8 +17,8 @@ goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
-nn_control = False
-use_bfgs = True
+nn_control = True
+use_bfgs = Flase
 wolfe_search = False
 num_acts = 200
 
@@ -320,9 +320,8 @@ def main(sess):
           sess.run( [ B[idx].assign(tf.eye(tf.size(v_flat))) ] )
           search_dir = -tf.transpose(g_flat)
         else:
-          search_dir = -tf.matrix_solve_ls(B[idx],tf.transpose(g_flat), l2_regularizer=0.0, fast=True) #adding regularizer for stability
-
-        #search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
+          #search_dir = -tf.matrix_solve_ls(B[idx],tf.transpose(g_flat), l2_regularizer=0.0, fast=True) #adding regularizer for stability
+          search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
         search_dir_reshape = tf.reshape(search_dir, g.shape)
         search_dirs[idx] = search_dir_reshape
         old_g_flat[idx] = g_flat
