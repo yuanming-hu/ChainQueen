@@ -11,14 +11,14 @@ import copy
 
 lr = 1.0
 
-sample_density = 20
+sample_density = 40
 group_num_particles = sample_density**2
 goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
-nn_control = True
-use_bfgs = False
+nn_control = False
+use_bfgs = True
 wolfe_search = False
 num_acts = 200
 
@@ -284,8 +284,9 @@ def main(sess):
           a_max = a_min
         a_min = a_mid
         
-    
-  
+  loss_val, grad, memo = eval_sim() #TODO: this is to get dimensions, find a better way to do this without simming
+  old_g_flat = [None] * len(grad)
+  old_v_flat = [None] * len(grad)
   for i in range(1000000):
     t = time.time()
     
@@ -305,19 +306,19 @@ def main(sess):
         if B[idx] == None:
             B[idx] = tf.eye(tf.size(v_flat))
         if i > 0:          
-          y_flat = tf.squeeze(g_flat - old_g_flat)
-          s_flat = tf.squeeze(v_flat - old_v_flat)
+          y_flat = tf.squeeze(g_flat - old_g_flat[idx])
+          s_flat = tf.squeeze(v_flat - old_v_flat[idx])
           B_s_flat = tf.tensordot(B[idx], s_flat, 1)
           term_1 = -tf.tensordot(B_s_flat, tf.transpose(B_s_flat), 0) / tf.tensordot(s_flat, B_s_flat, 1)
           term_2 = tf.tensordot(y_flat, y_flat, 0) / tf.tensordot(y_flat, s_flat, 1)
           B_update[idx] = B[idx].assign(B[idx] + term_1 + term_2)    
-          sess.run(B_update)
+          sess.run([B_update[idx]])
           
         search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
         search_dir_reshape = tf.reshape(search_dir, g.shape)
         search_dirs[idx] = search_dir_reshape
-        old_g_flat = g_flat
-        old_v_flat = v_flat.eval()
+        old_g_flat[idx] = g_flat
+        old_v_flat[idx] = v_flat.eval()
           #TODO: B upate
       
       #Now it's linesearch time
