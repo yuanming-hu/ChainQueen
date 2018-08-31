@@ -8,7 +8,7 @@ import tensorflow.contrib.layers as ly
 from vector_math import *
 import IPython
 
-lr = 0.5
+lr = 1.0
 
 sample_density = 20
 group_num_particles = sample_density**2
@@ -17,7 +17,8 @@ batch_size = 1
 actuation_strength = 8
 
 nn_control = False
-use_bfgs = False
+use_bfgs = True
+wolfe_search = False
 num_acts = 200
 
 config = 'B'
@@ -222,20 +223,74 @@ def main(sess):
     return loss
   '''
   
-  for i in range(1000000):
-    t = time.time()
+  c1 = 1e-4
+  c2 = 0.9
+  
+  def eval_sim():
     memo = sim.run(
         initial_state=initial_state,
         num_steps=num_steps,
         iteration_feed_dict={goal: goal_input},
         loss=loss)
     grad = sim.eval_gradients(sym=sym, memo=memo)
+    return memo.loss, grad, memo
+  
+  def flatten_trainables():
+    return tf.concat([tf.squeeze(ly.flatten(trainable)) for trainable in trainables], 0)
+    
+  def flatten_vectors(vectors):
+    return tf.concat([tf.squeeze(ly.flatten(vector)) for vector in vectors], 0)
+    
+  def assignment_run(xs):
+    sess.run([trainable.assign(x) for x, trainable in zip(xs, trainables)])
+  
+  def f_and_grad_step(step_size, x, delta_x):
+    old_x = [x_i.eval() for x_i in x]
+    assignment_run([x_i + step_size * delta_x_i for x_i, delta_x_i in zip(x, delta_x)]) #take step
+    loss, grad, _ = eval_sim()
+    assignment_run(old_x) #revert
+    return loss, grad
+    
+  def wolfe_1(delta_x, new_f, current_f, current_grad, step_size):    
+    valid = new_f <= current_f + c1 * step_size * tf.tensordot(flatten_vectors(current_grad), flatten_vectors(delta_x), 1)   
+    return valid.eval()
+    
+  def wolfe_2(delta_x, new_grad, current_grad, step_size):   
+    valid = np.abs(tf.tensordot(flatten_vectors(new_grad), flatten_vectors(delta_x), 1).eval()) <= -c2 * tf.tensordot(flatten_vectors(current_grad), flatten_vectors(delta_x), 1).eval()
+    return valid
+    
+  
+  def zoom(a_min, a_max, search_dirs, current_f, current_grad):
+    while True:
+      a_mid = (a_min + a_max) / 2.0
+      print('a_min: ', a_min, 'a_max: ', a_max, 'a_mid: ', a_mid)
+      step_loss_min, step_grad_min = f_and_grad_step(a_min, trainables, search_dirs)
+      step_loss, step_grad = f_and_grad_step(a_mid, trainables, search_dirs)      
+      valid_1 = wolfe_1(search_dirs, step_loss, current_f, current_grad, a_mid)
+      valid_2 = wolfe_2(search_dirs, step_grad, current_grad, a_mid)
+      if not valid_1 or step_loss >= step_loss_min:
+        a_max = a_mid
+      else:
+        if valid_2:
+          return a_mid
+        if tf.tensordot(flatten_vectors(step_grad), flatten_vectors(search_dirs), 1) * (a_max - a_min) >= 0:
+          a_max = a_min
+        a_min = a_mid
+        
+    
+  
+  for i in range(1000000):
+    t = time.time()
+    
+    loss_val, grad, memo = eval_sim()
+    
     #BFGS update:
     #IPython.embed()
     
     if use_bfgs:
       bfgs = [None] * len(grad)
-      B_update = [None] * len(grad)    
+      B_update = [None] * len(grad)
+      search_dirs = [None] * len(grad)    
       #TODO: for now, assuming there is only one trainable and one grad for ease
       for v, g, idx in zip(trainables, grad, range(len(grad))):
         g_flat = ly.flatten(g) 
@@ -248,21 +303,64 @@ def main(sess):
           B_s_flat = tf.tensordot(B[idx], s_flat, 1)
           term_1 = -tf.tensordot(B_s_flat, tf.transpose(B_s_flat), 0) / tf.tensordot(s_flat, B_s_flat, 1)
           term_2 = tf.tensordot(y_flat, y_flat, 0) / tf.tensordot(y_flat, s_flat, 1)
-          B_update[idx] = B[idx].assign(B[idx] + term_1 + term_2)        
+          B_update[idx] = B[idx].assign(B[idx] + term_1 + term_2)    
           sess.run(B_update)
           
-        search_dir = -lr * tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
+        search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
         search_dir_reshape = tf.reshape(search_dir, g.shape)
-        bfgs[idx] = [v.assign(v + search_dir_reshape)]
+        search_dirs[idx] = search_dir_reshape
         old_g_flat = g_flat
         old_v_flat = v_flat.eval()
           #TODO: B upate
+      
+      #Now it's linesearch time
+      if wolfe_search:
+        a_max = 1.0
+        a_1 = a_max / 2.0
+        a_0 = 0.0
+        
+        iterate = 1
+        while True:
+          step_loss, step_grad = f_and_grad_step(a_1, trainables, search_dirs)
+          print(a_1)
+          valid_1 = wolfe_1(search_dirs, step_loss, loss_val, grad, a_1)
+          valid_2 = wolfe_2(search_dirs, step_grad, grad, a_1)
+          print('wolfe 1: ', valid_1, 'wolfe 2: ', valid_2)
+          if (not valid_1) or (iterate > 1 and step_loss > loss_val):
+            print('cond1')
+            a = zoom(a_0, a_1, search_dirs, loss_val, grad)
+          if valid_2:
+            print('cond2')
+            a = a_1
+            break
+          if tf.tensordot(flatten_vectors(step_grad), flatten_vectors(search_dirs), 1).eval() >= 0:
+            print('cond3')
+            a = zoom(a_1, a_0, search_dirs, current_f, current_grad)
+            break
+          print('no cond')
+          temp = a_1
+          a_1 = (a_1 + a_max) / 2.0
+          a_0 = temp        
+          iterate+=1
+          if iterate > 5:
+            #close enough
+            a = a_1
+            break
+      else:
+        a = lr
+      for v, idx in zip(trainables, range(len(grad))):
+        print('final a ', a)
+        bfgs[idx] = v.assign(v + search_dirs[idx] * a)
       sess.run(bfgs)
+      print('stepped!!')
     else:
       gradient_descent = [
-        v.assign(v - lr * g) for v, g in zip(trainables, grad)
+        v.assign(v + lr * g) for v, g in zip(trainables, grad)
       ]
       sess.run(gradient_descent)
+      
+      
+      
       
       
     print('iter {:5d} time {:.3f} loss {:.4f}'.format(
