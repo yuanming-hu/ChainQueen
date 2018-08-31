@@ -315,9 +315,12 @@ def main(sess):
           sess.run([B_update[idx]])
         
         
+
         if tf.abs(tf.matrix_determinant(B[idx])).eval() < 1e-6:
           sess.run( [ B[idx].assign(tf.eye(tf.size(v_flat))) ] )
-        search_dir = -tf.matrix_solve_ls(B[idx],tf.transpose(g_flat), l2_regularizer=0.0, fast=True) #adding regularizer for stability
+          search_dir = -tf.transpose(g_flat)
+        else:
+          search_dir = -tf.matrix_solve_ls(B[idx],tf.transpose(g_flat), l2_regularizer=0.0, fast=True) #adding regularizer for stability
 
         #search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
         search_dir_reshape = tf.reshape(search_dir, g.shape)
