@@ -81,7 +81,7 @@ class Matrix {
     d[2][2] = a22;
   }
 
-  TC_FORCE_INLINE __device__ Matrix(real x = 0) {
+  TC_FORCE_INLINE __host__ __device__ Matrix(real x = 0) {
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         d[i][j] = (i == j) ? x : 0;

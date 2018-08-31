@@ -1,6 +1,7 @@
 #include <taichi/common/util.h>
 #include <taichi/common/task.h>
 #include <taichi/testing.h>
+#include <taichi/io/optix.h>
 #include "kernels.h"
 #include "particle.h"
 
@@ -24,6 +25,55 @@ class DMPMSimulator3D {
   void test() {
   }
 };
+
+auto gpu_mpm3d = []() {
+  void *states;
+  int num_particles = 30 * 30 * 30;
+  std::vector<real> initial_positions;
+  for (int i = 0; i < 30; i++) {
+    for (int j = 0; j < 30; j++) {
+      for (int k = 0; k < 30; k++) {
+        initial_positions.push_back(i * 0.005_f + 0.4_f);
+      }
+    }
+  }
+  for (int i = 0; i < 30; i++) {
+    for (int j = 0; j < 30; j++) {
+      for (int k = 0; k < 30; k++) {
+        initial_positions.push_back(j * 0.005_f + 0.6_f);
+      }
+    }
+  }
+  for (int i = 0; i < 30; i++) {
+    for (int j = 0; j < 30; j++) {
+      for (int k = 0; k < 30; k++) {
+        initial_positions.push_back(k * 0.005_f + 0.4_f);
+      }
+    }
+  }
+  initialize_mpm3d_state(states, initial_positions.data());
+
+  for (int i = 0; i < 150; i++) {
+    auto x = fetch_mpm3d_particles(states);
+    OptiXScene scene;
+    for (int p = 0; p < 30 * 30 * 30; p++) {
+      OptiXParticle particle;
+      auto scale = 5_f;
+      particle.position_and_radius =
+          Vector4(x[p] * scale, x[p + num_particles] * scale,
+                  x[p + 2 * num_particles] * scale, 0.01);
+      if (p == 123)
+        TC_P(particle.position_and_radius);
+      scene.particles.push_back(particle);
+    }
+    write_to_binary_file(scene, fmt::format("{:05d}.tcb", i));
+    for (int j = 0; j < 10; j++) {
+      advance_mpm3d_state(states);
+    }
+  }
+};
+
+TC_REGISTER_TASK(gpu_mpm3d);
 
 auto test_cuda = []() {
   int N = 10;
@@ -76,11 +126,11 @@ auto test_cuda_svd = []() {
     TC_ASSERT_EQUAL(matA, matU * matSig * transposed(matV), tolerance);
 
     /*
-      polar_decomp(m, R, S);
-      TC_CHECK_EQUAL(m, R * S, tolerance);
-      TC_CHECK_EQUAL(Matrix(1), R * transposed(R), tolerance);
-      TC_CHECK_EQUAL(S, transposed(S), tolerance);
-     */
+    polar_decomp(m, R, S);
+    TC_CHECK_EQUAL(m, R * S, tolerance);
+    TC_CHECK_EQUAL(Matrix(1), R * transposed(R), tolerance);
+    TC_CHECK_EQUAL(S, transposed(S), tolerance);
+    */
   }
 };
 
