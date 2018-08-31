@@ -46,6 +46,7 @@ def main(sess):
   ym_3 = tf.constant(10., shape = [1, 100, 1], dtype = tf.float32)
   youngs_modulus = tf.concat([ym_1, ym_2, ym_3], axis = 1)
 
+
   velocity = np.zeros(shape = (batch_size, num_particles, 2))
 
   position = np.zeros(shape = (batch_size, num_particles, 2))

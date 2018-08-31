@@ -7,17 +7,18 @@ import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
 import IPython
+import copy
 
 lr = 1.0
 
-sample_density = 20
+sample_density = 40
 group_num_particles = sample_density**2
 goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
-nn_control = False
-use_bfgs = True
+nn_control = True
+use_bfgs = Flase
 wolfe_search = False
 num_acts = 200
 
@@ -37,10 +38,17 @@ if config == 'A':
   gravity = (0, -2)
 elif config == 'B':
   # Finger
-  num_groups = 3
-  group_offsets = [(1, 0), (1.5, 0), (1, 2)]
-  group_sizes = [(0.5, 2), (0.5, 2), (1, 1)]
-  actuations = [0, 1]
+  num_links = 1
+  group_sizes = []
+  group_offsets = []
+  actuations = []
+  group_size = [(0.5, 2 / num_links), (0.5, 2 / num_links), (1, 1 / num_links)]
+  for i in range(num_links):
+    group_offsets += [(1, group_size[0][1] *i + 0), (1.5, group_size[1][1] *i + 0), (1, group_size[2][1] *i + 2)]
+    group_sizes += copy.deepcopy(group_size)
+    actuations += [0  + 3*i, 1 + 3*i]
+  num_groups = len(group_sizes)
+  
   head = 2
   gravity = (0, 0)
 elif config == 'C':
@@ -172,16 +180,15 @@ def main(sess):
           initial_positions[b].append([u, v])
   assert len(initial_positions[0]) == num_particles
 
-  
+  youngs_modulus =tf.Variable(10.0 * tf.ones(shape = [1, num_particles, 1], dtype = tf.float32), trainable=True)
+  initial_state = sim.get_initial_state(
+      position=np.array(initial_positions), youngs_modulus=tf.identity(youngs_modulus))
+      
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   if use_bfgs:
     B = [tf.Variable(tf.eye(tf.size(trainable)), trainable=False) for trainable in trainables]
   
   sess.run(tf.global_variables_initializer())
-
-  initial_state = sim.get_initial_state(
-      position=np.array(initial_positions), youngs_modulus=10)
-
   
   sim.set_initial_state(initial_state=initial_state)
   
@@ -277,8 +284,9 @@ def main(sess):
           a_max = a_min
         a_min = a_mid
         
-    
-  
+  loss_val, grad, memo = eval_sim() #TODO: this is to get dimensions, find a better way to do this without simming
+  old_g_flat = [None] * len(grad)
+  old_v_flat = [None] * len(grad)
   for i in range(1000000):
     t = time.time()
     
@@ -298,19 +306,26 @@ def main(sess):
         if B[idx] == None:
             B[idx] = tf.eye(tf.size(v_flat))
         if i > 0:          
-          y_flat = tf.squeeze(g_flat - old_g_flat)
-          s_flat = tf.squeeze(v_flat - old_v_flat)
+          y_flat = tf.squeeze(g_flat - old_g_flat[idx])
+          s_flat = tf.squeeze(v_flat - old_v_flat[idx])
           B_s_flat = tf.tensordot(B[idx], s_flat, 1)
           term_1 = -tf.tensordot(B_s_flat, tf.transpose(B_s_flat), 0) / tf.tensordot(s_flat, B_s_flat, 1)
           term_2 = tf.tensordot(y_flat, y_flat, 0) / tf.tensordot(y_flat, s_flat, 1)
           B_update[idx] = B[idx].assign(B[idx] + term_1 + term_2)    
-          sess.run(B_update)
-          
-        search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
+          sess.run([B_update[idx]])
+        
+        
+
+        if tf.abs(tf.matrix_determinant(B[idx])).eval() < 1e-6:
+          sess.run( [ B[idx].assign(tf.eye(tf.size(v_flat))) ] )
+          search_dir = -tf.transpose(g_flat)
+        else:
+          #search_dir = -tf.matrix_solve_ls(B[idx],tf.transpose(g_flat), l2_regularizer=0.0, fast=True) #adding regularizer for stability
+          search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
         search_dir_reshape = tf.reshape(search_dir, g.shape)
         search_dirs[idx] = search_dir_reshape
-        old_g_flat = g_flat
-        old_v_flat = v_flat.eval()
+        old_g_flat[idx] = g_flat
+        old_v_flat[idx] = v_flat.eval()
           #TODO: B upate
       
       #Now it's linesearch time
@@ -355,13 +370,9 @@ def main(sess):
       print('stepped!!')
     else:
       gradient_descent = [
-        v.assign(v + lr * g) for v, g in zip(trainables, grad)
+        v.assign(v - lr * g) for v, g in zip(trainables, grad)
       ]
       sess.run(gradient_descent)
-      
-      
-      
-      
       
     print('iter {:5d} time {:.3f} loss {:.4f}'.format(
         i, time.time() - t, memo.loss))
