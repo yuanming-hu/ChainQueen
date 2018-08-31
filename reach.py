@@ -172,15 +172,16 @@ def main(sess):
           initial_positions[b].append([u, v])
   assert len(initial_positions[0]) == num_particles
 
-  
+  initial_state = sim.get_initial_state(
+      position=np.array(initial_positions), youngs_modulus=tf.Variable(10.0 * tf.ones(shape = [1, num_particles, 1], dtype = tf.float32), trainable=True))
+      
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   if use_bfgs:
     B = [tf.Variable(tf.eye(tf.size(trainable)), trainable=False) for trainable in trainables]
   
   sess.run(tf.global_variables_initializer())
 
-  initial_state = sim.get_initial_state(
-      position=np.array(initial_positions), youngs_modulus=10)
+  
 
   
   sim.set_initial_state(initial_state=initial_state)
