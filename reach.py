@@ -38,7 +38,7 @@ if config == 'A':
   gravity = (0, -2)
 elif config == 'B':
   # Finger
-  num_links = 4
+  num_links = 1
   group_sizes = []
   group_offsets = []
   actuations = []
