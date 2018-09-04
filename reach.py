@@ -293,64 +293,76 @@ def main(sess):
   loss_val, grad, memo = eval_sim() #TODO: this is to get dimensions, find a better way to do this without simming
   old_g_flat = [None] * len(grad)
   old_v_flat = [None] * len(grad)
-  for i in range(1000000):
-    t = time.time()
+  
+  
+  t = time.time()
     
-    loss_val, grad, memo = eval_sim()
-    
-    #BFGS update:
-    #IPython.embed()
+  loss_val, grad, memo = eval_sim()
+  
+  #BFGS update:
+  #IPython.embed()
 
-    
-    if use_pygmo:
-      def assignment_helper(x):
-        assignments = []
-        idx = 0
-        x = x.astype(np.float32)
-        for v in trainables:
-          #first, get count:
-          var_cnt = tf.size(v).eval()
-          assignments += [v.assign(tf.reshape(x[idx:idx+var_cnt],v.shape))]
-          idx += var_cnt
-        sess.run(assignments)
+  
+  if use_pygmo:
+    def assignment_helper(x):
+      assignments = []
+      idx = 0
+      x = x.astype(np.float32)
+      for v in trainables:
+        #first, get count:
+        var_cnt = tf.size(v).eval()
+        assignments += [v.assign(tf.reshape(x[idx:idx+var_cnt],v.shape))]
+        idx += var_cnt
+      sess.run(assignments)
+      
+    class RobotProblem:
+      def fitness(self, x):
+        assignment_helper(x)
+        loss, _, _ = eval_sim()             
+        return [loss.astype(np.float64)]
         
-      class RobotProblem:
-        def fitness(self, x):
-          assignment_helper(x)
-          loss, _, _ = eval_sim()             
-          return [loss.astype(np.float64)]
-          
-        def gradient(self, x):
-          assignment_helper(x)
-          _, grad, _ = eval_sim()   
-          return flatten_vectors(grad).eval().astype(np.float64)
+      def gradient(self, x):
+        assignment_helper(x)
+        _, grad, _ = eval_sim()   
+        return flatten_vectors(grad).eval().astype(np.float64)
 
-        def get_bounds(self):
-          #actuation
-          lb = []
-          ub = []
-          acts = trainables[0]
-          lb += [-8] * tf.size(acts).eval()
-          ub += [8] * tf.size(acts).eval()
-          designs = trainables[1]
-          lb += [9] * tf.size(designs).eval()
-          ub += [11] * tf.size(designs).eval()
-      
-          return (lb, ub)
-          
-      uda = pg.nlopt("slsqp")
-      algo = pg.algorithm(uda)
-      algo.extract(pg.nlopt).ftol_rel = 1e-8
-      algo.set_verbosity(1)
-      udp = RobotProblem()
-      prob = pg.problem(udp)
-      pop = pg.population(prob, size = 1)
-      pop.problem.c_tol = [1e-8] * prob.get_nc()
-      pop = algo.evolve(pop)
+      def get_bounds(self):
+        #actuation
+        lb = []
+        ub = []
+        acts = trainables[0]
+        lb += [-8] * tf.size(acts).eval()
+        ub += [8] * tf.size(acts).eval()
+        designs = trainables[1]
+        lb += [9] * tf.size(designs).eval()
+        ub += [11] * tf.size(designs).eval()
+    
+        return (lb, ub)
+        
+    uda = pg.nlopt("mma")
+    algo = pg.algorithm(uda)
+    algo.extract(pg.nlopt).ftol_rel = 1e-4
+    algo.set_verbosity(1)
+    udp = RobotProblem()
+    bounds = udp.get_bounds()
+    mean = (np.array(bounds[0]) + np.array(bounds[1])) / 2.0
+    num_vars = len(mean)
+    prob = pg.problem(udp)
+    pop = pg.population(prob, size = 1)   
+    pop.set_x(0,np.random.normal(scale=0.1, loc=mean, size=(num_vars,)))
+    pop.problem.c_tol = [1e-8] * prob.get_nc()
+    pop = algo.evolve(pop)    
+    #IPython.embed() #We need to refactor this for real
+    _, _, memo = eval_sim()
+    sim.visualize(memo)
+    return
+  
+  for i in range(1000000):
+    
       
     
     
-    elif use_bfgs:
+    if use_bfgs:
       bfgs = [None] * len(grad)
       B_update = [None] * len(grad)
       search_dirs = [None] * len(grad)    
