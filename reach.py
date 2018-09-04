@@ -9,18 +9,21 @@ from vector_math import *
 import IPython
 import copy
 
+import pygmo as pg
+
 lr = 1.0
 
-sample_density = 40
+sample_density = 20
 group_num_particles = sample_density**2
 goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
-nn_control = True
-use_bfgs = Flase
+nn_control = False
+use_bfgs = False
+use_pygmo = True
 wolfe_search = False
-num_acts = 200
+num_acts = 10
 
 config = 'B'
 if config == 'A':
@@ -83,10 +86,13 @@ if nn_control:
       trainable=True)
   b1 = tf.Variable([0.0] * len(actuations), trainable=True)
 else:
-  actuation_seq = tf.Variable(0.1 * tf.random_normal(shape=(1, num_acts, num_actuators), dtype=np.float32), trainable=True)
+  actuation_seq = tf.Variable(1.0 * tf.random_normal(shape=(1, num_acts, num_actuators), dtype=np.float32), trainable=True)
 
 def step_callback(dec_vec):
   pass
+
+
+
 
 def main(sess):
   t = time.time()
@@ -294,8 +300,57 @@ def main(sess):
     
     #BFGS update:
     #IPython.embed()
+
     
-    if use_bfgs:
+    if use_pygmo:
+      def assignment_helper(x):
+        assignments = []
+        idx = 0
+        x = x.astype(np.float32)
+        for v in trainables:
+          #first, get count:
+          var_cnt = tf.size(v).eval()
+          assignments += [v.assign(tf.reshape(x[idx:idx+var_cnt],v.shape))]
+          idx += var_cnt
+        sess.run(assignments)
+        
+      class RobotProblem:
+        def fitness(self, x):
+          assignment_helper(x)
+          loss, _, _ = eval_sim()             
+          return [loss.astype(np.float64)]
+          
+        def gradient(self, x):
+          assignment_helper(x)
+          _, grad, _ = eval_sim()   
+          return flatten_vectors(grad).eval().astype(np.float64)
+
+        def get_bounds(self):
+          #actuation
+          lb = []
+          ub = []
+          acts = trainables[0]
+          lb += [-8] * tf.size(acts).eval()
+          ub += [8] * tf.size(acts).eval()
+          designs = trainables[1]
+          lb += [9] * tf.size(designs).eval()
+          ub += [11] * tf.size(designs).eval()
+      
+          return (lb, ub)
+          
+      uda = pg.nlopt("slsqp")
+      algo = pg.algorithm(uda)
+      algo.extract(pg.nlopt).ftol_rel = 1e-8
+      algo.set_verbosity(1)
+      udp = RobotProblem()
+      prob = pg.problem(udp)
+      pop = pg.population(prob, size = 1)
+      pop.problem.c_tol = [1e-8] * prob.get_nc()
+      pop = algo.evolve(pop)
+      
+    
+    
+    elif use_bfgs:
       bfgs = [None] * len(grad)
       B_update = [None] * len(grad)
       search_dirs = [None] * len(grad)    
@@ -330,7 +385,7 @@ def main(sess):
       
       #Now it's linesearch time
       if wolfe_search:
-        a_max = 1.0
+        a_max = 0.1
         a_1 = a_max / 2.0
         a_0 = 0.0
         
