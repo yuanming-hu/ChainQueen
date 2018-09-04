@@ -30,7 +30,7 @@ class Vector {
     return d[i];
   }
 
-  __device__ Vector operator+(const Vector &o) {
+  TC_FORCE_INLINE __device__ Vector operator+(const Vector &o) {
     Vector ret;
     for (int i = 0; i < dim; i++) {
       ret[i] = d[i] + o[i];
@@ -38,7 +38,7 @@ class Vector {
     return ret;
   }
 
-  __device__ Vector operator-(const Vector &o) {
+  TC_FORCE_INLINE __device__ Vector operator-(const Vector &o) {
     Vector ret;
     for (int i = 0; i < dim; i++) {
       ret[i] = d[i] - o[i];
@@ -47,7 +47,7 @@ class Vector {
   }
 };
 
-__device__ Vector operator*(real alpha, const Vector &o) {
+TC_FORCE_INLINE __device__ Vector operator*(real alpha, const Vector &o) {
   Vector ret;
   for (int i = 0; i < dim; i++) {
     ret[i] = alpha * o[i];
@@ -150,18 +150,18 @@ class Matrix {
   }
 };
 
-__device__ Matrix transposed(const Matrix &A) {
+TC_FORCE_INLINE __device__ Matrix transposed(const Matrix &A) {
   return Matrix(A[0][0], A[1][0], A[2][0], A[0][1], A[1][1], A[2][1], A[0][2],
                 A[1][2], A[2][2]);
 }
 
-__device__ TC_FORCE_INLINE real determinant(const Matrix &mat) {
+TC_FORCE_INLINE __device__ real determinant(const Matrix &mat) {
   return mat[0][0] * (mat[1][1] * mat[2][2] - mat[2][1] * mat[1][2]) -
          mat[1][0] * (mat[0][1] * mat[2][2] - mat[2][1] * mat[0][2]) +
          mat[2][0] * (mat[0][1] * mat[1][2] - mat[1][1] * mat[0][2]);
 }
 
-__device__ Matrix operator*(real alpha, const Matrix &o) {
+TC_FORCE_INLINE __device__ Matrix operator*(real alpha, const Matrix &o) {
   Matrix ret;
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
