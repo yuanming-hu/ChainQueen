@@ -5,24 +5,42 @@
 #include <cstdio>
 #include <vector>
 
-struct Tensor4 {
+// For deformation gradient update
 
-};
-
-__device__ Tensor4 dABdA(const Matrix &A, const Matrix &B, const Matrix &AB) {
-
+// Takes B, dL/dAB
+// Returns dL/dA
+__device__ Matrix dAB2dA(const Matrix &B, const Matrix &dAB) {
+  Matrix dA;
+  for (int p = 0; p < dim; p++) {
+    for (int q = 0; q < dim; q++) {
+      for (int j = 0; j < dim; j++) {
+        dA[p][q] += dAB[p][j] * B[q][j];
+      }
+    }
+  }
+  return dA;
 }
 
-__device__ Vector duTvBdu(const Vector &u) {
-  return u;
+// Takes A, B, dL/dAB
+// Returns dL/dB
+__device__ Matrix dAB2dB(const Matrix &A, const Matrix &dAB) {
+  Matrix dB;
+  for (int p = 0; p < dim; p++) {
+    for (int q = 0; q < dim; q++) {
+      for (int i = 0; i < dim; i++) {
+        dB[p][q] += dAB[i][q] * A[i][p];
+      }
+    }
+  }
+  return dB;
 }
 
-// Row vector?
-__device__ Vector duTvBdv(const Vector &u) {
-  return v;
+__device__ Vector duTvdu(const Vector &v, const real &duTv) {
+  return duTv * v;
 }
 
-// Row vector?
-__device__ Vector duTvBdv(const Vector &u) {
-  return v;
+__device__ Vector duTvdv(const Vector &u, const real &duTv) {
+  return duTv * u;
 }
+
+
