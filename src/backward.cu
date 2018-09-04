@@ -43,7 +43,7 @@ __device__ Vector duTv2dv(const Vector &u, const real &duTv) {
   return duTv * u;
 }
 
-__forceinline__ __device__ real Clamp_Small_Magnitude(const real input) {
+TC_FORCE_INLINE __device__ real Clamp_Small_Magnitude(const real input) {
   real magnitude = input > 0 ? input : -input;
   real sign = input > 0 ? 1.f : -1.f;
   real output = magnitude > 1e-6 ? magnitude : 1e-6;
@@ -200,4 +200,65 @@ __device__ Matrix dP2dF_fixed_corotated(const Matrix &R,
                                         const Matrix &dF) {
   Matrix dR, dS dS = dF * transposed(R) +
                      F * transposed(dR) return std::make_pair(dR, dS);
+}
+
+__device__ void G2P_backtrace() {
+  // Scatter particle gradients to grid nodes
+  // The access pattern is actually "P2G"
+
+  int part_id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (part_id >= state.num_particles) {
+    return;
+  }
+
+  auto inv_dx = state.inv_dx;
+  real dt = state.dt;
+
+  Vector x = state.get_x(part_id), v = state.get_v(part_id);
+  real mass = 1;    // TODO: variable mass
+  real volume = 1;  // TODO: variable vol
+  real E = 10;    // TODO: variable E
+  real nu = 0.3;    // TODO: variable nu
+  Matrix F = state.get_F(part_id);
+  Matrix C = state.get_C(part_id);
+
+  TransferCommon tc(state, x);
+
+  // Fixed corotated
+  real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
+  real J = determinant(F);
+
+  // printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      for (int k = 0; k < 3; k++) {
+        Vector dpos = tc.dpos(i, j, k);
+
+        real contrib[dim + 1];
+
+        // Scatter d v_p* -> d v_i
+
+
+
+
+        auto tmp = affine * dpos + mass * v;
+
+        auto w = tc.w(i, j, k);
+        contrib[0] = tmp[0] * w;
+        contrib[1] = tmp[1] * w;
+        contrib[2] = tmp[2] * w;
+        contrib[3] = mass * w;
+
+        auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
+                                    tc.base_coord[2] + k);
+        for (int p = 0; p < dim + 1; p++) {
+          atomicAdd(&node[p], contrib[p]);
+        }
+      }
+    }
+  }
+}
+
+__global__ void backtrace( State &current, State &next, State &grad) {
+
 }

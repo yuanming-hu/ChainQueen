@@ -254,32 +254,6 @@ class UpdatedSimulationState(SimulationState):
         self.sim.gravity)[None, None, None, :] * self.sim.dt
     self.grid_velocity = self.grid_velocity / tf.maximum(1e-30, self.grid_mass)
 
-    # Boundary conditions
-    ''''
-    mask = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
-    mask_x = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
-    mask_y = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
-
-    # bottom
-    mask[:, :, :3, :] = 1
-    mask_x[:, :, :3, 0] = 1
-    mask_y[:, :, :3, 1] = 1
-
-    friction = 0.5
-
-    # X component
-    projected_bottom = tf.sign(self.grid_velocity) * tf.maximum(
-        tf.abs(self.grid_velocity) +
-        friction * tf.minimum(0.0, self.grid_velocity[:, :, :, 1, None]), 0.0)
-    self.grid_velocity = self.grid_velocity * (1 - mask) + (
-        mask_x * projected_bottom) + mask_y * tf.maximum(
-            self.grid_velocity, 0.0)
-
-    mask = np.zeros((1, self.sim.grid_res[0], self.sim.grid_res[1], 2))
-    mask[:, 3:self.sim.grid_res[0] - 3, :self.sim.grid_res[1] - 3] = 1
-    self.grid_velocity = self.grid_velocity * mask
-    '''
-
     sticky_mask = tf.cast(self.sim.bc_parameter == -1, tf.float32)
     self.grid_velocity *= (1 - sticky_mask)
     
@@ -325,6 +299,9 @@ class UpdatedSimulationState(SimulationState):
             params=self.grid_velocity,
             indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
         self.affine += outer_product(weighted_node_velocity, offset)
+
+    if sim.damping != 0:
+      self.velocity *= np.exp(-sim.damping * sim.dt)
 
     self.affine *= 4 * sim.inv_dx * sim.inv_dx
     dg_change = identity_matrix + self.sim.dt * self.affine

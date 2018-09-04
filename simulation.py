@@ -24,6 +24,7 @@ class Simulation:
                controller=None,
                gravity=(0, -9.8),
                dt=0.01,
+               damping=0.0,
                dx=None,
                bc=None,
                batch_size=1):
@@ -35,6 +36,7 @@ class Simulation:
     if dx is None:
       dx = 1.0 / grid_res[0]
     self.batch_size = batch_size
+    self.damping = damping
 
     if bc is None:
       bc = get_bounding_box_bc(grid_res)
