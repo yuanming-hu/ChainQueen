@@ -53,7 +53,7 @@ class Simulation:
     self.point_visualization = []
     self.vector_visualization = []
     
-  def visualize(self, memo, interval=1, batch = 0):
+  def visualize(self, memo, interval=1, batch = 0, export = None):
     import math
     import cv2
     import numpy as np
@@ -99,8 +99,14 @@ class Simulation:
         cv2.line(img, (pos[b][1], pos[b][0]), (vec[b][1], vec[b][0]), color = color, thickness = 1)
     
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
-      cv2.imshow('Differentiable MPM Simulator', img)
-      cv2.waitKey(1)
+      if export is None:
+        cv2.imshow('Differentiable MPM Simulator', img)
+        cv2.waitKey(1)
+      else:
+        export(img)
+
+    if export is not None:
+      export.wait()
 
   def initial_state_place_holder(self):
     return self.initial_state.to_tuple()

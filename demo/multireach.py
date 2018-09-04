@@ -9,6 +9,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
+import export 
 
 lr = 1
 gamma = 0.0
@@ -21,6 +22,8 @@ batch_size = 100
 actuation_strength = 8
 
 config = 'B'
+
+exp = export.Export('multireach')
 
 if config == 'A':
   # Robot A
@@ -182,12 +185,12 @@ def main(sess):
       pos_y + (random.random() - 0.5) * gy] for _ in range(batch_size)],
     dtype=np.float32) for __ in range(1)]
 
-  vis_id = []
-  for i in range(max(batch_size // 10, 1)):
-      vis_id.append(random.randint(0, batch_size - 1))
+  vis_id = list(range(batch_size))
+  random.shuffle(vis_id)
+  vis_id = vis_id[:20]
 
   # Optimization loop
-  for i in range(1000000):
+  for i in range(100000):
     t = time.time()
     print('Epoch {:5d}, learning rate {}'.format(i, lr))
 
@@ -226,9 +229,11 @@ def main(sess):
       print('time {:.3f} loss {:.4f}'.format(
           time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      if i % 5 == 0:
-          for b in vis_id:
-            sim.visualize(memo, batch = random.randint(0, batch_size - 1))
+      if i == 0:# memo.loss < 1e-4:
+        for b in vis_id:
+          sim.visualize(memo, batch = b, export = exp)
+        exp.export()
+        exit(0)
 
     print('valid loss {}'.format(loss_cal / len(goal_valid)))
     print('==============================================')
