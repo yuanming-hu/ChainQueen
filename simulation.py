@@ -53,23 +53,23 @@ class Simulation:
     self.point_visualization = []
     self.vector_visualization = []
     
-  def visualize(self, memo, interval=1):
+  def visualize(self, memo, interval=1, batch = 0):
     import math
     import cv2
     import numpy as np
 
     scale = self.scale
 
-    b = 0
+    b = batch
     # Pure-white background
     background = np.ones(
         (self.grid_res[0], self.grid_res[1], 3), dtype=np.float)
 
     for i in range(self.grid_res[0]):
       for j in range(self.grid_res[1]):
-        if self.bc_parameter[b][i][j] == -1:
+        if self.bc_parameter[0][i][j] == -1:
           background[i][j][0] = 0
-        normal = self.bc_normal[b][i][j]
+        normal = self.bc_normal[0][i][j]
         if np.linalg.norm(normal) != 0:
           background[i][j] *= 0.7
     background = cv2.resize(
@@ -77,7 +77,7 @@ class Simulation:
     for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0:
         continue
-      pos = s[b][0] * self.inv_dx + 0.5
+      pos = s[0][b] * self.inv_dx + 0.5
 
       scale = self.scale
 
@@ -90,13 +90,13 @@ class Simulation:
       for dot in points:
         coord, color, radius = dot
         coord = (coord * self.inv_dx + 0.5) * scale
-        cv2.circle(img, (coord[0][1], coord[0][0]), color=color, radius=radius, thickness=-1)
+        cv2.circle(img, (coord[b][1], coord[b][0]), color=color, radius=radius, thickness=-1)
 
       for line in vectors:
         pos, vec, color, gamma = line
         pos = (pos * self.inv_dx + 0.5) * scale
         vec = vec * gamma + pos
-        cv2.line(img, (pos[0][1], pos[0][0]), (vec[0][1], vec[0][0]), color = color, thickness = 1)
+        cv2.line(img, (pos[b][1], pos[b][0]), (vec[b][1], vec[b][0]), color = color, thickness = 1)
     
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
       cv2.imshow('Differentiable MPM Simulator', img)
