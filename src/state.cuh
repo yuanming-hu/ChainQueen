@@ -115,6 +115,7 @@ struct State : public StateBase {
     this->dx = dx;
     this->inv_dx = 1.0f / dx;
     this->dt = dt;
+    this->invD = 4 * inv_dx * inv_dx;
 
     cudaMalloc(&x_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&v_storage, sizeof(real) * dim * num_particles);
@@ -192,3 +193,8 @@ struct TransferCommon {
     return dx * (Vector(i, j, k) - fx);
   }
 };
+
+constexpr real m_p = 1;    // TODO: variable m_p
+constexpr real V = 1;  // TODO: variable vol
+constexpr real E = 10;    // TODO: variable E
+constexpr real nu = 0.3;    // TODO: variable nu

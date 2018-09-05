@@ -206,40 +206,50 @@ __device__ Matrix dP2dF_fixed_corotated(const Matrix &R,
 //
 __device__ void G2P_backtrace(State state, State next_state) {
   // Scatter particle gradients to grid nodes
-  // The access pattern is actually "P2G"
+  // G2P part of back-propagation
 
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
     return;
   }
 
-  auto inv_dx = state.inv_dx;
-  real dt = state.dt;
-
   Vector x = state.get_x(part_id), v = state.get_v(part_id);
-  real mass = 1;    // TODO: variable mass
-  real volume = 1;  // TODO: variable vol
-  real E = 10;    // TODO: variable E
-  real nu = 0.3;    // TODO: variable nu
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
+
+  auto grad_x = next_state.get_grad_x(part_id);
+  auto grad_C_next = next_state.get_grad_C(part_id);
+  auto grad_v_next = next_state.get_grad_v(part_id);
+  Matrix G;  // TODO
 
   TransferCommon<true> tc(state, x);
 
   // Fixed corotated
-  real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
-  real J = determinant(F);
 
-  // printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       for (int k = 0; k < 3; k++) {
+        Vector vi, grad_p;  // TODO
+        real mi; // TODO
+        real grad_mi = 0; // TODO
         Vector dpos = tc.dpos(i, j, k);
 
         real contrib[dim + 1];
 
-        // Scatter d v_p* -> d v_i
+        auto grad_N = tc.dw(i, j, k);
 
+        for (int alpha = 0; alpha < dim; alpha++) {
+          grad_x[alpha] += grad_N[alpha] * (grad_v_next[alpha] * state.invD
+                                             + grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
+          for (int beta = 0; beta < dim; beta++) {
+            grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
+                                 (grad_N[alpha] * vi[alpha] * dpos[beta] -
+                                  tc.w(i, j, k) * vi[alpha]) -
+                             grad_p[beta] * G[beta][alpha];
+          }
+        }
+
+        // Scatter d v_p* -> d v_i
 
         /*
         auto tmp = affine * dpos + mass * v;
@@ -259,8 +269,9 @@ __device__ void G2P_backtrace(State state, State next_state) {
       }
     }
   }
+
+  state.set_x(part_id, grad_x);
 }
 
-__global__ void backtrace( State &current, State &next, State &grad) {
-
+__global__ void backtrace(State &current, State &next, State &grad) {
 }

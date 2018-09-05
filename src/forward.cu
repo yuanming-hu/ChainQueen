@@ -49,10 +49,6 @@ __global__ void P2G(State state) {
   real dt = state.dt;
 
   Vector x = state.get_x(part_id), v = state.get_v(part_id);
-  real mass = 1;    // TODO: variable mass
-  real volume = 1;  // TODO: variable vol
-  real E = 10;    // TODO: variable E
-  real nu = 0.3;    // TODO: variable nu
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
 
@@ -65,10 +61,10 @@ __global__ void P2G(State state) {
   Matrix r, s;
   polar_decomp(F, r, s);
   Matrix stress =
-      -4 * inv_dx * inv_dx * dt * volume *
+      -4 * inv_dx * inv_dx * dt * V *
       (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
 
-  auto affine = stress + mass * C;
+  auto affine = stress + m_p * C;
 
   // printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
   for (int i = 0; i < 3; i++) {
@@ -78,13 +74,13 @@ __global__ void P2G(State state) {
 
         real contrib[dim + 1];
 
-        auto tmp = affine * dpos + mass * v;
+        auto tmp = affine * dpos + m_p * v;
 
         auto w = tc.w(i, j, k);
         contrib[0] = tmp[0] * w;
         contrib[1] = tmp[1] * w;
         contrib[2] = tmp[2] * w;
-        contrib[3] = mass * w;
+        contrib[3] = m_p * w;
 
         auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
                                     tc.base_coord[2] + k);
