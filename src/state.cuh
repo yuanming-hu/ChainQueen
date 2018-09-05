@@ -53,38 +53,39 @@ struct State : public StateBase {
     }
   }
 
-#define TC_MPM_VECTOR(x) \
-  TC_FORCE_INLINE __device__ Vector get_##x(int part_id) { \
-    return get_vector(x##_storage, part_id); \
-  } \
-  TC_FORCE_INLINE __device__ void set_##x(int part_id, Vector x) { \
-    return set_vector(x##_storage, part_id, x); \
-  } \
-  TC_FORCE_INLINE __device__ Vector get_grad_##x(int part_id) { \
-    return get_vector(grad_##x##_storage, part_id); \
-  } \
+#define TC_MPM_VECTOR(x)                                                \
+  TC_FORCE_INLINE __device__ Vector get_##x(int part_id) {              \
+    return get_vector(x##_storage, part_id);                            \
+  }                                                                     \
+  TC_FORCE_INLINE __device__ void set_##x(int part_id, Vector x) {      \
+    return set_vector(x##_storage, part_id, x);                         \
+  }                                                                     \
+  TC_FORCE_INLINE __device__ Vector get_grad_##x(int part_id) {         \
+    return get_vector(grad_##x##_storage, part_id);                     \
+  }                                                                     \
   TC_FORCE_INLINE __device__ void set_grad_##x(int part_id, Vector x) { \
-    return set_vector(grad_##x##_storage, part_id, x); \
+    return set_vector(grad_##x##_storage, part_id, x);                  \
   }
 
   TC_MPM_VECTOR(x);
   TC_MPM_VECTOR(v);
 
-  TC_FORCE_INLINE __device__ Matrix get_F(int part_id) {
-    return get_matrix(F_storage, part_id);
+#define TC_MPM_MATRIX(F)                                                \
+  TC_FORCE_INLINE __device__ Matrix get_##F(int part_id) {              \
+    return get_matrix(F##_storage, part_id);                            \
+  }                                                                     \
+  TC_FORCE_INLINE __device__ void set_##F(int part_id, Matrix m) {      \
+    return set_matrix(F##_storage, part_id, m);                         \
+  }                                                                     \
+  TC_FORCE_INLINE __device__ Matrix get_grad_##F(int part_id) {         \
+    return get_matrix(grad_##F##_storage, part_id);                      \
+  }                                                                     \
+  TC_FORCE_INLINE __device__ void set_grad_##F(int part_id, Matrix m) { \
+    return set_matrix(grad_##F##_storage, part_id, m);                   \
   }
 
-  TC_FORCE_INLINE __device__ void set_F(int part_id, Matrix m) {
-    return set_matrix(F_storage, part_id, m);
-  }
-
-  TC_FORCE_INLINE __device__ Matrix get_C(int part_id) {
-    return get_matrix(C_storage, part_id);
-  }
-
-  TC_FORCE_INLINE __device__ void set_C(int part_id, Matrix m) {
-    return set_matrix(C_storage, part_id, m);
-  }
+  TC_MPM_MATRIX(F);
+  TC_MPM_MATRIX(C);
 
   /*
   int num_particles;
