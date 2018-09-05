@@ -331,16 +331,18 @@ def main(sess):
         lb = []
         ub = []
         acts = trainables[0]
-        lb += [-8] * tf.size(acts).eval()
-        ub += [8] * tf.size(acts).eval()
+        lb += [-5] * tf.size(acts).eval()
+        ub += [5] * tf.size(acts).eval()
         designs = trainables[1]
-        lb += [9] * tf.size(designs).eval()
-        ub += [11] * tf.size(designs).eval()
+        lb += [8] * tf.size(designs).eval()
+        ub += [20] * tf.size(designs).eval()
     
         return (lb, ub)
         
-    uda = pg.nlopt("mma")
+    uda = pg.nlopt("auglag")
     algo = pg.algorithm(uda)
+    algo.extract(pg.nlopt).local_optimizer = pg.nlopt('slsqp')
+    
     algo.extract(pg.nlopt).ftol_rel = 1e-4
     algo.set_verbosity(1)
     udp = RobotProblem()
