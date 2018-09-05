@@ -99,7 +99,7 @@ __global__ void P2G(State state) {
 void sort(State state) {
 }
 
-__global__ void G2P(State state) {
+__global__ void G2P(State state, State next_state) {
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
     return;
@@ -129,9 +129,10 @@ __global__ void G2P(State state) {
       }
     }
   }
-  state.set_x(part_id, x + state.dt * v);
-  state.set_v(part_id, v);
-  state.set_F(part_id, (Matrix(1) + dt * C) * F);
+  next_state.set_x(part_id, x + state.dt * v);
+  next_state.set_v(part_id, v);
+  next_state.set_F(part_id, (Matrix(1) + dt * C) * F);
+  next_state.set_C(part_id, C);
 }
 
 __global__ void test_svd(int n, Matrix *A, Matrix *U, Matrix *sig, Matrix *V) {
@@ -216,7 +217,7 @@ void advance(const State &state) {
   int num_blocks_grid = state.grid_size();
   normalize_grid<<<(num_blocks_grid + block_size - 1) / block_size,
                    block_size>>>(state);
-  G2P<<<num_blocks, block_size>>>(state);
+  G2P<<<num_blocks, block_size>>>(state, state);
 }
 
 void initialize_mpm3d_state(void *&state_, float *intiial_positions) {

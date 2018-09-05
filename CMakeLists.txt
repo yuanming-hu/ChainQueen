@@ -1,6 +1,6 @@
 set(TAICHI_PROJECT_NAME "differentiable_mpm")
 
-file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.h" "src/*/*.h" "src/*/*.cpp")
+file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.h" "src/*/*.h" "src/*/*.cpp" "src/*.cuh")
 file(GLOB_RECURSE PROJECT_SOURCES_CUDA "src/*.cu")
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
