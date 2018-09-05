@@ -138,14 +138,16 @@ struct State : public StateBase {
   }
 };
 
-
 constexpr int spline_size = 3;
 
+using BSplineWeights = real[dim][spline_size];
+
+template <bool with_grad = false>
 struct TransferCommon {
   int base_coord[dim];
   Vector fx;
-  real weight[dim][spline_size];
   real dx, inv_dx;
+  BSplineWeights weights[1 + (int)with_grad];
 
   TC_FORCE_INLINE __device__ TransferCommon(const State &state, Vector x) {
     dx = state.dx;
@@ -159,20 +161,31 @@ struct TransferCommon {
 
     // B-Spline weights
     for (int i = 0; i < dim; ++i) {
-      weight[i][0] = 0.5f * sqr(1.5f - fx[i]);
-      weight[i][1] = 0.75f - sqr(fx[i] - 1);
-      weight[i][2] = 0.5f * sqr(fx[i] - 0.5f);
+      weights[0][i][0] = 0.5f * sqr(1.5f - fx[i]);
+      weights[0][i][1] = 0.75f - sqr(fx[i] - 1);
+      weights[0][i][2] = 0.5f * sqr(fx[i] - 0.5f);
+    }
+
+    if (with_grad) {
+      for (int i = 0; i < dim; ++i) {
+        weights[1][i][0] = 0.5f * sqr(1.5f - fx[i]);
+        weights[1][i][1] = 0.75f - sqr(fx[i] - 1);
+        weights[1][i][2] = 0.5f * sqr(fx[i] - 0.5f);
+      }
     }
   }
 
   TC_FORCE_INLINE __device__ real w(int i, int j, int k) {
-    return weight[0][i] * weight[1][j] * weight[2][k];
+    return weights[0][0][i] * weights[0][1][j] * weights[0][2][k];
+  }
+
+  TC_FORCE_INLINE __device__ Vector dw(int i, int j, int k) {
+    return Vector(weights[1][0][i] * weights[0][1][j] * weights[0][2][k],
+                  weights[0][0][i] * weights[1][1][j] * weights[0][2][k],
+                  weights[0][0][i] * weights[0][1][j] * weights[1][2][k]);
   }
 
   TC_FORCE_INLINE __device__ Vector dpos(int i, int j, int k) {
     return dx * (Vector(i, j, k) - fx);
   }
 };
-
-using BSplineWeights = real[dim][spline_size];
-

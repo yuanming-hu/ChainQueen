@@ -207,7 +207,6 @@ __device__ Matrix dP2dF_fixed_corotated(const Matrix &R,
 __device__ void G2P_backtrace(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // The access pattern is actually "P2G"
-  /*
 
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
@@ -225,7 +224,7 @@ __device__ void G2P_backtrace(State state, State next_state) {
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
 
-  TransferCommon tc(state, x);
+  TransferCommon<true> tc(state, x);
 
   // Fixed corotated
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
@@ -242,6 +241,7 @@ __device__ void G2P_backtrace(State state, State next_state) {
         // Scatter d v_p* -> d v_i
 
 
+        /*
         auto tmp = affine * dpos + mass * v;
 
         auto w = tc.w(i, j, k);
@@ -255,10 +255,10 @@ __device__ void G2P_backtrace(State state, State next_state) {
         for (int p = 0; p < dim + 1; p++) {
           atomicAdd(&node[p], contrib[p]);
         }
+        */
       }
     }
   }
-  */
 }
 
 __global__ void backtrace( State &current, State &next, State &grad) {

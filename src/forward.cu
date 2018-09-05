@@ -56,7 +56,7 @@ __global__ void P2G(State state) {
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
 
-  TransferCommon tc(state, x);
+  TransferCommon<> tc(state, x);
 
   // Fixed corotated
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
@@ -113,7 +113,7 @@ __global__ void G2P(State state, State next_state) {
   Matrix F = state.get_F(part_id);
   Matrix C;
 
-  TransferCommon tc(state, x);
+  TransferCommon<> tc(state, x);
 
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -220,7 +220,7 @@ void advance(const State &state) {
   G2P<<<num_blocks, block_size>>>(state, state);
 }
 
-void initialize_mpm3d_state(void *&state_, float *intiial_positions) {
+void initialize_mpm3d_state(void *&state_, float *initial_positions) {
   int res[dim];
   int n = 100;
   res[0] = 100;
@@ -241,7 +241,7 @@ void initialize_mpm3d_state(void *&state_, float *intiial_positions) {
   auto state = new State(res, num_particles, 1.0f / n, 1e-3f, gravity);
   state_ = state;
 
-  cudaMemcpy(state->x_storage, intiial_positions,
+  cudaMemcpy(state->x_storage, initial_positions,
              sizeof(Vector) * num_particles, cudaMemcpyHostToDevice);
 }
 
