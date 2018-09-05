@@ -1,7 +1,6 @@
 #include "kernels.h"
 #include "linalg.h"
-#include "particle.h"
-#include "svd.cuh"
+#include "state.cuh"
 #include <cstdio>
 #include <vector>
 
@@ -195,16 +194,20 @@ __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
 };
 
 // Constitutive models
+/*
 __device__ Matrix dP2dF_fixed_corotated(const Matrix &R,
                                         const Matrix &F,
                                         const Matrix &dF) {
-  Matrix dR, dS dS = dF * transposed(R) +
-                     F * transposed(dR) return std::make_pair(dR, dS);
+  //Matrix dR, dS dS = dF * transposed(R) +
+  //                   F * transposed(dR) return std::make_pair(dR, dS);
 }
+*/
 
-__device__ void G2P_backtrace() {
+//
+__device__ void G2P_backtrace(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // The access pattern is actually "P2G"
+  /*
 
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
@@ -239,8 +242,6 @@ __device__ void G2P_backtrace() {
         // Scatter d v_p* -> d v_i
 
 
-
-
         auto tmp = affine * dpos + mass * v;
 
         auto w = tc.w(i, j, k);
@@ -257,6 +258,7 @@ __device__ void G2P_backtrace() {
       }
     }
   }
+  */
 }
 
 __global__ void backtrace( State &current, State &next, State &grad) {

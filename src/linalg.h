@@ -1,5 +1,7 @@
 #pragma once
 
+#include "svd.cuh"
+
 #define TC_FORCE_INLINE __forceinline__
 using real = float;
 constexpr int dim = 3;
@@ -173,4 +175,32 @@ TC_FORCE_INLINE __device__ Matrix operator*(real alpha, const Matrix &o) {
 
 TC_FORCE_INLINE __device__ real sqr(real x) {
   return x * x;
+}
+
+TC_FORCE_INLINE __device__ void svd(Matrix &A,
+                                    Matrix &U,
+                                    Matrix &sig,
+                                    Matrix &V) {
+  // clang-format off
+  sig[0][1] = sig[0][2] = sig[1][0] = sig[1][2] = sig[2][0] = sig[2][1] = 0;
+  svd(
+      A[0][0], A[0][1], A[0][2],
+      A[1][0], A[1][1], A[1][2],
+      A[2][0], A[2][1], A[2][2],
+      U[0][0], U[0][1], U[0][2],
+      U[1][0], U[1][1], U[1][2],
+      U[2][0], U[2][1], U[2][2],
+      sig[0][0], sig[1][1], sig[2][2],
+      V[0][0], V[0][1], V[0][2],
+      V[1][0], V[1][1], V[1][2],
+      V[2][0], V[2][1], V[2][2]
+  );
+  // clang-format on
+}
+
+TC_FORCE_INLINE __device__ void polar_decomp(Matrix &A, Matrix &R, Matrix &S) {
+  Matrix U, sig, V;
+  svd(A, U, sig, V);
+  R = U * transposed(V);
+  S = V * sig * transposed(V);
 }

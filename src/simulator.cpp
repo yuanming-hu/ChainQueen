@@ -3,7 +3,7 @@
 #include <taichi/testing.h>
 #include <taichi/io/optix.h>
 #include "kernels.h"
-#include "particle.h"
+#include "state_base.h"
 
 TC_NAMESPACE_BEGIN
 
