@@ -167,10 +167,11 @@ struct TransferCommon {
     }
 
     if (with_grad) {
+      // TODO: test
       for (int i = 0; i < dim; ++i) {
-        weights[1][i][0] = 0.5f * sqr(1.5f - fx[i]);
-        weights[1][i][1] = 0.75f - sqr(fx[i] - 1);
-        weights[1][i][2] = 0.5f * sqr(fx[i] - 0.5f);
+        weights[1][i][0] = inv_dx * (-1.5f + fx[i]);
+        weights[1][i][1] = inv_dx * (-2 * fx[i] - 2);
+        weights[1][i][2] = inv_dx * (fx[i] - 0.5f);
       }
     }
   }
