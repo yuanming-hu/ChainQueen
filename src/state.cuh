@@ -53,21 +53,22 @@ struct State : public StateBase {
     }
   }
 
-  TC_FORCE_INLINE __device__ Vector get_x(int part_id) {
-    return get_vector(x_storage, part_id);
+#define TC_MPM_VECTOR(x) \
+  TC_FORCE_INLINE __device__ Vector get_##x(int part_id) { \
+    return get_vector(x##_storage, part_id); \
+  } \
+  TC_FORCE_INLINE __device__ void set_##x(int part_id, Vector x) { \
+    return set_vector(x##_storage, part_id, x); \
+  } \
+  TC_FORCE_INLINE __device__ Vector get_grad_##x(int part_id) { \
+    return get_vector(grad_##x##_storage, part_id); \
+  } \
+  TC_FORCE_INLINE __device__ void set_grad_##x(int part_id, Vector x) { \
+    return set_vector(grad_##x##_storage, part_id, x); \
   }
 
-  TC_FORCE_INLINE __device__ void set_x(int part_id, Vector x) {
-    return set_vector(x_storage, part_id, x);
-  }
-
-  TC_FORCE_INLINE __device__ Vector get_v(int part_id) {
-    return get_vector(v_storage, part_id);
-  }
-
-  TC_FORCE_INLINE __device__ void set_v(int part_id, Vector x) {
-    return set_vector(v_storage, part_id, x);
-  }
+  TC_MPM_VECTOR(x);
+  TC_MPM_VECTOR(v);
 
   TC_FORCE_INLINE __device__ Matrix get_F(int part_id) {
     return get_matrix(F_storage, part_id);
