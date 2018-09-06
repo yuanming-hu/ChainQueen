@@ -93,7 +93,7 @@ struct State : public StateBase {
     }
   }
 
-  TC_FORCE_INLINE __device__ Vector get_grid_mass(int i, int j, int k) {
+  TC_FORCE_INLINE __device__ real get_grid_mass(int i, int j, int k) {
     auto g = grid_node(i, j, k);
     return g[dim];
   }

@@ -302,6 +302,7 @@ __device__ void G2P_backward(State state, State next_state) {
   auto grad_F_next = next_state.get_grad_F(part_id);
   auto grad_C_next = next_state.get_grad_C(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
+  Matrix grad_C;
   auto C_next = next_state.get_C(part_id);
 
   TransferCommon<true> tc(state, x);
@@ -309,7 +310,8 @@ __device__ void G2P_backward(State state, State next_state) {
   real grad_P_scale = state.dt * state.invD * V;
 
   // (H) term 2
-  Times_Rotated_dP_dF_FixedCorotated(mu, lambda, F.data(), grad_P.data(), grad_F.data());
+  Times_Rotated_dP_dF_FixedCorotated(mu, lambda, F.data(), grad_P.data(),
+                                     grad_F.data());
 
   for (int alpha = 0; alpha < dim; alpha++) {
     for (int beta = 0; beta < dim; beta++) {
@@ -322,23 +324,42 @@ __device__ void G2P_backward(State state, State next_state) {
     }
   }
 
+  // (J) term 1
+  Vector grad_x = next_state.get_grad_x(part_id);
+  auto G = state.invD * state.dt * P * transposed(F) + m_p * C;
+
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
       for (int k = 0; k < dim; k++) {
         real N = tc.w(i, j, k);
-        // Vector vi = , grad_p;  // TODO
-        // real mi;            // TODO
-        // real grad_mi = 0;   // TODO
         Vector dpos = tc.dpos(i, j, k);
         auto grad_p = state.get_grad_grid_velocity(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
 
+        auto grad_N = tc.dw(i, j, k);
         // () v_i^n
         real grad_v_i[dim];
+        real mi = state.get_grid_mass(
+            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
+        auto vi = state.get_grid_velocity(
+            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
+        real grad_mi =
+            state.grad_grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
+                                 tc.base_coord[2] + k)[dim];
         for (int alpha = 0; alpha < dim; alpha++) {
           // (F) v_p^n
           grad_v[alpha] += N * m_p * grad_p[alpha];
           grad_v_i[alpha] = grad_v_next[alpha] * N;
+
+          grad_x[alpha] +=
+              grad_N[alpha] * (grad_v_next[alpha] * state.invD +
+                               grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
+          for (int beta = 0; beta < dim; beta++) {
+            grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
+                                 (grad_N[alpha] * vi[alpha] * dpos[beta] -
+                                  tc.w(i, j, k) * vi[alpha]) -
+                             grad_p[beta] * G[beta][alpha];
+          }
 
           for (int beta = 0; beta < dim; beta++) {
             // (G) P_p^n
@@ -346,31 +367,17 @@ __device__ void G2P_backward(State state, State next_state) {
               grad_P[alpha][beta] +=
                   grad_P_scale * grad_p[alpha] * F[gamma][beta] * dpos[gamma];
               // (H), term 3
-              grad_F[alpha][beta] += grad_P_scale * P[gamma][beta] * dpos[alpha];
+              grad_F[alpha][beta] +=
+                  grad_P_scale * P[gamma][beta] * dpos[alpha];
             }
             grad_v_i[alpha] += grad_C_next[alpha][beta] * dpos[beta];
+            // (I) C_p^n
+            grad_C[alpha][beta] += grad_p[alpha] * m_p * dpos[beta];
           }
         }
         state.set_grad_grid_velocity(
             i, j, k, Vector(grad_v_i[0], grad_v_i[1], grad_v_i[2]));
       }
-
-      /*
-      auto grad_N = tc.dw(i, j, k);
-
-      for (int alpha = 0; alpha < dim; alpha++) {
-        grad_x[alpha] +=
-            grad_N[alpha] * (grad_v_next[alpha] * state.invD +
-                             grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
-        for (int beta = 0; beta < dim; beta++) {
-          grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
-                               (grad_N[alpha] * vi[alpha] * dpos[beta] -
-                                tc.w(i, j, k) * vi[alpha]) -
-                           grad_p[beta] * G[beta][alpha];
-          grad_C[alpha][beta] += grad_p[alpha] * m_p * (dpos[beta]);
-        }
-      }
-      */
     }
   }
   /*
