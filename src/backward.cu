@@ -204,7 +204,7 @@ __device__ Matrix dP2dF_fixed_corotated(const Matrix &R,
 */
 
 //
-__device__ void G2P_backtrace(State state, State next_state) {
+__device__ void G2P_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // G2P part of back-propagation
 
@@ -236,15 +236,15 @@ __device__ void G2P_backtrace(State state, State next_state) {
     }
   }
 
+  next_state.set_grad_v(part_id, grad_v_next);
+  next_state.set_grad_C(part_id, grad_C_next);
+
   TransferCommon<true> tc(state, x);
 
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
       for (int k = 0; k < dim; k++) {
         real N = tc.w(i, j, k);
-        // Vector vi = , grad_p;  // TODO
-        // real mi;            // TODO
-        // real grad_mi = 0;   // TODO
         Vector dpos = tc.dpos(i, j, k);
 
         // (C) v_i^n
@@ -255,7 +255,8 @@ __device__ void G2P_backtrace(State state, State next_state) {
             grad_v_i[alpha] += grad_C_next[alpha][beta] * dpos[beta];
           }
         }
-        state.set_grad_grid_velocity(i, j, k, Vector(grad_v_i[0], grad_v_i[1], grad_v_i[2]));
+        state.set_grad_grid_velocity(
+            i, j, k, Vector(grad_v_i[0], grad_v_i[1], grad_v_i[2]));
       }
 
       /*
@@ -278,7 +279,7 @@ __device__ void G2P_backtrace(State state, State next_state) {
   }
 }
 
-__device__ void grid_backtrace(State state, State next_state) {
+__device__ void grid_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
   int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -293,38 +294,39 @@ __device__ void grid_backtrace(State state, State next_state) {
       // Convert grad_v to grad_p
       // grad_p = grad_v / m
       auto m = node[dim];
-      real inv_m = 1.0f / m; // TODO: guard?
+      real inv_m = 1.0f / m;  // TODO: guard?
       auto grad_v_i = state.get_grad_grid_velocity(x, y, z);
       auto grad_p = inv_m * grad_v_i;
       auto v_i = Vector(node);
-      auto p_i = v_i * m;
+      auto p_i = m * v_i;
       state.set_grad_grid_velocity(x, y, z, grad_p);
       // (E)
       real grad_m = 0;
       for (int alpha = 0; alpha < dim; alpha++) {
         grad_m -= inv_m * v_i[alpha] * grad_v_i[alpha];
-        grad_node[alpha] = grad_v_i[alpha];
+        atomicAdd(&grad_node[alpha], grad_v_i[alpha]);
       }
-      grad_node[dim] = grad_m;
+      atomicAdd(&grad_node[dim], grad_m);
     }
   }
 }
 
-__device__ void P2G_backtrace(State state, State next_state) {
+// (F), (G), (H), (I), (J)
+__device__ void P2G_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
     return;
   }
-  TransferCommon<true> tc(state, x);
 
   Vector x = state.get_x(part_id), v = state.get_v(part_id);
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
+  auto grad_v_next = next_state.get_grad_v(part_id);
 
-  // (F), (G), (H), (I), (J)
-
+  TransferCommon<true> tc(state, x);
+  Vector grad_v;
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
       for (int k = 0; k < dim; k++) {
@@ -333,16 +335,21 @@ __device__ void P2G_backtrace(State state, State next_state) {
         // real mi;            // TODO
         // real grad_mi = 0;   // TODO
         Vector dpos = tc.dpos(i, j, k);
+        auto grad_p = state.get_grad_grid_velocity(
+            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
 
-        // (C) v_i^n
+        // () v_i^n
         real grad_v_i[dim];
         for (int alpha = 0; alpha < dim; alpha++) {
+          // (F) v_p^n
+          grad_v[alpha] += N * m_p * grad_p[alpha];
           grad_v_i[alpha] = grad_v_next[alpha] * N;
           for (int beta = 0; beta < dim; beta++) {
             grad_v_i[alpha] += grad_C_next[alpha][beta] * dpos[beta];
           }
         }
-        state.set_grad_grid_velocity(i, j, k, Vector(grad_v_i[0], grad_v_i[1], grad_v_i[2]));
+        state.set_grad_grid_velocity(
+            i, j, k, Vector(grad_v_i[0], grad_v_i[1], grad_v_i[2]));
       }
 
       /*
@@ -377,5 +384,8 @@ __device__ void P2G_backtrace(State state, State next_state) {
   */
 }
 
-__global__ void backtrace(State &current, State &next) {
+__global__ void backward(State &current, State &next) {
+  P2G_backward(current, next);
+  grid_backward(current, next);
+  G2P_backward(current, next);
 }
