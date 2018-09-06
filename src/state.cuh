@@ -130,6 +130,7 @@ struct State : public StateBase {
   }
 
   TC_MPM_MATRIX(F);
+  TC_MPM_MATRIX(P);
   TC_MPM_MATRIX(C);
 
   State(int res[dim], int num_particles, real dx, real dt, real gravity[dim]) {
@@ -226,3 +227,4 @@ constexpr real m_p = 1;   // TODO: variable m_p
 constexpr real V = 1;     // TODO: variable vol
 constexpr real E = 10;    // TODO: variable E
 constexpr real nu = 0.3;  // TODO: variable nu
+constexpr real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));

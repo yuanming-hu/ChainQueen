@@ -55,7 +55,6 @@ __global__ void P2G(State state) {
   TransferCommon<> tc(state, x);
 
   // Fixed corotated
-  real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
   real J = determinant(F);
 
   Matrix r, s;

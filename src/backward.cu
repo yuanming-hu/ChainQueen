@@ -52,42 +52,14 @@ TC_FORCE_INLINE __device__ real Clamp_Small_Magnitude(const real input) {
 __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
                                                    const real lambda,
                                                    const real *F,
-                                                   const real *d_SVD,
-                                                   const int parid,
                                                    const real *dF,
                                                    real *dP) {
   real U[9];
   real S[3];
   real V[9];
-#ifdef LOAD_SVD
-  U[0] = d_SVD[parid * 21 + 0];
-  U[1] = d_SVD[parid * 21 + 1];
-  U[2] = d_SVD[parid * 21 + 2];
-  U[3] = d_SVD[parid * 21 + 3];
-  U[4] = d_SVD[parid * 21 + 4];
-  U[5] = d_SVD[parid * 21 + 5];
-  U[6] = d_SVD[parid * 21 + 6];
-  U[7] = d_SVD[parid * 21 + 7];
-  U[8] = d_SVD[parid * 21 + 8];
-
-  S[0] = d_SVD[parid * 21 + 9];
-  S[1] = d_SVD[parid * 21 + 10];
-  S[2] = d_SVD[parid * 21 + 11];
-
-  V[0] = d_SVD[parid * 21 + 12];
-  V[1] = d_SVD[parid * 21 + 13];
-  V[2] = d_SVD[parid * 21 + 14];
-  V[3] = d_SVD[parid * 21 + 15];
-  V[4] = d_SVD[parid * 21 + 16];
-  V[5] = d_SVD[parid * 21 + 17];
-  V[6] = d_SVD[parid * 21 + 18];
-  V[7] = d_SVD[parid * 21 + 19];
-  V[8] = d_SVD[parid * 21 + 20];
-#else
   svd(F[0], F[3], F[6], F[1], F[4], F[7], F[2], F[5], F[8], U[0], U[3], U[6],
       U[1], U[4], U[7], U[2], U[5], U[8], S[0], S[1], S[2], V[0], V[3], V[6],
       V[1], V[4], V[7], V[2], V[5], V[8]);
-#endif
 
   //
   real J = S[0] * S[1] * S[2];
@@ -204,9 +176,9 @@ __device__ Matrix dP2dF_fixed_corotated(const Matrix &R,
 */
 
 //
-__device__ void G2P_backward(State state, State next_state) {
+__device__ void P2G_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
-  // G2P part of back-propagation
+  // P2G part of back-propagation
 
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
@@ -312,7 +284,7 @@ __device__ void grid_backward(State state, State next_state) {
 }
 
 // (F), (G), (H), (I), (J)
-__device__ void P2G_backward(State state, State next_state) {
+__device__ void G2P_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -323,10 +295,33 @@ __device__ void P2G_backward(State state, State next_state) {
   Vector x = state.get_x(part_id), v = state.get_v(part_id);
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
+  Matrix P = state.get_P(part_id);
+
+  Matrix grad_P_next = next_state.get_grad_P(part_id);
+  Matrix grad_P, grad_F;
+  auto grad_F_next = next_state.get_grad_F(part_id);
+  auto grad_C_next = next_state.get_grad_C(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
+  auto C_next = next_state.get_C(part_id);
 
   TransferCommon<true> tc(state, x);
   Vector grad_v;
+  real grad_P_scale = state.dt * state.invD * V;
+
+  // (H) term 2
+  Times_Rotated_dP_dF_FixedCorotated(mu, lambda, F.data(), grad_P.data(), grad_F.data());
+
+  for (int alpha = 0; alpha < dim; alpha++) {
+    for (int beta = 0; beta < dim; beta++) {
+      // (H) term 1
+      for (int gamma = 0; gamma < dim; gamma++) {
+        grad_F[alpha][beta] +=
+            grad_F_next[gamma][beta] *
+            (real(gamma == alpha) + state.dt * C_next[gamma][alpha]);
+      }
+    }
+  }
+
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
       for (int k = 0; k < dim; k++) {
@@ -344,7 +339,15 @@ __device__ void P2G_backward(State state, State next_state) {
           // (F) v_p^n
           grad_v[alpha] += N * m_p * grad_p[alpha];
           grad_v_i[alpha] = grad_v_next[alpha] * N;
+
           for (int beta = 0; beta < dim; beta++) {
+            // (G) P_p^n
+            for (int gamma = 0; gamma < dim; gamma++) {
+              grad_P[alpha][beta] +=
+                  grad_P_scale * grad_p[alpha] * F[gamma][beta] * dpos[gamma];
+              // (H), term 3
+              grad_F[alpha][beta] += grad_P_scale * P[gamma][beta] * dpos[alpha];
+            }
             grad_v_i[alpha] += grad_C_next[alpha][beta] * dpos[beta];
           }
         }

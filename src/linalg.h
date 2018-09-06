@@ -18,6 +18,10 @@ class Vector {
     d[2] = val[2];
   }
 
+  TC_FORCE_INLINE __device__ __host__ real *data() {
+    return &d[0];
+  }
+
   TC_FORCE_INLINE __device__ Vector(real x, real y, real z) {
     d[0] = x;
     d[1] = y;
@@ -68,6 +72,10 @@ class Matrix {
   static constexpr int dim = 3;
 
   real d[dim][dim];
+
+  TC_FORCE_INLINE __device__ __host__ real *data() {
+    return &d[0][0];
+  }
 
   TC_FORCE_INLINE __device__ Matrix(real a00,
                                     real a01,
