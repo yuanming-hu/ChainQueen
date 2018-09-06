@@ -182,6 +182,13 @@ struct State : public StateBase {
     return host_x;
   }
 
+  __host__ std::vector<real> fetch_grad_v() {
+    std::vector<real> host_grad_v(dim * num_particles);
+    cudaMemcpy(host_grad_v.data(), x_storage, sizeof(Vector) * num_particles,
+               cudaMemcpyDeviceToHost);
+    return host_grad_v;
+  }
+
   void clear_gradients() {
     cudaMemset(grad_v_storage, 0, sizeof(real) * dim * num_particles);
     cudaMemset(grad_x_storage, 0, sizeof(real) * dim * num_particles);
@@ -190,7 +197,6 @@ struct State : public StateBase {
     cudaMemset(grad_C_storage, 0, sizeof(real) * dim * dim * num_particles);
     cudaMemset(grad_grid_storage, 0, num_cells * (dim + 1) * sizeof(real));
   }
-
 };
 
 constexpr int spline_size = 3;

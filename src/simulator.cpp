@@ -107,7 +107,7 @@ auto gpu_mpm3d = []() {
 
   for (int i = 0; i < num_steps; i++) {
     TC_INFO("forward step {}", i);
-    auto x = fetch_mpm3d_particles(states[0]);
+    auto x = fetch_mpm3d_particles(states[i]);
     OptiXScene scene;
     for (int p = 0; p < (int)initial_positions.size() / 3; p++) {
       OptiXParticle particle;
@@ -118,7 +118,7 @@ auto gpu_mpm3d = []() {
       scene.particles.push_back(particle);
     }
     write_to_binary_file(scene, fmt::format("{:05d}.tcb", i));
-    forward_mpm3d_state(states[0], states[0]);
+    forward_mpm3d_state(states[i], states[i + 1]);
   }
 
   for (int i = num_steps - 1; i >= 0; i--) {
