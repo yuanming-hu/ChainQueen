@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <vector>
 
-
 __global__ void saxpy(int n, real a, real *x, real *y) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < n) {
@@ -59,9 +58,9 @@ __global__ void P2G(State state) {
 
   Matrix r, s;
   polar_decomp(F, r, s);
-  Matrix stress =
-      -4 * inv_dx * inv_dx * dt * V *
-      (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+  auto P = (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+  state.set_P(part_id, P);
+  Matrix stress = -4 * inv_dx * inv_dx * dt * V * P;
 
   auto affine = stress + m_p * C;
 
@@ -197,8 +196,8 @@ __global__ void normalize_grid(State state) {
 }
 
 void advance(const State &state) {
-  cudaMemset(state.grid_storage,
-             0, state.num_cells * (state.dim + 1) * sizeof(real));
+  cudaMemset(state.grid_storage, 0,
+             state.num_cells * (state.dim + 1) * sizeof(real));
   static constexpr int block_size = 128;
   int num_blocks = (state.num_particles + block_size - 1) / block_size;
   P2G<<<num_blocks, block_size>>>(state);

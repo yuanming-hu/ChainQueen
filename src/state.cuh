@@ -149,6 +149,7 @@ struct State : public StateBase {
     cudaMalloc(&x_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&v_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&F_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&P_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&C_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
 
