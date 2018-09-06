@@ -100,7 +100,7 @@ auto gpu_mpm3d = []() {
       }
     }
   }
-  int num_steps = 2;
+  int num_steps = 3;
   std::vector<void *> states(num_steps + 1, nullptr);
   Vector3i res(100);
   Vector3 gravity;
@@ -129,10 +129,14 @@ auto gpu_mpm3d = []() {
   for (int i = num_steps - 1; i >= 0; i--) {
     TC_INFO("backward step {}", i);
     backward_mpm3d_state(states[i], states[i + 1]);
-    auto grad = fetch_mpm3d_grad_v(states[i]);
-    TC_INFO("grad x {}", grad[0]);
-    TC_INFO("grad y {}", grad[num_particles]);
-    TC_INFO("grad z {}", grad[2 * num_particles]);
+    auto grad_x = fetch_mpm3d_grad_x(states[i]);
+    auto grad_v = fetch_mpm3d_grad_v(states[i]);
+    TC_INFO("grad vx {}", grad_v[0]);
+    TC_INFO("grad vy {}", grad_v[num_particles]);
+    TC_INFO("grad vz {}", grad_v[2 * num_particles]);
+    TC_INFO("grad xx {}", grad_x[0]);
+    TC_INFO("grad xy {}", grad_x[num_particles]);
+    TC_INFO("grad xz {}", grad_x[2 * num_particles]);
   }
 };
 

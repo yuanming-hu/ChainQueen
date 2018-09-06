@@ -9,3 +9,4 @@ void backward_mpm3d_state(void *, void *);
 void set_grad_loss(void *);
 std::vector<float> fetch_mpm3d_particles(void *);
 std::vector<float> fetch_mpm3d_grad_v(void *);
+std::vector<float> fetch_mpm3d_grad_x(void *);

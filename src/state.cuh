@@ -189,6 +189,13 @@ struct State : public StateBase {
     return host_grad_v;
   }
 
+  __host__ std::vector<real> fetch_grad_x() {
+    std::vector<real> host_grad_x(dim * num_particles);
+    cudaMemcpy(host_grad_x.data(), grad_x_storage,
+               sizeof(Vector) * num_particles, cudaMemcpyDeviceToHost);
+    return host_grad_x;
+  }
+
   void clear_gradients() {
     cudaMemset(grad_v_storage, 0, sizeof(real) * dim * num_particles);
     cudaMemset(grad_x_storage, 0, sizeof(real) * dim * num_particles);
