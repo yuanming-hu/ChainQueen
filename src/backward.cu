@@ -288,13 +288,25 @@ __device__ void grid_backtrace(State state, State next_state) {
     auto node = state.grid_node(id);
     auto grad_node = state.grad_grid_node(id);
     if (node[dim] > 0) {
-      // Convert grad_v to grad_p
-      // grad_p = grad_v / m
       int x = id / (state.res[1] * state.res[2]),
           y = id / state.res[2] % state.res[1], z = id % state.res[2];
-      auto grad_p = state.inv_dx * state.get_grad_grid_velocity(x, y, z);
-      real inv_m = 1.0f / node[dim];
+      // (D)
+      // Convert grad_v to grad_p
+      // grad_p = grad_v / m
+      auto m = node[dim];
+      real inv_m = 1.0f / m; // TODO: guard?
+      auto grad_v_i = state.get_grad_grid_velocity(x, y, z);
+      auto grad_p = inv_m * grad_v_i;
+      auto v_i = Vector(node);
+      auto p_i = v_i * m;
       state.set_grad_grid_velocity(x, y, z, grad_p);
+      // (E)
+      real grad_m = 0;
+      for (int alpha = 0; alpha < dim; alpha++) {
+        grad_m -= inv_m * v_i[alpha] * grad_v_i[alpha];
+        grad_node[alpha] = grad_v_i[alpha];
+      }
+      grad_node[dim] = grad_m;
     }
   }
 }

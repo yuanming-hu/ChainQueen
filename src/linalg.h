@@ -12,6 +12,12 @@ class Vector {
 
   real d[dim];
 
+  TC_FORCE_INLINE __device__ Vector(real *val) {
+    d[0] = val[0];
+    d[1] = val[1];
+    d[2] = val[2];
+  }
+
   TC_FORCE_INLINE __device__ Vector(real x, real y, real z) {
     d[0] = x;
     d[1] = y;
