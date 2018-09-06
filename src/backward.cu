@@ -392,8 +392,8 @@ void backward(State &state, State &next) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  grid_backward<<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(
-      state, next);
+  grid_backward<<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(state,
+                                                                          next);
   G2P_backward<<<num_blocks, particle_block_dim>>>(state, next);
 }
 
@@ -401,4 +401,16 @@ void backward_mpm3d_state(void *state_, void *next_state_) {
   State *state = reinterpret_cast<State *>(state_);
   State *next_state = reinterpret_cast<State *>(next_state_);
   backward(*state, *next_state);
+}
+
+void set_grad_loss(void *state_) {
+  State *state = reinterpret_cast<State *>(state_);
+  state->clear_gradients();
+  int num_particles = state->num_particles;
+  std::vector<float> grad_x_host(num_particles * dim);
+  for (int i = 0; i < num_particles; i++) {
+    grad_x_host[i * 3] = num_particles;
+  }
+  cudaMemcpy(state->grad_x_storage, grad_x_host.data(),
+             sizeof(real) * dim * num_particles, cudaMemcpyHostToDevice);
 }

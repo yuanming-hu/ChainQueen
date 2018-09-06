@@ -121,9 +121,14 @@ auto gpu_mpm3d = []() {
     forward_mpm3d_state(states[i], states[i + 1]);
   }
 
+  set_grad_loss(states[num_steps]);
   for (int i = num_steps - 1; i >= 0; i--) {
     TC_INFO("backward step {}", i);
     backward_mpm3d_state(states[i], states[i + 1]);
+    auto grad = fetch_mpm3d_grad_v(states[i]);
+    TC_INFO("grad x {}", grad[0]);
+    TC_INFO("grad y {}", grad[1]);
+    TC_INFO("grad z {}", grad[2]);
   }
 };
 
