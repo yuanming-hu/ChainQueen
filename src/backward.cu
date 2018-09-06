@@ -268,5 +268,39 @@ __device__ void G2P_backtrace(State state, State next_state) {
   }
 }
 
-__global__ void backtrace(State &current, State &next, State &grad) {
+__device__ void grid_backtrace(State state, State next_state) {
+  // Scatter particle gradients to grid nodes
+  // P2G part of back-propagation
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  int boundary = 3;
+  if (id < state.num_cells) {
+    auto node = state.grid_node(id);
+    if (node[dim] > 0) {
+      real inv_m = 1.0f / node[dim];
+      node[0] *= inv_m;
+      node[1] *= inv_m;
+      node[2] *= inv_m;
+      for (int i = 0; i < dim; i++) {
+        node[i] += state.gravity[i] * state.dt;
+      }
+      int x = id / (state.res[1] * state.res[2]),
+          y = id / state.res[2] % state.res[1], z = id % state.res[2];
+    }
+  }
+}
+
+__device__ void P2G_backtrace(State state, State next_state) {
+  // Scatter particle gradients to grid nodes
+  // P2G part of back-propagation
+  int part_id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (part_id >= state.num_particles) {
+    return;
+  }
+
+  // Convert grad_v to grad_p
+  // grad_p = grad_v / m
+
+}
+
+__global__ void backtrace(State &current, State &next) {
 }

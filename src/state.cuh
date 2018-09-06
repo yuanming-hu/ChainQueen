@@ -53,6 +53,26 @@ struct State : public StateBase {
     }
   }
 
+  TC_FORCE_INLINE __device__ Vector get_grid_velocity(int i, int j, int k) {
+    auto g = grid_node(i, j, k);
+    return Vector(i, j, k);
+  }
+
+  TC_FORCE_INLINE __device__ void set_grid_velocity(int i,
+                                                    int j,
+                                                    int k,
+                                                    Vector v) {
+    auto g = grid_node(i, j, k);
+    for (int i = 0; i < dim; i++) {
+      g[i] = v[i];
+    }
+  }
+
+  TC_FORCE_INLINE __device__ Vector get_grid_mass(int i, int j, int k) {
+    auto g = grid_node(i, j, k);
+    return g[dim];
+  }
+
 #define TC_MPM_VECTOR(x)                                                \
   TC_FORCE_INLINE __device__ Vector get_##x(int part_id) {              \
     return get_vector(x##_storage, part_id);                            \
@@ -78,10 +98,10 @@ struct State : public StateBase {
     return set_matrix(F##_storage, part_id, m);                         \
   }                                                                     \
   TC_FORCE_INLINE __device__ Matrix get_grad_##F(int part_id) {         \
-    return get_matrix(grad_##F##_storage, part_id);                      \
+    return get_matrix(grad_##F##_storage, part_id);                     \
   }                                                                     \
   TC_FORCE_INLINE __device__ void set_grad_##F(int part_id, Matrix m) { \
-    return set_matrix(grad_##F##_storage, part_id, m);                   \
+    return set_matrix(grad_##F##_storage, part_id, m);                  \
   }
 
   TC_MPM_MATRIX(F);
@@ -194,7 +214,7 @@ struct TransferCommon {
   }
 };
 
-constexpr real m_p = 1;    // TODO: variable m_p
-constexpr real V = 1;  // TODO: variable vol
+constexpr real m_p = 1;   // TODO: variable m_p
+constexpr real V = 1;     // TODO: variable vol
 constexpr real E = 10;    // TODO: variable E
-constexpr real nu = 0.3;    // TODO: variable nu
+constexpr real nu = 0.3;  // TODO: variable nu
