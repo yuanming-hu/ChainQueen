@@ -76,7 +76,7 @@ auto gpu_mpm3d = []() {
 */
 
 auto gpu_mpm3d = []() {
-  int n = 30;
+  int n = 1;
   int num_particles = n * n * n;
   std::vector<real> initial_positions;
   for (int i = 0; i < n; i++) {
