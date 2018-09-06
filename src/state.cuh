@@ -83,8 +83,8 @@ struct State : public StateBase {
                                                     int k,
                                                     Vector v) {
     auto g = grid_node(i, j, k);
-    for (int i = 0; i < dim; i++) {
-      g[i] = v[i];
+    for (int d = 0; d < dim; d++) {
+      g[d] = v[d];
     }
   }
 
@@ -93,8 +93,8 @@ struct State : public StateBase {
                                                          int k,
                                                          Vector v) {
     auto g = grad_grid_node(i, j, k);
-    for (int i = 0; i < dim; i++) {
-      g[i] = v[i];
+    for (int d = 0; d < dim; d++) {
+      g[d] = v[d];
     }
   }
 
@@ -184,8 +184,8 @@ struct State : public StateBase {
 
   __host__ std::vector<real> fetch_grad_v() {
     std::vector<real> host_grad_v(dim * num_particles);
-    cudaMemcpy(host_grad_v.data(), grad_v_storage, sizeof(Vector) * num_particles,
-               cudaMemcpyDeviceToHost);
+    cudaMemcpy(host_grad_v.data(), grad_v_storage,
+               sizeof(Vector) * num_particles, cudaMemcpyDeviceToHost);
     return host_grad_v;
   }
 
