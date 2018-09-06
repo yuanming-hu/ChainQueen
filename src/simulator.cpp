@@ -26,6 +26,7 @@ class DMPMSimulator3D {
   }
 };
 
+/*
 auto gpu_mpm3d = []() {
   void *states;
   int num_particles = 30 * 30 * 30;
@@ -70,6 +71,53 @@ auto gpu_mpm3d = []() {
     for (int j = 0; j < 10; j++) {
       advance_mpm3d_state(states);
     }
+  }
+};
+*/
+
+auto gpu_mpm3d = []() {
+  int num_particles = 30 * 30 * 30;
+  std::vector<real> initial_positions;
+  for (int i = 0; i < 30; i++) {
+    for (int j = 0; j < 30; j++) {
+      for (int k = 0; k < 30; k++) {
+        initial_positions.push_back(i * 0.005_f + 0.4_f);
+      }
+    }
+  }
+  for (int i = 0; i < 30; i++) {
+    for (int j = 0; j < 30; j++) {
+      for (int k = 0; k < 30; k++) {
+        initial_positions.push_back(j * 0.005_f + 0.6_f);
+      }
+    }
+  }
+  for (int i = 0; i < 30; i++) {
+    for (int j = 0; j < 30; j++) {
+      for (int k = 0; k < 30; k++) {
+        initial_positions.push_back(k * 0.005_f + 0.4_f);
+      }
+    }
+  }
+  int num_steps = 15;
+  std::vector<void *> states(num_steps + 1, nullptr);
+  for (int i = 0; i < num_steps + 1; i++) {
+    initialize_mpm3d_state(states[i], initial_positions.data());
+  }
+
+  for (int i = 0; i < num_steps; i++) {
+    auto x = fetch_mpm3d_particles(states[i]);
+    OptiXScene scene;
+    for (int p = 0; p < (int)initial_positions.size(); p++) {
+      OptiXParticle particle;
+      auto scale = 5_f;
+      particle.position_and_radius =
+          Vector4(x[p] * scale, (x[p + num_particles] - 0.02f) * scale,
+                  x[p + 2 * num_particles] * scale, 0.01);
+      scene.particles.push_back(particle);
+    }
+    write_to_binary_file(scene, fmt::format("{:05d}.tcb", i));
+    forward_mpm3d_state(states[i], states[i + 1]);
   }
 };
 

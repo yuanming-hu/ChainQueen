@@ -176,7 +176,7 @@ __device__ Matrix dP2dF_fixed_corotated(const Matrix &R,
 */
 
 //
-__device__ void P2G_backward(State state, State next_state) {
+__global__ void P2G_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
 
@@ -251,11 +251,10 @@ __device__ void P2G_backward(State state, State next_state) {
   }
 }
 
-__device__ void grid_backward(State state, State next_state) {
+__global__ void grid_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  int boundary = 3;
   if (id < state.num_cells) {
     auto node = state.grid_node(id);
     auto grad_node = state.grad_grid_node(id);
@@ -284,7 +283,7 @@ __device__ void grid_backward(State state, State next_state) {
 }
 
 // (F), (G), (H), (I), (J)
-__device__ void G2P_backward(State state, State next_state) {
+__global__ void G2P_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -382,8 +381,23 @@ __device__ void G2P_backward(State state, State next_state) {
   }
 }
 
-__global__ void backward(State &current, State &next) {
-  P2G_backward(current, next);
-  grid_backward(current, next);
-  G2P_backward(current, next);
+void backward(State &state, State &next) {
+  int num_blocks =
+      (state.num_particles + particle_block_dim - 1) / particle_block_dim;
+  int num_blocks_grid = state.grid_size();
+  P2G_backward<<<num_blocks, particle_block_dim>>>(state, next);
+  auto err = cudaThreadSynchronize();
+  if (err) {
+    printf("Launch: %s\n", cudaGetErrorString(err));
+    exit(-1);
+  }
+  grid_backward<<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(
+      state, next);
+  G2P_backward<<<num_blocks, particle_block_dim>>>(state, next);
+}
+
+void backward_mpm3d_state(void *state_, void *next_state_) {
+  State *state = reinterpret_cast<State *>(state_);
+  State *next_state = reinterpret_cast<State *>(next_state_);
+  backward(*state, *next_state);
 }

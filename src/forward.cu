@@ -62,9 +62,9 @@ __global__ void P2G(State state) {
   state.set_P(part_id, P);
   Matrix stress = -4 * inv_dx * inv_dx * dt * V * P;
 
-  auto affine = stress + m_p * C;
+  auto affine =
+      real(mpm_enalbe_force) * stress + real(mpm_enalbe_apic) * m_p * C;
 
-  // printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
       for (int k = 0; k < dim; k++) {
@@ -88,9 +88,6 @@ __global__ void P2G(State state) {
       }
     }
   }
-}
-
-void sort(State state) {
 }
 
 __global__ void G2P(State state, State next_state) {
@@ -195,23 +192,20 @@ __global__ void normalize_grid(State state) {
   }
 }
 
-void advance(const State &state) {
+void advance( State &state, State &new_state) {
   cudaMemset(state.grid_storage, 0,
              state.num_cells * (state.dim + 1) * sizeof(real));
-  static constexpr int block_size = 128;
-  int num_blocks = (state.num_particles + block_size - 1) / block_size;
-  P2G<<<num_blocks, block_size>>>(state);
+  int num_blocks = (state.num_particles + particle_block_dim - 1) / particle_block_dim;
+  P2G<<<num_blocks, particle_block_dim>>>(state);
 
   auto err = cudaThreadSynchronize();
   if (err) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  // TODO: This should be done in tf
-  int num_blocks_grid = state.grid_size();
-  normalize_grid<<<(num_blocks_grid + block_size - 1) / block_size,
-                   block_size>>>(state);
-  G2P<<<num_blocks, block_size>>>(state, state);
+  normalize_grid<<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
+                   grid_block_dim>>>(state);
+  G2P<<<num_blocks, particle_block_dim>>>(state, state);
 }
 
 void initialize_mpm3d_state(void *&state_, float *initial_positions) {
@@ -239,9 +233,10 @@ void initialize_mpm3d_state(void *&state_, float *initial_positions) {
              sizeof(Vector) * num_particles, cudaMemcpyHostToDevice);
 }
 
-void advance_mpm3d_state(void *state_) {
+void forward_mpm3d_state(void *state_, void *new_state_) {
   State *state = reinterpret_cast<State *>(state_);
-  advance(*state);
+  State *new_state = reinterpret_cast<State *>(new_state_);
+  advance(*state, *new_state);
 }
 
 std::vector<float> fetch_mpm3d_particles(void *state_) {

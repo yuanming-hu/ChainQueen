@@ -2,6 +2,11 @@
 
 #include "state_base.h"
 
+static constexpr int mpm_enalbe_apic = false;
+static constexpr int mpm_enalbe_force = false;
+static constexpr int particle_block_dim = 128;
+static constexpr int grid_block_dim = 128;
+
 struct State : public StateBase {
   State() {
     num_cells = res[0] * res[1] * res[2];
@@ -153,6 +158,13 @@ struct State : public StateBase {
     cudaMalloc(&C_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
 
+    cudaMalloc(&grad_x_storage, sizeof(real) * dim * num_particles);
+    cudaMalloc(&grad_v_storage, sizeof(real) * dim * num_particles);
+    cudaMalloc(&grad_F_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&grad_P_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&grad_C_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&grad_grid_storage, sizeof(real) * (dim + 1) * num_cells);
+
     std::vector<real> F_initial(num_particles * dim * dim, 0);
     for (int i = 0; i < num_particles; i++) {
       F_initial[i] = 1;
@@ -169,6 +181,16 @@ struct State : public StateBase {
                cudaMemcpyDeviceToHost);
     return host_x;
   }
+
+  void clear_gradients() {
+    cudaMemset(grad_v_storage, 0, sizeof(real) * dim * num_particles);
+    cudaMemset(grad_x_storage, 0, sizeof(real) * dim * num_particles);
+    cudaMemset(grad_F_storage, 0, sizeof(real) * dim * dim * num_particles);
+    cudaMemset(grad_P_storage, 0, sizeof(real) * dim * dim * num_particles);
+    cudaMemset(grad_C_storage, 0, sizeof(real) * dim * dim * num_particles);
+    cudaMemset(grad_grid_storage, 0, num_cells * (dim + 1) * sizeof(real));
+  }
+
 };
 
 constexpr int spline_size = 3;
@@ -228,4 +250,5 @@ constexpr real m_p = 1;   // TODO: variable m_p
 constexpr real V = 1;     // TODO: variable vol
 constexpr real E = 10;    // TODO: variable E
 constexpr real nu = 0.3;  // TODO: variable nu
-constexpr real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
+constexpr real mu = E / (2 * (1 + nu)),
+               lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
