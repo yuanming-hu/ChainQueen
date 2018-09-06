@@ -229,33 +229,17 @@ __global__ void P2G_backward(State state, State next_state) {
             }
           }
         }
-        auto grad_n = state.grad_grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
+        auto grad_n = state.grad_grid_node(
+            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
         for (int d = 0; d < dim; d++) {
           atomicAdd(&grad_n[d], grad_v_i[d]);
         }
       }
-
-      /*
-      auto grad_N = tc.dw(i, j, k);
-
-      for (int alpha = 0; alpha < dim; alpha++) {
-        grad_x[alpha] +=
-            grad_N[alpha] * (grad_v_next[alpha] * state.invD +
-                             grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
-        for (int beta = 0; beta < dim; beta++) {
-          grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
-                               (grad_N[alpha] * vi[alpha] * dpos[beta] -
-                                tc.w(i, j, k) * vi[alpha]) -
-                           grad_p[beta] * G[beta][alpha];
-          grad_C[alpha][beta] += grad_p[alpha] * m_p * (dpos[beta]);
-        }
-      }
-      */
     }
   }
 }
 
-__global__ void grid_backward(State state, State next_state) {
+__global__ void grid_backward(State state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
   int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -276,12 +260,11 @@ __global__ void grid_backward(State state, State next_state) {
       // auto grad_p = Vector(1);
       auto v_i = Vector(node);
       auto p_i = m * v_i;
-      state.set_grad_grid_velocity(x, y, z, grad_p);
       // (E)
       real grad_m = 0;
       for (int alpha = 0; alpha < dim; alpha++) {
         grad_m -= inv_m * v_i[alpha] * grad_v_i[alpha];
-        grad_node[alpha] = grad_v_i[alpha];
+        grad_node[alpha] = grad_p[alpha];
       }
       grad_node[dim] = grad_m;
     }
@@ -399,8 +382,8 @@ void backward(State &state, State &next) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  grid_backward<<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(state,
-                                                                          next);
+  grid_backward<<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(
+      state);
   G2P_backward<<<num_blocks, particle_block_dim>>>(state, next);
 }
 

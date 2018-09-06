@@ -82,7 +82,7 @@ auto gpu_mpm3d = []() {
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        initial_positions.push_back(i * 0.005_f + 0.4_f);
+        initial_positions.push_back(i * 0.005_f + 0.4037_f);
       }
     }
   }
@@ -100,7 +100,7 @@ auto gpu_mpm3d = []() {
       }
     }
   }
-  int num_steps = 1;
+  int num_steps = 2;
   std::vector<void *> states(num_steps + 1, nullptr);
   Vector3i res(100);
   Vector3 gravity;

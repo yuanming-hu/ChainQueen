@@ -192,10 +192,11 @@ __global__ void normalize_grid(State state) {
   }
 }
 
-void advance( State &state, State &new_state) {
+void advance(State &state, State &new_state) {
   cudaMemset(state.grid_storage, 0,
              state.num_cells * (state.dim + 1) * sizeof(real));
-  int num_blocks = (state.num_particles + particle_block_dim - 1) / particle_block_dim;
+  int num_blocks =
+      (state.num_particles + particle_block_dim - 1) / particle_block_dim;
   P2G<<<num_blocks, particle_block_dim>>>(state);
 
   auto err = cudaThreadSynchronize();
@@ -208,7 +209,11 @@ void advance( State &state, State &new_state) {
   G2P<<<num_blocks, particle_block_dim>>>(state, state);
 }
 
-void initialize_mpm3d_state(int *res, int num_particles, float *gravity, void *&state_, float *initial_positions) {
+void initialize_mpm3d_state(int *res,
+                            int num_particles,
+                            float *gravity,
+                            void *&state_,
+                            float *initial_positions) {
   // State(int res[dim], int num_particles, real dx, real dt, real
   auto state = new State(res, num_particles, 1.0f / res[0], 1e-3f, gravity);
   state_ = state;
@@ -226,4 +231,3 @@ std::vector<float> fetch_mpm3d_particles(void *state_) {
   State *state = reinterpret_cast<State *>(state_);
   return state->fetch_x();
 }
-

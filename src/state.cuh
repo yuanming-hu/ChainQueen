@@ -68,14 +68,14 @@ struct State : public StateBase {
 
   TC_FORCE_INLINE __device__ Vector get_grid_velocity(int i, int j, int k) {
     auto g = grid_node(i, j, k);
-    return Vector(i, j, k);
+    return Vector(g);
   }
 
   TC_FORCE_INLINE __device__ Vector get_grad_grid_velocity(int i,
                                                            int j,
                                                            int k) {
     auto g = grad_grid_node(i, j, k);
-    return Vector(i, j, k);
+    return Vector(g);
   }
 
   TC_FORCE_INLINE __device__ void set_grid_velocity(int i,
