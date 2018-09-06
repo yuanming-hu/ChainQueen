@@ -380,18 +380,6 @@ __device__ void G2P_backward(State state, State next_state) {
       }
     }
   }
-  /*
-  state.set_x(part_id, grad_x);
-  auto grad_F_next = next_state.get_grad_F(part_id);
-  Matrix grad_F;
-  for (int alpha = 0; alpha < dim; alpha++) {
-    for (int beta = 0; beta < dim; beta++) {
-      for (int gamma = 0; gamma < dim; gamma++) {
-        grad_F[alpha][beta];
-      }
-    }
-  }
-  */
 }
 
 __global__ void backward(State &current, State &next) {
