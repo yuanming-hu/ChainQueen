@@ -76,33 +76,37 @@ auto gpu_mpm3d = []() {
 */
 
 auto gpu_mpm3d = []() {
-  int num_particles = 30 * 30 * 30;
+  int n = 30;
+  int num_particles = n * n * n;
   std::vector<real> initial_positions;
-  for (int i = 0; i < 30; i++) {
-    for (int j = 0; j < 30; j++) {
-      for (int k = 0; k < 30; k++) {
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
         initial_positions.push_back(i * 0.005_f + 0.4_f);
       }
     }
   }
-  for (int i = 0; i < 30; i++) {
-    for (int j = 0; j < 30; j++) {
-      for (int k = 0; k < 30; k++) {
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
         initial_positions.push_back(j * 0.005_f + 0.6_f);
       }
     }
   }
-  for (int i = 0; i < 30; i++) {
-    for (int j = 0; j < 30; j++) {
-      for (int k = 0; k < 30; k++) {
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
         initial_positions.push_back(k * 0.005_f + 0.4_f);
       }
     }
   }
-  int num_steps = 15;
+  int num_steps = 1;
   std::vector<void *> states(num_steps + 1, nullptr);
+  Vector3i res(100);
+  Vector3 gravity;
   for (int i = 0; i < num_steps + 1; i++) {
-    initialize_mpm3d_state(states[i], initial_positions.data());
+    initialize_mpm3d_state(&res[0], num_particles, &gravity[0], states[i],
+                           initial_positions.data());
   }
 
   for (int i = 0; i < num_steps; i++) {
