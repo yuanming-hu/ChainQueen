@@ -237,7 +237,6 @@ __device__ void G2P_backtrace(State state, State next_state) {
   }
 
   TransferCommon<true> tc(state, x);
-  // Fixed corotated
 
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
@@ -317,6 +316,52 @@ __device__ void P2G_backtrace(State state, State next_state) {
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
     return;
+  }
+  TransferCommon<true> tc(state, x);
+
+  Vector x = state.get_x(part_id), v = state.get_v(part_id);
+  Matrix F = state.get_F(part_id);
+  Matrix C = state.get_C(part_id);
+
+  // (F), (G), (H), (I), (J)
+
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      for (int k = 0; k < dim; k++) {
+        real N = tc.w(i, j, k);
+        // Vector vi = , grad_p;  // TODO
+        // real mi;            // TODO
+        // real grad_mi = 0;   // TODO
+        Vector dpos = tc.dpos(i, j, k);
+
+        // (C) v_i^n
+        real grad_v_i[dim];
+        for (int alpha = 0; alpha < dim; alpha++) {
+          grad_v_i[alpha] = grad_v_next[alpha] * N;
+          for (int beta = 0; beta < dim; beta++) {
+            grad_v_i[alpha] += grad_C_next[alpha][beta] * dpos[beta];
+          }
+        }
+        state.set_grad_grid_velocity(i, j, k, Vector(grad_v_i[0], grad_v_i[1], grad_v_i[2]));
+      }
+
+      /*
+      auto grad_N = tc.dw(i, j, k);
+
+      for (int alpha = 0; alpha < dim; alpha++) {
+        grad_x[alpha] +=
+            grad_N[alpha] * (grad_v_next[alpha] * state.invD +
+                             grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
+        for (int beta = 0; beta < dim; beta++) {
+          grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
+                               (grad_N[alpha] * vi[alpha] * dpos[beta] -
+                                tc.w(i, j, k) * vi[alpha]) -
+                           grad_p[beta] * G[beta][alpha];
+          grad_C[alpha][beta] += grad_p[alpha] * m_p * (dpos[beta]);
+        }
+      }
+      */
+    }
   }
   /*
   state.set_x(part_id, grad_x);
