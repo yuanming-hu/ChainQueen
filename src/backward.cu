@@ -275,16 +275,15 @@ __device__ void grid_backtrace(State state, State next_state) {
   int boundary = 3;
   if (id < state.num_cells) {
     auto node = state.grid_node(id);
+    auto grad_node = state.grad_grid_node(id);
     if (node[dim] > 0) {
-      real inv_m = 1.0f / node[dim];
-      node[0] *= inv_m;
-      node[1] *= inv_m;
-      node[2] *= inv_m;
-      for (int i = 0; i < dim; i++) {
-        node[i] += state.gravity[i] * state.dt;
-      }
+      // Convert grad_v to grad_p
+      // grad_p = grad_v / m
       int x = id / (state.res[1] * state.res[2]),
           y = id / state.res[2] % state.res[1], z = id % state.res[2];
+      auto grad_p = state.inv_dx * state.get_grad_grid_velocity(x, y, z);
+      real inv_m = 1.0f / node[dim];
+      state.set_grad_grid_velocity(x, y, z, grad_p);
     }
   }
 }
@@ -296,11 +295,8 @@ __device__ void P2G_backtrace(State state, State next_state) {
   if (part_id >= state.num_particles) {
     return;
   }
-
-  // Convert grad_v to grad_p
-  // grad_p = grad_v / m
-
 }
 
 __global__ void backtrace(State &current, State &next) {
+
 }

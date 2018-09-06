@@ -19,8 +19,16 @@ struct State : public StateBase {
     return grid_storage + (dim + 1) * offset;
   }
 
+  TC_FORCE_INLINE __device__ real *grad_grid_node(int offset) const {
+    return grad_grid_storage + (dim + 1) * offset;
+  }
+
   TC_FORCE_INLINE __device__ real *grid_node(int x, int y, int z) const {
     return grid_node(linearized_offset(x, y, z));
+  }
+
+  TC_FORCE_INLINE __device__ real *grad_grid_node(int x, int y, int z) const {
+    return grad_grid_node(linearized_offset(x, y, z));
   }
 
   TC_FORCE_INLINE __device__ Matrix get_matrix(real *p, int part_id) const {
@@ -58,11 +66,28 @@ struct State : public StateBase {
     return Vector(i, j, k);
   }
 
+  TC_FORCE_INLINE __device__ Vector get_grad_grid_velocity(int i,
+                                                           int j,
+                                                           int k) {
+    auto g = grad_grid_node(i, j, k);
+    return Vector(i, j, k);
+  }
+
   TC_FORCE_INLINE __device__ void set_grid_velocity(int i,
                                                     int j,
                                                     int k,
                                                     Vector v) {
     auto g = grid_node(i, j, k);
+    for (int i = 0; i < dim; i++) {
+      g[i] = v[i];
+    }
+  }
+
+  TC_FORCE_INLINE __device__ void set_grad_grid_velocity(int i,
+                                                         int j,
+                                                         int k,
+                                                         Vector v) {
+    auto g = grad_grid_node(i, j, k);
     for (int i = 0; i < dim; i++) {
       g[i] = v[i];
     }
@@ -106,23 +131,6 @@ struct State : public StateBase {
 
   TC_MPM_MATRIX(F);
   TC_MPM_MATRIX(C);
-
-  /*
-  int num_particles;
-
-  real *x_storage;
-  real *v_storage;
-  real *F_storage;
-  real *C_storage;
-  real *grid_storage;
-
-  int res[3];
-  int num_cells;
-
-  real gravity[3];
-  real dx, inv_dx;
-  real dt;
-  */
 
   State(int res[dim], int num_particles, real dx, real dt, real gravity[dim]) {
     this->num_cells = 1;
