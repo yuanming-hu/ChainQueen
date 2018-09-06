@@ -184,7 +184,7 @@ struct State : public StateBase {
 
   __host__ std::vector<real> fetch_grad_v() {
     std::vector<real> host_grad_v(dim * num_particles);
-    cudaMemcpy(host_grad_v.data(), x_storage, sizeof(Vector) * num_particles,
+    cudaMemcpy(host_grad_v.data(), grad_v_storage, sizeof(Vector) * num_particles,
                cudaMemcpyDeviceToHost);
     return host_grad_v;
   }

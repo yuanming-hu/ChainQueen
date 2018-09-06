@@ -127,8 +127,8 @@ auto gpu_mpm3d = []() {
     backward_mpm3d_state(states[i], states[i + 1]);
     auto grad = fetch_mpm3d_grad_v(states[i]);
     TC_INFO("grad x {}", grad[0]);
-    TC_INFO("grad y {}", grad[1]);
-    TC_INFO("grad z {}", grad[2]);
+    TC_INFO("grad y {}", grad[num_particles]);
+    TC_INFO("grad z {}", grad[2 * num_particles]);
   }
 };
 

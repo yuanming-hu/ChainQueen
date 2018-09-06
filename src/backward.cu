@@ -379,6 +379,7 @@ __global__ void G2P_backward(State state, State next_state) {
       }
     }
   }
+  state.set_grad_v(part_id, grad_v);
 }
 
 void backward(State &state, State &next) {
@@ -413,4 +414,9 @@ void set_grad_loss(void *state_) {
   }
   cudaMemcpy(state->grad_x_storage, grad_x_host.data(),
              sizeof(real) * dim * num_particles, cudaMemcpyHostToDevice);
+}
+
+std::vector<float> fetch_mpm3d_grad_v(void *state_) {
+  State *state = reinterpret_cast<State *>(state_);
+  return state->fetch_grad_v();
 }

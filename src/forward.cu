@@ -244,7 +244,3 @@ std::vector<float> fetch_mpm3d_particles(void *state_) {
   return state->fetch_x();
 }
 
-std::vector<float> fetch_mpm3d_grad_v(void *state_) {
-  State *state = reinterpret_cast<State *>(state_);
-  return state->fetch_grad_v();
-}
