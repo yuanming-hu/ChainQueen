@@ -223,7 +223,7 @@ void initialize_mpm3d_state(void *&state_, float *initial_positions) {
   for (int i = 0; i < dim; i++) {
     gravity[i] = 0;
   }
-  gravity[1] = -9.8f;
+  gravity[1] = -98.0f;
 
   // State(int res[dim], int num_particles, real dx, real dt, real
   auto state = new State(res, num_particles, 1.0f / n, 1e-3f, gravity);

@@ -382,6 +382,7 @@ __global__ void G2P_backward(State state, State next_state) {
 }
 
 void backward(State &state, State &next) {
+  state.clear_gradients();
   int num_blocks =
       (state.num_particles + particle_block_dim - 1) / particle_block_dim;
   int num_blocks_grid = state.grid_size();
