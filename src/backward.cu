@@ -226,12 +226,14 @@ __device__ void G2P_backtrace(State state, State next_state) {
 
   // Fixed corotated
 
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      for (int k = 0; k < 3; k++) {
+  Matrix grad_C;
+
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      for (int k = 0; k < dim; k++) {
         Vector vi, grad_p;  // TODO
-        real mi; // TODO
-        real grad_mi = 0; // TODO
+        real mi;            // TODO
+        real grad_mi = 0;   // TODO
         Vector dpos = tc.dpos(i, j, k);
 
         real contrib[dim + 1];
@@ -239,38 +241,31 @@ __device__ void G2P_backtrace(State state, State next_state) {
         auto grad_N = tc.dw(i, j, k);
 
         for (int alpha = 0; alpha < dim; alpha++) {
-          grad_x[alpha] += grad_N[alpha] * (grad_v_next[alpha] * state.invD
-                                             + grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
+          grad_x[alpha] +=
+              grad_N[alpha] * (grad_v_next[alpha] * state.invD +
+                               grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
           for (int beta = 0; beta < dim; beta++) {
             grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
                                  (grad_N[alpha] * vi[alpha] * dpos[beta] -
                                   tc.w(i, j, k) * vi[alpha]) -
                              grad_p[beta] * G[beta][alpha];
+            grad_C[alpha][beta] += grad_p[alpha] * m_p * (dpos[beta]);
           }
         }
-
-        // Scatter d v_p* -> d v_i
-
-        /*
-        auto tmp = affine * dpos + mass * v;
-
-        auto w = tc.w(i, j, k);
-        contrib[0] = tmp[0] * w;
-        contrib[1] = tmp[1] * w;
-        contrib[2] = tmp[2] * w;
-        contrib[3] = mass * w;
-
-        auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
-                                    tc.base_coord[2] + k);
-        for (int p = 0; p < dim + 1; p++) {
-          atomicAdd(&node[p], contrib[p]);
-        }
-        */
       }
     }
   }
 
   state.set_x(part_id, grad_x);
+  auto grad_F_next = next_state.get_grad_F(part_id);
+  Matrix grad_F;
+  for (int alpha = 0; alpha < dim; alpha++) {
+    for (int beta = 0; beta < dim; beta++) {
+      for (int gamma = 0; gamma < dim; gamma++) {
+        grad_F[alpha][beta];
+      }
+    }
+  }
 }
 
 __global__ void backtrace(State &current, State &next, State &grad) {

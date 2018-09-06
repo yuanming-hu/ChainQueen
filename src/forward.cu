@@ -67,9 +67,9 @@ __global__ void P2G(State state) {
   auto affine = stress + m_p * C;
 
   // printf("%d %d %d\n", tc.base_coord[0], tc.base_coord[1], tc.base_coord[2]);
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      for (int k = 0; k < 3; k++) {
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      for (int k = 0; k < dim; k++) {
         Vector dpos = tc.dpos(i, j, k);
 
         real contrib[dim + 1];
@@ -111,9 +111,9 @@ __global__ void G2P(State state, State next_state) {
 
   TransferCommon<> tc(state, x);
 
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      for (int k = 0; k < 3; k++) {
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      for (int k = 0; k < dim; k++) {
         Vector dpos = tc.dpos(i, j, k);
         auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
                                     tc.base_coord[2] + k);
