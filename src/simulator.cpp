@@ -84,7 +84,7 @@ auto gpu_mpm3d = []() {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
         bool right =  (i / (n / 2));
-        initial_positions.push_back(i * 0.025_f + 0.3123_f + 0.0 * right);
+        initial_positions.push_back(i * 0.025_f + 0.2123_f + 0.1 * right);
         initial_velocities.push_back(1 - 1*right);
         // initial_velocities.push_back(0.1);
       }
@@ -106,7 +106,7 @@ auto gpu_mpm3d = []() {
       }
     }
   }
-  int num_steps = 20;
+  int num_steps = 30;
   std::vector<void *> states((uint32)num_steps + 1, nullptr);
   Vector3i res(20);
   // Differentiate gravity is not supported

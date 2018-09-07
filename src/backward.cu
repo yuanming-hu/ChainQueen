@@ -54,13 +54,14 @@ __global__ void P2G_backward(State state, State next_state) {
         for (int alpha = 0; alpha < dim; alpha++) {
           grad_v_i[alpha] = grad_v_next[alpha] * N;
           for (int beta = 0; beta < dim; beta++) {
-            grad_v_i[alpha] += grad_C_next[alpha][beta] * dpos[beta];
+            grad_v_i[alpha] +=
+                state.invD * N * grad_C_next[alpha][beta] * dpos[beta];
           }
         }
         auto grad_n = state.grad_grid_node(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
         for (int d = 0; d < dim; d++) {
-          //printf("grad_v_i %d %f\n", d, grad_v_i[d]);
+          // printf("grad_v_i %d %f\n", d, grad_v_i[d]);
           atomicAdd(&grad_n[d], grad_v_i[d]);
         }
       }
@@ -159,11 +160,10 @@ __global__ void G2P_backward(State state, State next_state) {
           for (int beta = 0; beta < dim; beta++) {
             // (G) P_p^n
             for (int gamma = 0; gamma < dim; gamma++) {
-              grad_P[alpha][beta] +=
-                  N * grad_P_scale * grad_p[alpha] * F[gamma][beta] * dpos[gamma];
+              grad_P[alpha][beta] += N * grad_P_scale * grad_p[alpha] *
+                                     F[gamma][beta] * dpos[gamma];
             }
             // (I) C_p^n
-            // NOTE:  disabled
             grad_C[alpha][beta] += N * grad_p[alpha] * m_p * dpos[beta];
           }
         }
@@ -206,7 +206,7 @@ __global__ void G2P_backward(State state, State next_state) {
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
 
         for (int d = 0; d < dim; d++) {
-          //printf("grad p[%d] %.10f\n", d, grad_p[d]);
+          // printf("grad p[%d] %.10f\n", d, grad_p[d]);
         }
 
         auto grad_N = tc.dw(i, j, k);
@@ -232,34 +232,24 @@ __global__ void G2P_backward(State state, State next_state) {
           // (J) term 5
           grad_x[alpha] += grad_N[alpha] * grad_mi * m_p;
 
-          // (J) term 4 leads to divergency
-          /*
-          for (int beta = 0; beta < dim; beta++) {
-            grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
-                                 (grad_N[alpha] * vi[alpha] * dpos[beta] -
-                                  tc.w(i, j, k) * vi[alpha]) -
-                             grad_p[beta] * G[beta][alpha];
-          }
-          */
-
           for (int beta = 0; beta < dim; beta++) {
             for (int gamma = 0; gamma < dim; gamma++) {
               // (H), term 3
-              grad_F[alpha][beta] +=
-                  grad_p[gamma] * grad_P_scale * P[gamma][beta] * dpos[alpha];
+              grad_F[alpha][beta] += N * grad_p[gamma] * grad_P_scale *
+                                     P[gamma][beta] * dpos[alpha];
             }
 
             // (J), term 2
             grad_x[alpha] += grad_v_next[beta] * grad_N[alpha] * vi[beta];
             // (J), term 3
-            //auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
-            //grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
-            // printf("v %f m %f\n", vi[beta], mi);
+            auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
+            grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
+            // (J), term 4
             /*
-            grad_x[alpha] += grad_p[beta] * (grad_N[alpha] * m_p * v[beta] +
-                                             (G * dpos)[beta]) -
-                             N * G[beta][alpha];
-                             */
+            grad_x[alpha] +=
+                grad_p[beta] * ((grad_N[alpha] * m_p * v[beta] +
+                                (G * dpos)[beta]) - N * G[beta][alpha]);
+                                */
           }
         }
       }
@@ -268,7 +258,7 @@ __global__ void G2P_backward(State state, State next_state) {
   state.set_grad_x(part_id, grad_x);
   state.set_grad_v(part_id, grad_v);
   state.set_grad_F(part_id, grad_F);
-  //state.set_grad_C(part_id, grad_C);
+  state.set_grad_C(part_id, grad_C);
 }
 
 void backward(State &state, State &next) {

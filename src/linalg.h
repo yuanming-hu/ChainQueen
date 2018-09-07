@@ -263,9 +263,9 @@ inline __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
   //
 
   real P[3];
-  P[0] = 0.5 * (P_hat[0] + P_hat[1]) / Clamp_Small_Magnitude(S[0] + S[1]);
-  P[1] = 0.5 * (P_hat[0] + P_hat[2]) / Clamp_Small_Magnitude(S[0] + S[2]);
-  P[2] = 0.5 * (P_hat[1] + P_hat[2]) / Clamp_Small_Magnitude(S[1] + S[2]);
+  P[0] = 0.5f * (P_hat[0] + P_hat[1]) / Clamp_Small_Magnitude(S[0] + S[1]);
+  P[1] = 0.5f * (P_hat[0] + P_hat[2]) / Clamp_Small_Magnitude(S[0] + S[2]);
+  P[2] = 0.5f * (P_hat[1] + P_hat[2]) / Clamp_Small_Magnitude(S[1] + S[2]);
 
   real dF_hat[9];
   dF_hat[0] = (dF[0] * U[0] + dF[1] * U[1] + dF[2] * U[2]) * V[0] +
