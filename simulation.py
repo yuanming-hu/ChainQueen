@@ -3,6 +3,7 @@ from vector_math import *
 import numpy as np
 from time_integration import InitialSimulationState, UpdatedSimulationState
 from memo import Memo
+import IPython
 
 def get_bounding_box_bc(res, boundary_thickness=3):
   bc_parameter = np.zeros(
@@ -78,14 +79,17 @@ class Simulation:
       if i % interval != 0:
         continue
       pos = s[b][0] * self.inv_dx + 0.5
-
+      youngs = np.ndarray.flatten(s[6])
+      np.ndarray.flatten(s[6])
       scale = self.scale
 
       img = background.copy()
 
-      for p in pos:
+
+      
+      for young, p in zip(youngs, pos):
         x, y = tuple(map(lambda t: math.ceil(t * scale), p))
-        cv2.circle(img, (y, x), radius=1, color=(0.2, 0.2, 0.2), thickness=-1)
+        cv2.circle(img, (y, x), radius=1, color=(0.2 * young / 20.0, 0.2, 0.2), thickness=-1)
 
       for dot in points:
         coord, color, radius = dot

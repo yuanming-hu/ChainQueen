@@ -14,7 +14,7 @@ import pygmo_plugins_nonfree as ppnf
 
 lr = 1.0
 
-sample_density = 10
+sample_density = 20
 group_num_particles = sample_density**2
 goal_range = 0.0
 batch_size = 1
@@ -42,7 +42,7 @@ if config == 'A':
   gravity = (0, -2)
 elif config == 'B':
   # Finger
-  num_links = 2
+  num_links = 1
   group_sizes = []
   group_offsets = []
   actuations = []
@@ -172,7 +172,7 @@ def main(sess):
   loss1 = tf.reduce_sum((final_position - goal) ** 2)
   loss2 = tf.reduce_sum(final_velocity ** 2)
   loss_velocity = loss2
-  loss_act = tf.reduce_sum(actuation_seq ** 2)
+  loss_act = tf.reduce_sum(actuation_seq * 0.0)
 
   loss = loss1 + gamma * loss2
 
@@ -325,7 +325,7 @@ def main(sess):
         loss_act_val, _, _ = eval_sim(loss_act)
         loss_val, _, _ = eval_sim(loss)
         c1, _, _ = eval_sim(loss_velocity)        
-        return [loss_act_val.astype(np.float64) - self.goal_ball, loss_val.astype(np.float64) - self.goal_ball, c1.astype(np.float64)]
+        return [loss_act_val.astype(np.float64), loss_val.astype(np.float64) - self.goal_ball, c1.astype(np.float64) - self.goal_ball]
         
 
       def get_nic(self):
@@ -348,20 +348,22 @@ def main(sess):
         lb = []
         ub = []
         acts = trainables[0]
-        lb += [-8] * tf.size(acts).eval()
-        ub += [8] * tf.size(acts).eval()
+        lb += [-5] * tf.size(acts).eval()
+        ub += [5] * tf.size(acts).eval()
         designs = trainables[1]
         lb += [8] * tf.size(designs).eval()
         ub += [20] * tf.size(designs).eval()
     
         return (lb, ub)
         
-    uda = pg.nlopt("auglag")
+        
+    #IPython.embed()
+    uda = pg.nlopt("slsqp")
     #uda = ppnf.snopt7(screen_output = False, library = "/home/aespielberg/snopt/lib/libsnopt7.so")
     algo = pg.algorithm(uda)
-    algo.extract(pg.nlopt).local_optimizer = pg.nlopt('mma')
+    #algo.extract(pg.nlopt).local_optimizer = pg.nlopt('lbfgs')
     
-    algo.extract(pg.nlopt).ftol_rel = 1e-4
+    #algo.extract(pg.nlopt).ftol_rel = 1e-4
     algo.set_verbosity(1)
     udp = RobotProblem()
     bounds = udp.get_bounds()
@@ -373,7 +375,7 @@ def main(sess):
     pop.problem.c_tol = [1e-6] * prob.get_nc()
     #pop.problem.f_tol = [1e-6]
     pop = algo.evolve(pop)    
-    #IPython.embed() #We need to refactor this for real
+    IPython.embed() #We need to refactor this for real
     _, _, memo = eval_sim(loss)
     sim.visualize(memo)
     return
