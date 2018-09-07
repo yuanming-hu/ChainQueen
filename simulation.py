@@ -30,7 +30,7 @@ class Simulation:
                batch_size=1):
     self.sess = sess
     self.num_particles = num_particles
-    self.scale = 30
+    self.scale = 900 // grid_res[0]
     self.grid_res = grid_res
     self.dim = len(self.grid_res)
     if dx is None:
