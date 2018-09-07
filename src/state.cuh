@@ -222,24 +222,27 @@ struct TransferCommon {
     inv_dx = state.inv_dx;
     for (int i = 0; i < dim; i++) {
       base_coord[i] = int(x[i] * inv_dx - 0.5);
-      real f = x[i] * inv_dx - (real)base_coord[i];
+      real f = (real)base_coord[i] - x[i] * inv_dx;
       static_assert(std::is_same<std::decay_t<decltype(fx[i])>, real>::value);
       fx[i] = f;
     }
 
     // B-Spline weights
     for (int i = 0; i < dim; ++i) {
-      weights[0][i][0] = 0.5f * sqr(1.5f - fx[i]);
-      weights[0][i][1] = 0.75f - sqr(fx[i] - 1);
-      weights[0][i][2] = 0.5f * sqr(fx[i] - 0.5f);
+      weights[0][i][0] = 0.5f * sqr(1.5f + fx[i]);
+      weights[0][i][1] = 0.75f - sqr(fx[i] + 1);
+      weights[0][i][2] = 0.5f * sqr(fx[i] + 0.5f);
+      //       printf("%f\n", weights[0][i][0] + weights[0][i][1] +
+      //       weights[0][i][2]);
     }
 
     if (with_grad) {
+      // N(x_i - x_p)
       // TODO: test
       for (int i = 0; i < dim; ++i) {
-        weights[1][i][0] = inv_dx * (-1.5f + fx[i]);
-        weights[1][i][1] = inv_dx * (-2 * fx[i] - 2);
-        weights[1][i][2] = inv_dx * (fx[i] - 0.5f);
+        weights[1][i][0] = -inv_dx * (1.5f + fx[i]);
+        weights[1][i][1] = -inv_dx * (-2 * fx[i] + 2);
+        weights[1][i][2] = -inv_dx * (fx[i] + 0.5f);
       }
     }
   }
@@ -248,14 +251,17 @@ struct TransferCommon {
     return weights[0][0][i] * weights[0][1][j] * weights[0][2][k];
   }
 
-  TC_FORCE_INLINE __device__ Vector dw(int i, int j, int k) {
+  template <bool _with_grad = with_grad>
+  TC_FORCE_INLINE __device__ std::enable_if_t<_with_grad, Vector> dw(int i,
+                                                                     int j,
+                                                                     int k) {
     return Vector(weights[1][0][i] * weights[0][1][j] * weights[0][2][k],
                   weights[0][0][i] * weights[1][1][j] * weights[0][2][k],
                   weights[0][0][i] * weights[0][1][j] * weights[1][2][k]);
   }
 
   TC_FORCE_INLINE __device__ Vector dpos(int i, int j, int k) {
-    return dx * (Vector(i, j, k) - fx);
+    return dx * (fx + Vector(i, j, k));
   }
 };
 
@@ -265,4 +271,3 @@ constexpr real E = 10;    // TODO: variable E
 constexpr real nu = 0.3;  // TODO: variable nu
 constexpr real mu = E / (2 * (1 + nu)),
                lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
-

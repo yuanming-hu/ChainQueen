@@ -14,14 +14,15 @@ __global__ void P2G_backward(State state, State next_state) {
     return;
   }
 
-  Vector x = state.get_x(part_id), v = state.get_v(part_id);
+  Vector x = state.get_x(part_id);
+  Vector v = state.get_v(part_id);
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
 
   auto grad_x_next = next_state.get_grad_x(part_id);
-  auto grad_C_next = next_state.get_grad_C(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
   auto grad_F_next = next_state.get_grad_F(part_id);
+  auto grad_C_next = next_state.get_grad_C(part_id);
 
   // (A) v_p^n+1, accumulate
   grad_v_next = grad_v_next + state.dt * grad_x_next;
@@ -36,6 +37,7 @@ __global__ void P2G_backward(State state, State next_state) {
     }
   }
 
+  // Accumulate to grad_v and grad_C
   next_state.set_grad_v(part_id, grad_v_next);
   next_state.set_grad_C(part_id, grad_C_next);
 
@@ -110,13 +112,16 @@ __global__ void G2P_backward(State state, State next_state) {
   auto C = state.get_C(part_id);
   auto P = state.get_P(part_id);
 
-  Matrix grad_P_next = next_state.get_grad_P(part_id);
-  Matrix grad_P, grad_F;
   auto grad_F_next = next_state.get_grad_F(part_id);
   auto grad_C_next = next_state.get_grad_C(part_id);
+  auto grad_P_next = next_state.get_grad_P(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
-  Matrix grad_C;
+
   auto C_next = next_state.get_C(part_id);
+
+  Matrix grad_P;
+  Matrix grad_F;
+  Matrix grad_C;
 
   TransferCommon<true> tc(state, x);
   Vector grad_v;
@@ -130,7 +135,6 @@ __global__ void G2P_backward(State state, State next_state) {
         Vector dpos = tc.dpos(i, j, k);
         auto grad_p = state.get_grad_grid_velocity(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
-
         auto grad_N = tc.dw(i, j, k);
         for (int alpha = 0; alpha < dim; alpha++) {
           for (int beta = 0; beta < dim; beta++) {
@@ -174,21 +178,21 @@ __global__ void G2P_backward(State state, State next_state) {
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
 
         auto grad_N = tc.dw(i, j, k);
-        real mi = state.get_grid_mass(
+        auto mi = state.get_grid_mass(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
         auto vi = state.get_grid_velocity(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
-        real grad_mi =
+        auto grad_mi =
             state.grad_grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
                                  tc.base_coord[2] + k)[dim];
         for (int alpha = 0; alpha < dim; alpha++) {
           // (F) v_p^n
           grad_v[alpha] += N * m_p * grad_p[alpha];
+
           grad_x[alpha] +=
               grad_N[alpha] * (grad_v_next[alpha] * state.invD +
                                grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
 
-          // temporally disable
           for (int beta = 0; beta < dim; beta++) {
             grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
                                  (grad_N[alpha] * vi[alpha] * dpos[beta] -
@@ -209,10 +213,10 @@ __global__ void G2P_backward(State state, State next_state) {
       }
     }
   }
-  state.set_grad_v(part_id, grad_v);
   state.set_grad_x(part_id, grad_x);
-  state.set_grad_C(part_id, grad_C);
+  state.set_grad_v(part_id, grad_v);
   state.set_grad_F(part_id, grad_F);
+  state.set_grad_C(part_id, grad_C);
 }
 
 void backward(State &state, State &next) {

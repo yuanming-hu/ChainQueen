@@ -105,7 +105,7 @@ auto gpu_mpm3d = []() {
       }
     }
   }
-  int num_steps = 90;
+  int num_steps = 9;
   std::vector<void *> states((uint32)num_steps + 1, nullptr);
   Vector3i res(20);
   Vector3 gravity(0, -9.8f, 0);
