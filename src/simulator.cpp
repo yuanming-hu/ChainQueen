@@ -76,13 +76,16 @@ auto gpu_mpm3d = []() {
 */
 
 auto gpu_mpm3d = []() {
-  int n = 5;
+  int n = 6;
   int num_particles = n * n * n;
   std::vector<real> initial_positions;
+  std::vector<real> initial_velocities;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        initial_positions.push_back(i * 0.025_f + 0.4_f);
+        initial_positions.push_back(i * 0.025_f + 0.3_f +
+                                    0.1_f * (i / (n / 2)));
+        initial_velocities.push_back(1 - (i / (n / 2)));
       }
     }
   }
@@ -90,6 +93,7 @@ auto gpu_mpm3d = []() {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
         initial_positions.push_back(j * 0.025_f + 0.4_f);
+        initial_velocities.push_back(0);
       }
     }
   }
@@ -97,17 +101,21 @@ auto gpu_mpm3d = []() {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
         initial_positions.push_back(k * 0.025_f + 0.4_f);
+        initial_velocities.push_back(0);
       }
     }
   }
-  int num_steps = 150;
+  int num_steps = 90;
   std::vector<void *> states((uint32)num_steps + 1, nullptr);
   Vector3i res(20);
   Vector3 gravity(0, -9.8f, 0);
   for (int i = 0; i < num_steps + 1; i++) {
-    initialize_mpm3d_state(&res[0], num_particles, &gravity[0], states[i], 1e-2_f,
-                           initial_positions.data());
+    initialize_mpm3d_state(&res[0], num_particles, &gravity[0], states[i],
+                           1e-2_f, initial_positions.data());
     std::fill(initial_positions.begin(), initial_positions.end(), 0);
+    if (i == 0) {
+      set_initial_velocities(states[i], initial_velocities.data());
+    }
   }
 
   for (int i = 0; i < num_steps; i++) {
@@ -121,7 +129,7 @@ auto gpu_mpm3d = []() {
           Vector4(x[p] * scale, (x[p + num_particles] - 0.02f) * scale,
                   x[p + 2 * num_particles] * scale, 0.03);
       scene.particles.push_back(particle);
-      //if (p == 123)
+      // if (p == 123)
       //  TC_P(particle.position_and_radius);
     }
     if (i % 10 == 0) {
