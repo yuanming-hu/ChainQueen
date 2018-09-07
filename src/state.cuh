@@ -241,8 +241,9 @@ struct TransferCommon {
       // TODO: test
       for (int i = 0; i < dim; ++i) {
         weights[1][i][0] = -inv_dx * (1.5f + fx[i]);
-        weights[1][i][1] = -inv_dx * (-2 * fx[i] + 2);
+        weights[1][i][1] = inv_dx * (2 * fx[i] + 2);
         weights[1][i][2] = -inv_dx * (fx[i] + 0.5f);
+        // printf("%f\n", weights[1][i][0] + weights[1][i][1] + weights[1][i][2]);
       }
     }
   }
@@ -267,7 +268,7 @@ struct TransferCommon {
 
 constexpr real m_p = 1;   // TODO: variable m_p
 constexpr real V = 1;     // TODO: variable vol
-constexpr real E = 0;    // TODO: variable E
+constexpr real E = 0;     // TODO: variable E
 constexpr real nu = 0.3;  // TODO: variable nu
 constexpr real mu = E / (2 * (1 + nu)),
                lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
