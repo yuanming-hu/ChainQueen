@@ -129,6 +129,20 @@ __global__ void G2P_backward(State state, State next_state) {
   Matrix grad_C;
 
   TransferCommon<true> tc(state, x);
+  {
+    /*
+    real dx = 1e-4f;
+    TransferCommon<true> tc2(state, x + Vector(0, 0, dx));
+    for (int i = 0; i < dim; i++) {
+      for (int j = 0; j < dim; j++) {
+        for (int k = 0; k < dim; k++) {
+          auto d = tc.dw(i, j, k);
+          printf("%f %f\n", d[2], (tc2.w(i, j, k) - tc.w(i, j, k))/ dx);
+        }
+      }
+    }
+    */
+  }
   Vector grad_v;
   real grad_P_scale = state.dt * state.invD * V;
 
@@ -218,12 +232,15 @@ __global__ void G2P_backward(State state, State next_state) {
           // (J) term 5
           grad_x[alpha] += grad_N[alpha] * grad_mi * m_p;
 
+          // (J) term 4 leads to divergency
+          /*
           for (int beta = 0; beta < dim; beta++) {
             grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
                                  (grad_N[alpha] * vi[alpha] * dpos[beta] -
                                   tc.w(i, j, k) * vi[alpha]) -
                              grad_p[beta] * G[beta][alpha];
           }
+          */
 
           for (int beta = 0; beta < dim; beta++) {
             for (int gamma = 0; gamma < dim; gamma++) {
@@ -235,14 +252,14 @@ __global__ void G2P_backward(State state, State next_state) {
             // (J), term 2
             grad_x[alpha] += grad_v_next[beta] * grad_N[alpha] * vi[beta];
             // (J), term 3
-            auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
-            grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
+            //auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
+            //grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
             // printf("v %f m %f\n", vi[beta], mi);
+            /*
             grad_x[alpha] += grad_p[beta] * (grad_N[alpha] * m_p * v[beta] +
                                              (G * dpos)[beta]) -
                              N * G[beta][alpha];
-            // (J), term 5
-            grad_x[alpha] += m_p * grad_N[alpha] * grad_mi;
+                             */
           }
         }
       }
@@ -251,7 +268,7 @@ __global__ void G2P_backward(State state, State next_state) {
   state.set_grad_x(part_id, grad_x);
   state.set_grad_v(part_id, grad_v);
   state.set_grad_F(part_id, grad_F);
-  state.set_grad_C(part_id, grad_C);
+  //state.set_grad_C(part_id, grad_C);
 }
 
 void backward(State &state, State &next) {
