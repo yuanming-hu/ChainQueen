@@ -223,7 +223,7 @@ struct TransferCommon {
     for (int i = 0; i < dim; i++) {
       base_coord[i] = int(x[i] * inv_dx - 0.5);
       real f = x[i] * inv_dx - (real)base_coord[i];
-      static_assert(std::is_same<std::decay_t<decltype(fx[i])>, real>::value);
+      static_assert(std::is_same<std::decay_t<decltype(fx[i])>, real>::value, "");
       fx[i] = f;
     }
 
