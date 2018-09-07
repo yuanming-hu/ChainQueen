@@ -132,8 +132,9 @@ auto gpu_mpm3d = []() {
       // if (p == 123)
       //  TC_P(particle.position_and_radius);
     }
-    if (i % 10 == 0) {
-      write_to_binary_file(scene, fmt::format("{:05d}.tcb", i / 10));
+    int interval = 3;
+    if (i % interval == 0) {
+      write_to_binary_file(scene, fmt::format("{:05d}.tcb", i / interval));
     }
     forward_mpm3d_state(states[i], states[i + 1]);
   }
