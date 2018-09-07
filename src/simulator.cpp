@@ -105,7 +105,7 @@ auto gpu_mpm3d = []() {
       }
     }
   }
-  int num_steps = 2;
+  int num_steps = 3;
   std::vector<void *> states((uint32)num_steps + 1, nullptr);
   Vector3i res(20);
   // Differentiate gravity is not supported

@@ -86,9 +86,9 @@ __global__ void grid_backward(State state) {
       auto grad_p = inv_m * grad_v_i;
       auto v_i = Vector(node);
       for (int d = 0; d < dim; d++) {
-        //printf("g v %f\n", v_i[d]);
+        // printf("g v %f\n", v_i[d]);
       }
-      //printf("g m %f\n", m);
+      // printf("g m %f\n", m);
       auto p_i = m * v_i;
       // (E)
       real grad_m = 0;
@@ -148,7 +148,7 @@ __global__ void G2P_backward(State state, State next_state) {
                   grad_P_scale * grad_p[alpha] * F[gamma][beta] * dpos[gamma];
             }
             // (I) C_p^n
-            //NOTE:  disabled
+            // NOTE:  disabled
             grad_C[alpha][beta] += N * grad_p[alpha] * m_p * dpos[beta];
           }
         }
@@ -157,8 +157,8 @@ __global__ void G2P_backward(State state, State next_state) {
   }
 
   for (int i = 0; i < dim; i++) {
-    for (int j =0 ; j < dim; j++) {
-      //printf("%d %d %f\n", i, j, grad_C[i][j]);
+    for (int j = 0; j < dim; j++) {
+      // printf("%d %d %f\n", i, j, grad_C[i][j]);
     }
   }
 
@@ -191,25 +191,25 @@ __global__ void G2P_backward(State state, State next_state) {
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
 
         for (int d = 0; d < dim; d++) {
-          //printf("grad p %f\n", grad_p[d]);
+          // printf("grad p %f\n", grad_p[d]);
         }
 
         auto grad_N = tc.dw(i, j, k);
-        auto n = state.grid_node(
-            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
+        auto n = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
+                                 tc.base_coord[2] + k);
         auto mi = state.get_grid_mass(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
-        //printf(" m m %f %f\n", mi, n[dim]);
+        // printf(" m m %f %f\n", mi, n[dim]);
         auto vi = state.get_grid_velocity(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
         auto grad_mi =
             state.grad_grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
                                  tc.base_coord[2] + k)[dim];
 
-        //printf("%.10f\n", grad_p[0]);
-        //printf("%.10f\n", grad_p[1]);
-        //printf("%.10f\n", grad_p[2]);
-        //printf("\n");
+        // printf("%.10f\n", grad_p[0]);
+        // printf("%.10f\n", grad_p[1]);
+        // printf("%.10f\n", grad_p[2]);
+        // printf("\n");
         for (int alpha = 0; alpha < dim; alpha++) {
           // (F) v_p^n
           grad_v[alpha] += N * m_p * grad_p[alpha];
@@ -236,11 +236,12 @@ __global__ void G2P_backward(State state, State next_state) {
             // (J), term 3
             auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
             grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
-            //printf("v %f m %f\n", vi[beta], mi);
-            // (J), term 4
-            grad_x[alpha] +=
-                grad_p[beta] * (grad_N[alpha] * grad_mi * vi[beta] - G[beta][alpha]);
-
+            // printf("v %f m %f\n", vi[beta], mi);
+            grad_x[alpha] += grad_p[beta] * (grad_N[alpha] * m_p * v[beta] +
+                                             (G * dpos)[beta]) -
+                             N * G[beta][alpha];
+            // (J), term 5
+            grad_x[alpha] += m_p * grad_N[alpha] * grad_mi;
           }
         }
       }
@@ -248,7 +249,7 @@ __global__ void G2P_backward(State state, State next_state) {
   }
   state.set_grad_x(part_id, grad_x);
   state.set_grad_v(part_id, grad_v);
-  //state.set_grad_F(part_id, grad_F);
+  state.set_grad_F(part_id, grad_F);
   state.set_grad_C(part_id, grad_C);
 }
 
