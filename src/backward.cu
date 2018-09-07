@@ -6,60 +6,23 @@
 
 // For deformation gradient update
 
-// Takes B, dL/dAB
-// Returns dL/dA
-__device__ Matrix dAB2dA(const Matrix &B, const Matrix &dAB) {
-  Matrix dA;
-  for (int p = 0; p < dim; p++) {
-    for (int q = 0; q < dim; q++) {
-      for (int j = 0; j < dim; j++) {
-        dA[p][q] += dAB[p][j] * B[q][j];
-      }
-    }
-  }
-  return dA;
-}
-
-// Takes A, B, dL/dAB
-// Returns dL/dB
-__device__ Matrix dAB2dB(const Matrix &A, const Matrix &dAB) {
-  Matrix dB;
-  for (int p = 0; p < dim; p++) {
-    for (int q = 0; q < dim; q++) {
-      for (int i = 0; i < dim; i++) {
-        dB[p][q] += dAB[i][q] * A[i][p];
-      }
-    }
-  }
-  return dB;
-}
-
-__device__ Vector duTv2du(const Vector &v, const real &duTv) {
-  return duTv * v;
-}
-
-__device__ Vector duTv2dv(const Vector &u, const real &duTv) {
-  return duTv * u;
-}
-
 __global__ void P2G_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
-
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
     return;
   }
 
-  Vector x = state.get_x(part_id), v = state.get_v(part_id);
+  Vector x = state.get_x(part_id);
+  Vector v = state.get_v(part_id);
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
 
   auto grad_x_next = next_state.get_grad_x(part_id);
-  auto grad_C_next = next_state.get_grad_C(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
   auto grad_F_next = next_state.get_grad_F(part_id);
-  Matrix G;  // TODO
+  auto grad_C_next = next_state.get_grad_C(part_id);
 
   // (A) v_p^n+1, accumulate
   grad_v_next = grad_v_next + state.dt * grad_x_next;
@@ -74,6 +37,7 @@ __global__ void P2G_backward(State state, State next_state) {
     }
   }
 
+  // Accumulate to grad_v and grad_C
   next_state.set_grad_v(part_id, grad_v_next);
   next_state.set_grad_C(part_id, grad_C_next);
 
@@ -89,15 +53,14 @@ __global__ void P2G_backward(State state, State next_state) {
         real grad_v_i[dim];
         for (int alpha = 0; alpha < dim; alpha++) {
           grad_v_i[alpha] = grad_v_next[alpha] * N;
-          if (mpm_enalbe_apic) {
-            for (int beta = 0; beta < dim; beta++) {
-              grad_v_i[alpha] += grad_C_next[alpha][beta] * dpos[beta];
-            }
+          for (int beta = 0; beta < dim; beta++) {
+            grad_v_i[alpha] += grad_C_next[alpha][beta] * dpos[beta];
           }
         }
         auto grad_n = state.grad_grid_node(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
         for (int d = 0; d < dim; d++) {
+          //printf("grad_v_i %d %f\n", d, grad_v_i[d]);
           atomicAdd(&grad_n[d], grad_v_i[d]);
         }
       }
@@ -123,6 +86,10 @@ __global__ void grid_backward(State state) {
       auto grad_v_i = state.get_grad_grid_velocity(x, y, z);
       auto grad_p = inv_m * grad_v_i;
       auto v_i = Vector(node);
+      for (int d = 0; d < dim; d++) {
+        // printf("g v %f\n", v_i[d]);
+      }
+      // printf("g m %f\n", m);
       auto p_i = m * v_i;
       // (E)
       real grad_m = 0;
@@ -150,17 +117,51 @@ __global__ void G2P_backward(State state, State next_state) {
   auto C = state.get_C(part_id);
   auto P = state.get_P(part_id);
 
-  Matrix grad_P_next = next_state.get_grad_P(part_id);
-  Matrix grad_P, grad_F;
   auto grad_F_next = next_state.get_grad_F(part_id);
   auto grad_C_next = next_state.get_grad_C(part_id);
+  auto grad_P_next = next_state.get_grad_P(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
-  Matrix grad_C;
+
   auto C_next = next_state.get_C(part_id);
+
+  Matrix grad_P;
+  Matrix grad_F;
+  Matrix grad_C;
 
   TransferCommon<true> tc(state, x);
   Vector grad_v;
   real grad_P_scale = state.dt * state.invD * V;
+
+  // (G) Compute grad_P
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      for (int k = 0; k < dim; k++) {
+        real N = tc.w(i, j, k);
+        Vector dpos = tc.dpos(i, j, k);
+        auto grad_p = state.get_grad_grid_velocity(
+            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
+        auto grad_N = tc.dw(i, j, k);
+        for (int alpha = 0; alpha < dim; alpha++) {
+          for (int beta = 0; beta < dim; beta++) {
+            // (G) P_p^n
+            for (int gamma = 0; gamma < dim; gamma++) {
+              grad_P[alpha][beta] +=
+                  N * grad_P_scale * grad_p[alpha] * F[gamma][beta] * dpos[gamma];
+            }
+            // (I) C_p^n
+            // NOTE:  disabled
+            grad_C[alpha][beta] += N * grad_p[alpha] * m_p * dpos[beta];
+          }
+        }
+      }
+    }
+  }
+
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      // printf("%d %d %f\n", i, j, grad_C[i][j]);
+    }
+  }
 
   // (H) term 2
   Times_Rotated_dP_dF_FixedCorotated(mu, lambda, F.data(), grad_P.data(),
@@ -190,55 +191,67 @@ __global__ void G2P_backward(State state, State next_state) {
         auto grad_p = state.get_grad_grid_velocity(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
 
+        for (int d = 0; d < dim; d++) {
+          //printf("grad p[%d] %.10f\n", d, grad_p[d]);
+        }
+
         auto grad_N = tc.dw(i, j, k);
-        real grad_v_i[dim];
-        real mi = state.get_grid_mass(
+        auto n = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
+                                 tc.base_coord[2] + k);
+        auto mi = state.get_grid_mass(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
+        // printf(" m m %f %f\n", mi, n[dim]);
         auto vi = state.get_grid_velocity(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
-        real grad_mi =
+        auto grad_mi =
             state.grad_grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
                                  tc.base_coord[2] + k)[dim];
+
+        // printf("%.10f\n", grad_p[0]);
+        // printf("%.10f\n", grad_p[1]);
+        // printf("%.10f\n", grad_p[2]);
+        // printf("\n");
         for (int alpha = 0; alpha < dim; alpha++) {
           // (F) v_p^n
           grad_v[alpha] += N * m_p * grad_p[alpha];
-          grad_v_i[alpha] = grad_v_next[alpha] * N;
 
-          /*
-          grad_x[alpha] +=
-              grad_N[alpha] * (grad_v_next[alpha] * state.invD +
-                               grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
+          // (J) term 5
+          grad_x[alpha] += grad_N[alpha] * grad_mi * m_p;
 
-          // temporally disable
           for (int beta = 0; beta < dim; beta++) {
             grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
                                  (grad_N[alpha] * vi[alpha] * dpos[beta] -
                                   tc.w(i, j, k) * vi[alpha]) -
                              grad_p[beta] * G[beta][alpha];
           }
-          */
 
           for (int beta = 0; beta < dim; beta++) {
-            // (G) P_p^n
             for (int gamma = 0; gamma < dim; gamma++) {
-              grad_P[alpha][beta] +=
-                  grad_P_scale * grad_p[alpha] * F[gamma][beta] * dpos[gamma];
               // (H), term 3
               grad_F[alpha][beta] +=
-                  grad_P_scale * P[gamma][beta] * dpos[alpha];
+                  grad_p[gamma] * grad_P_scale * P[gamma][beta] * dpos[alpha];
             }
-            grad_v_i[alpha] += grad_C_next[alpha][beta] * dpos[beta];
-            // (I) C_p^n
-            grad_C[alpha][beta] += grad_p[alpha] * m_p * dpos[beta];
+
+            // (J), term 2
+            grad_x[alpha] += grad_v_next[beta] * grad_N[alpha] * vi[beta];
+            // (J), term 3
+            auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
+            grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
+            // printf("v %f m %f\n", vi[beta], mi);
+            grad_x[alpha] += grad_p[beta] * (grad_N[alpha] * m_p * v[beta] +
+                                             (G * dpos)[beta]) -
+                             N * G[beta][alpha];
+            // (J), term 5
+            grad_x[alpha] += m_p * grad_N[alpha] * grad_mi;
           }
         }
-        state.set_grad_grid_velocity(
-            i, j, k, Vector(grad_v_i[0], grad_v_i[1], grad_v_i[2]));
       }
     }
   }
-  state.set_grad_v(part_id, grad_v);
   state.set_grad_x(part_id, grad_x);
+  state.set_grad_v(part_id, grad_v);
+  state.set_grad_F(part_id, grad_F);
+  state.set_grad_C(part_id, grad_C);
 }
 
 void backward(State &state, State &next) {
@@ -269,7 +282,7 @@ void set_grad_loss(void *state_) {
   int num_particles = state->num_particles;
   std::vector<float> grad_x_host(num_particles * dim);
   for (int i = 0; i < num_particles; i++) {
-    grad_x_host[i * 3] = 1;
+    grad_x_host[i] = 1.0f / num_particles;
   }
   cudaMemcpy(state->grad_x_storage, grad_x_host.data(),
              sizeof(real) * dim * num_particles, cudaMemcpyHostToDevice);

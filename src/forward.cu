@@ -20,7 +20,6 @@ void saxpy_cuda(int N, real alpha, real *x, real *y) {
   cudaMemcpy(d_x, x, N * sizeof(real), cudaMemcpyHostToDevice);
   cudaMemcpy(d_y, y, N * sizeof(real), cudaMemcpyHostToDevice);
 
-  // this is stupidly wrong..... saxpy_g<<<1, 256>>>(n, alpha, x, y);
   saxpy<<<(N + 255) / 256, 256>>>(N, alpha, d_x, d_y);
 
   cudaMemcpy(y, d_y, N * sizeof(real), cudaMemcpyDeviceToHost);
@@ -213,7 +212,8 @@ void initialize_mpm3d_state(int *res,
                             int num_particles,
                             float *gravity,
                             void *&state_,
-                            float dt, float *initial_positions) {
+                            float dt,
+                            float *initial_positions) {
   // State(int res[dim], int num_particles, real dx, real dt, real
   auto state = new State(res, num_particles, 1.0f / res[0], dt, gravity);
   state_ = state;
@@ -230,4 +230,10 @@ void forward_mpm3d_state(void *state_, void *new_state_) {
 std::vector<float> fetch_mpm3d_particles(void *state_) {
   State *state = reinterpret_cast<State *>(state_);
   return state->fetch_x();
+}
+
+void set_initial_velocities(void *state_, float *v) {
+  State *state = reinterpret_cast<State *>(state_);
+  cudaMemcpy(state->v_storage, v, sizeof(real) * dim * state->num_particles,
+             cudaMemcpyHostToDevice);
 }
