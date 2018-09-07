@@ -189,9 +189,8 @@ __global__ void G2P_backward(State state, State next_state) {
           // (F) v_p^n
           grad_v[alpha] += N * m_p * grad_p[alpha];
 
-          grad_x[alpha] +=
-              grad_N[alpha] * (grad_v_next[alpha] * state.invD +
-                               grad_p[alpha] * mi * vi[alpha] + m_p * grad_mi);
+          // (J) term 5
+          grad_x[alpha] += grad_N[alpha] * grad_mi * m_p;
 
           for (int beta = 0; beta < dim; beta++) {
             grad_x[alpha] += state.invD * grad_C_next[beta][alpha] *
@@ -206,6 +205,16 @@ __global__ void G2P_backward(State state, State next_state) {
               grad_F[alpha][beta] +=
                   grad_p[gamma] * grad_P_scale * P[gamma][beta] * dpos[alpha];
             }
+
+            // (J), term 2
+            grad_x[alpha] += grad_v_next[beta] * grad_N[alpha] * vi[beta];
+            // (J), term 3
+            auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
+            grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
+            // (J), term 4
+            grad_x[alpha] +=
+                grad_p[beta] * (grad_N[alpha] * mi * vi[beta] - G[beta][alpha]);
+
             // (I) C_p^n
             grad_C[alpha][beta] += grad_p[alpha] * m_p * dpos[beta];
           }
