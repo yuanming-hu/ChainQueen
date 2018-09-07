@@ -83,10 +83,11 @@ auto gpu_mpm3d = []() {
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        bool right =  (i / (n / 2));
-        initial_positions.push_back(i * 0.025_f + 0.2123_f + 0.1 * right);
-        initial_velocities.push_back(1 - 1*right);
-        // initial_velocities.push_back(0.1);
+        bool right = (i / (n / 2));
+        initial_positions.push_back(i * 0.025_f + 0.2123_f);
+        // initial_positions.push_back(i * 0.025_f + 0.2123_f + 0.1 * right);
+        // initial_velocities.push_back(1 - 1*right);
+        initial_velocities.push_back(0.0);
       }
     }
   }
@@ -106,7 +107,16 @@ auto gpu_mpm3d = []() {
       }
     }
   }
-  int num_steps = 30;
+  std::vector<real> initial_F;
+  for (int a = 0; a < 3; a++) {
+    for (int b = 0; b < 3; b++) {
+      for (int i = 0; i < num_particles; i++) {
+        initial_F.push_back(real(a == b) * 1.1);
+      }
+    }
+  }
+  TC_P(initial_F.size());
+  int num_steps = 1;
   std::vector<void *> states((uint32)num_steps + 1, nullptr);
   Vector3i res(20);
   // Differentiate gravity is not supported
@@ -117,6 +127,7 @@ auto gpu_mpm3d = []() {
     std::fill(initial_positions.begin(), initial_positions.end(), 0);
     if (i == 0) {
       set_initial_velocities(states[i], initial_velocities.data());
+      set_initial_F(states[i], initial_F.data());
     }
   }
 

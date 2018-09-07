@@ -237,3 +237,10 @@ void set_initial_velocities(void *state_, float *v) {
   cudaMemcpy(state->v_storage, v, sizeof(real) * dim * state->num_particles,
              cudaMemcpyHostToDevice);
 }
+
+void set_initial_F(void *state_, float *F) {
+  State *state = reinterpret_cast<State *>(state_);
+  cudaMemcpy(state->F_storage, F,
+             sizeof(real) * dim * dim * state->num_particles,
+             cudaMemcpyHostToDevice);
+}
