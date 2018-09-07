@@ -160,11 +160,12 @@ __global__ void G2P_backward(State state, State next_state) {
           for (int beta = 0; beta < dim; beta++) {
             // (G) P_p^n
             for (int gamma = 0; gamma < dim; gamma++) {
-              grad_P[alpha][beta] += N * grad_P_scale * grad_p[alpha] *
+              grad_P[alpha][beta] += -N * grad_P_scale * grad_p[alpha] *
                                      F[gamma][beta] * dpos[gamma];
             }
             // (I) C_p^n
-            grad_C[alpha][beta] += N * grad_p[alpha] * m_p * dpos[beta];
+            if (mpm_enalbe_apic)
+              grad_C[alpha][beta] += N * grad_p[alpha] * m_p * dpos[beta];
           }
         }
       }
@@ -195,7 +196,10 @@ __global__ void G2P_backward(State state, State next_state) {
   // (J) term 1
   Vector grad_x = next_state.get_grad_x(part_id);
   // printf("grad_x %f\n", grad_x[0]);
-  auto G = state.invD * state.dt * P * transposed(F) + m_p * C;
+  auto G = -state.invD * state.dt * P * transposed(F);
+  if (mpm_enalbe_apic) {
+    G = G + m_p * C;
+  }
 
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
@@ -235,7 +239,7 @@ __global__ void G2P_backward(State state, State next_state) {
           for (int beta = 0; beta < dim; beta++) {
             for (int gamma = 0; gamma < dim; gamma++) {
               // (H), term 3
-              grad_F[alpha][beta] += N * grad_p[gamma] * grad_P_scale *
+              grad_F[alpha][beta] += -N * grad_p[gamma] * grad_P_scale *
                                      P[gamma][beta] * dpos[alpha];
             }
 
@@ -245,11 +249,10 @@ __global__ void G2P_backward(State state, State next_state) {
             auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
             grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
             // (J), term 4
-            /*
             grad_x[alpha] +=
-                grad_p[beta] * ((grad_N[alpha] * m_p * v[beta] +
-                                (G * dpos)[beta]) - N * G[beta][alpha]);
-                                */
+                grad_p[beta] *
+                ((grad_N[alpha] * m_p * v[beta] + (G * dpos)[beta]) -
+                 N * G[beta][alpha]);
           }
         }
       }
