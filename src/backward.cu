@@ -179,7 +179,7 @@ __global__ void G2P_backward(State state, State next_state) {
 
   // (J) term 1
   Vector grad_x = next_state.get_grad_x(part_id);
-  printf("grad_x %f\n", grad_x[0]);
+  // printf("grad_x %f\n", grad_x[0]);
   auto G = state.invD * state.dt * P * transposed(F) + m_p * C;
 
   for (int i = 0; i < dim; i++) {
@@ -269,7 +269,7 @@ void set_grad_loss(void *state_) {
   int num_particles = state->num_particles;
   std::vector<float> grad_x_host(num_particles * dim);
   for (int i = 0; i < num_particles; i++) {
-    grad_x_host[i * 3] = num_particles;
+    grad_x_host[i * 3] = 1;
   }
   cudaMemcpy(state->grad_x_storage, grad_x_host.data(),
              sizeof(real) * dim * num_particles, cudaMemcpyHostToDevice);

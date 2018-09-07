@@ -76,37 +76,38 @@ auto gpu_mpm3d = []() {
 */
 
 auto gpu_mpm3d = []() {
-  int n = 1;
+  int n = 5;
   int num_particles = n * n * n;
   std::vector<real> initial_positions;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        initial_positions.push_back(i * 0.005_f + 0.4037_f);
+        initial_positions.push_back(i * 0.025_f + 0.4_f);
       }
     }
   }
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        initial_positions.push_back(j * 0.005_f + 0.6_f);
+        initial_positions.push_back(j * 0.025_f + 0.4_f);
       }
     }
   }
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        initial_positions.push_back(k * 0.005_f + 0.4_f);
+        initial_positions.push_back(k * 0.025_f + 0.4_f);
       }
     }
   }
-  int num_steps = 3;
-  std::vector<void *> states(num_steps + 1, nullptr);
-  Vector3i res(100);
-  Vector3 gravity;
+  int num_steps = 150;
+  std::vector<void *> states((uint32)num_steps + 1, nullptr);
+  Vector3i res(20);
+  Vector3 gravity(0, -9.8f, 0);
   for (int i = 0; i < num_steps + 1; i++) {
-    initialize_mpm3d_state(&res[0], num_particles, &gravity[0], states[i],
+    initialize_mpm3d_state(&res[0], num_particles, &gravity[0], states[i], 1e-2_f,
                            initial_positions.data());
+    std::fill(initial_positions.begin(), initial_positions.end(), 0);
   }
 
   for (int i = 0; i < num_steps; i++) {
@@ -118,10 +119,14 @@ auto gpu_mpm3d = []() {
       auto scale = 5_f;
       particle.position_and_radius =
           Vector4(x[p] * scale, (x[p + num_particles] - 0.02f) * scale,
-                  x[p + 2 * num_particles] * scale, 0.01);
+                  x[p + 2 * num_particles] * scale, 0.03);
       scene.particles.push_back(particle);
+      //if (p == 123)
+      //  TC_P(particle.position_and_radius);
     }
-    write_to_binary_file(scene, fmt::format("{:05d}.tcb", i));
+    if (i % 10 == 0) {
+      write_to_binary_file(scene, fmt::format("{:05d}.tcb", i / 10));
+    }
     forward_mpm3d_state(states[i], states[i + 1]);
   }
 

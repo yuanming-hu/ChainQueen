@@ -206,16 +206,16 @@ void advance(State &state, State &new_state) {
   }
   normalize_grid<<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
                    grid_block_dim>>>(state);
-  G2P<<<num_blocks, particle_block_dim>>>(state, state);
+  G2P<<<num_blocks, particle_block_dim>>>(state, new_state);
 }
 
 void initialize_mpm3d_state(int *res,
                             int num_particles,
                             float *gravity,
                             void *&state_,
-                            float *initial_positions) {
+                            float dt, float *initial_positions) {
   // State(int res[dim], int num_particles, real dx, real dt, real
-  auto state = new State(res, num_particles, 1.0f / res[0], 1e-3f, gravity);
+  auto state = new State(res, num_particles, 1.0f / res[0], dt, gravity);
   state_ = state;
   cudaMemcpy(state->x_storage, initial_positions,
              sizeof(Vector) * num_particles, cudaMemcpyHostToDevice);
