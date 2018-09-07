@@ -342,3 +342,39 @@ inline __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
           (dP_hat[6] * U[2] + dP_hat[7] * U[5] + dP_hat[8] * U[8]) * V[8];
 };
 
+// Takes B, dL/dAB
+// Returns dL/dA
+TC_FORCE_INLINE __device__ Matrix dAB2dA(const Matrix &B, const Matrix &dAB) {
+  Matrix dA;
+  for (int p = 0; p < dim; p++) {
+    for (int q = 0; q < dim; q++) {
+      for (int j = 0; j < dim; j++) {
+        dA[p][q] += dAB[p][j] * B[q][j];
+      }
+    }
+  }
+  return dA;
+}
+
+// Takes A, B, dL/dAB
+// Returns dL/dB
+TC_FORCE_INLINE __device__ Matrix dAB2dB(const Matrix &A, const Matrix &dAB) {
+  Matrix dB;
+  for (int p = 0; p < dim; p++) {
+    for (int q = 0; q < dim; q++) {
+      for (int i = 0; i < dim; i++) {
+        dB[p][q] += dAB[i][q] * A[i][p];
+      }
+    }
+  }
+  return dB;
+}
+
+TC_FORCE_INLINE __device__ Vector duTv2du(const Vector &v, const real &duTv) {
+  return duTv * v;
+}
+
+TC_FORCE_INLINE __device__ Vector duTv2dv(const Vector &u, const real &duTv) {
+  return duTv * u;
+}
+

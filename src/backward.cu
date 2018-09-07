@@ -6,46 +6,9 @@
 
 // For deformation gradient update
 
-// Takes B, dL/dAB
-// Returns dL/dA
-__device__ Matrix dAB2dA(const Matrix &B, const Matrix &dAB) {
-  Matrix dA;
-  for (int p = 0; p < dim; p++) {
-    for (int q = 0; q < dim; q++) {
-      for (int j = 0; j < dim; j++) {
-        dA[p][q] += dAB[p][j] * B[q][j];
-      }
-    }
-  }
-  return dA;
-}
-
-// Takes A, B, dL/dAB
-// Returns dL/dB
-__device__ Matrix dAB2dB(const Matrix &A, const Matrix &dAB) {
-  Matrix dB;
-  for (int p = 0; p < dim; p++) {
-    for (int q = 0; q < dim; q++) {
-      for (int i = 0; i < dim; i++) {
-        dB[p][q] += dAB[i][q] * A[i][p];
-      }
-    }
-  }
-  return dB;
-}
-
-__device__ Vector duTv2du(const Vector &v, const real &duTv) {
-  return duTv * v;
-}
-
-__device__ Vector duTv2dv(const Vector &u, const real &duTv) {
-  return duTv * u;
-}
-
 __global__ void P2G_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
-
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
     return;
@@ -59,7 +22,6 @@ __global__ void P2G_backward(State state, State next_state) {
   auto grad_C_next = next_state.get_grad_C(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
   auto grad_F_next = next_state.get_grad_F(part_id);
-  Matrix G;  // TODO
 
   // (A) v_p^n+1, accumulate
   grad_v_next = grad_v_next + state.dt * grad_x_next;
@@ -212,7 +174,6 @@ __global__ void G2P_backward(State state, State next_state) {
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
 
         auto grad_N = tc.dw(i, j, k);
-        real grad_v_i[dim];
         real mi = state.get_grid_mass(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
         auto vi = state.get_grid_velocity(
