@@ -85,6 +85,10 @@ __global__ void grid_backward(State state) {
       auto grad_v_i = state.get_grad_grid_velocity(x, y, z);
       auto grad_p = inv_m * grad_v_i;
       auto v_i = Vector(node);
+      for (int d = 0; d < dim; d++) {
+        //printf("g v %f\n", v_i[d]);
+      }
+      //printf("g m %f\n", m);
       auto p_i = m * v_i;
       // (E)
       real grad_m = 0;
@@ -179,9 +183,16 @@ __global__ void G2P_backward(State state, State next_state) {
         auto grad_p = state.get_grad_grid_velocity(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
 
+        for (int d = 0; d < dim; d++) {
+          //printf("grad p %f\n", grad_p[d]);
+        }
+
         auto grad_N = tc.dw(i, j, k);
+        auto n = state.grid_node(
+            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
         auto mi = state.get_grid_mass(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
+        //printf(" m m %f %f\n", mi, n[dim]);
         auto vi = state.get_grid_velocity(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
         auto grad_mi =
@@ -218,9 +229,10 @@ __global__ void G2P_backward(State state, State next_state) {
             // (J), term 3
             auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
             grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
+            //printf("v %f m %f\n", vi[beta], mi);
             // (J), term 4
             grad_x[alpha] +=
-                grad_p[beta] * (grad_N[alpha] * mi * vi[beta] - G[beta][alpha]);
+                grad_p[beta] * (grad_N[alpha] * grad_mi * vi[beta] - G[beta][alpha] * 0);
 
           }
         }

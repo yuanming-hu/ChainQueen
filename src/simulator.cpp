@@ -108,7 +108,8 @@ auto gpu_mpm3d = []() {
   int num_steps = 2;
   std::vector<void *> states((uint32)num_steps + 1, nullptr);
   Vector3i res(20);
-  Vector3 gravity(0, -9.8f, 0);
+  // Differentiate gravity is not supported
+  Vector3 gravity(0, 0, 0);
   for (int i = 0; i < num_steps + 1; i++) {
     initialize_mpm3d_state(&res[0], num_particles, &gravity[0], states[i],
                            1e-2_f, initial_positions.data());
@@ -129,8 +130,8 @@ auto gpu_mpm3d = []() {
           Vector4(x[p] * scale, (x[p + num_particles] - 0.02f) * scale,
                   x[p + 2 * num_particles] * scale, 0.03);
       scene.particles.push_back(particle);
-      // if (p == 123)
-      //  TC_P(particle.position_and_radius);
+      if (p == 0)
+        TC_P(particle.position_and_radius);
     }
     int interval = 3;
     if (i % interval == 0) {
