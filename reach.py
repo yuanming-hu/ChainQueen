@@ -172,7 +172,7 @@ def main(sess):
   loss1 = tf.reduce_sum((final_position - goal) ** 2)
   loss2 = tf.reduce_sum(final_velocity ** 2)
   loss_velocity = loss2
-  loss_act = tf.reduce_sum(actuation_seq * 0.0)
+  loss_act = tf.reduce_sum(actuation_seq ** 2.0)
 
   loss = loss1 + gamma * loss2
 
