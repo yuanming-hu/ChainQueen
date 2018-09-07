@@ -145,7 +145,7 @@ __global__ void G2P_backward(State state, State next_state) {
             // (G) P_p^n
             for (int gamma = 0; gamma < dim; gamma++) {
               grad_P[alpha][beta] +=
-                  grad_P_scale * grad_p[alpha] * F[gamma][beta] * dpos[gamma];
+                  N * grad_P_scale * grad_p[alpha] * F[gamma][beta] * dpos[gamma];
             }
             // (I) C_p^n
             // NOTE:  disabled
