@@ -188,23 +188,26 @@ __global__ void G2P_backward(State state, State next_state) {
   // (H) term 2
   Times_Rotated_dP_dF_FixedCorotated(mu, lambda, F.data(), grad_P.data(),
                                      grad_F.data());
-  //auto P = (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+  /*
   Matrix grad_F2;
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
-      Matrix inc = F;
-      real delta = 1e-3f;
+      Matrix inc = F, dec = F;
+      real delta = 1e-2f;
       inc[i][j] += delta;
-      auto diff = (1 / delta) * (PK1(inc) - PK1(F));
+      dec[i][j] -= delta;
+      auto diff = (1 / (2 * delta)) * (PK1(inc) - PK1(dec));
       grad_F2 = grad_F2 + grad_P[i][j] * diff;
     }
   }
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
-
+      printf("%d %d:  %f %f\n", i, j, grad_F2[i][j] * 1e8, grad_F[i][j] * 1e8);
     }
   }
 
+  grad_F = grad_F2;
+  */
 
 
   for (int alpha = 0; alpha < dim; alpha++) {
@@ -276,7 +279,7 @@ __global__ void G2P_backward(State state, State next_state) {
             // (J), term 4
             grad_x[alpha] +=
                 grad_p[beta] *
-                ((grad_N[alpha] * m_p * v[beta] + (G * dpos)[beta]) -
+                (grad_N[alpha] * (m_p * v[beta] + (G * dpos)[beta]) -
                  N * G[beta][alpha]);
           }
         }

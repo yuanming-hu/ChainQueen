@@ -76,7 +76,7 @@ auto gpu_mpm3d = []() {
 */
 
 auto gpu_mpm3d = []() {
-  int n = 1;
+  int n = 10;
   int num_particles = n * n * n;
   std::vector<real> initial_positions;
   std::vector<real> initial_velocities;
@@ -116,7 +116,7 @@ auto gpu_mpm3d = []() {
     }
   }
   TC_P(initial_F.size());
-  int num_steps = 1;
+  int num_steps = 4;
   std::vector<void *> states((uint32)num_steps + 1, nullptr);
   Vector3i res(20);
   // Differentiate gravity is not supported
