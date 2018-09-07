@@ -76,16 +76,16 @@ auto gpu_mpm3d = []() {
 */
 
 auto gpu_mpm3d = []() {
-  int n = 6;
+  int n = 1;
   int num_particles = n * n * n;
   std::vector<real> initial_positions;
   std::vector<real> initial_velocities;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        initial_positions.push_back(i * 0.025_f + 0.3_f +
-                                    0.1_f * (i / (n / 2)));
-        initial_velocities.push_back(1 - (i / (n / 2)));
+        initial_positions.push_back(i * 0.025_f + 0.3_f);
+        // initial_velocities.push_back(1 - (i / (n / 2)));
+        initial_velocities.push_back(1);
       }
     }
   }
@@ -105,7 +105,7 @@ auto gpu_mpm3d = []() {
       }
     }
   }
-  int num_steps = 9;
+  int num_steps = 2;
   std::vector<void *> states((uint32)num_steps + 1, nullptr);
   Vector3i res(20);
   Vector3 gravity(0, -9.8f, 0);
