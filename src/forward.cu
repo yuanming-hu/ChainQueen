@@ -33,6 +33,13 @@ void saxpy_cuda(int N, real alpha, real *x, real *y) {
 
 // Do not consider sorting for now. Use atomics instead.
 
+inline __device__ Matrix PK1(Matrix F) {
+  real J = determinant(F);
+  Matrix r, s;
+  polar_decomp(F, r, s);
+  return (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+}
+
 // One particle per thread
 __global__ void P2G(State state) {
   // constexpr int scratch_size = 8;
@@ -53,11 +60,7 @@ __global__ void P2G(State state) {
   TransferCommon<> tc(state, x);
 
   // Fixed corotated
-  real J = determinant(F);
-
-  Matrix r, s;
-  polar_decomp(F, r, s);
-  auto P = (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+  auto P = PK1(F);
   state.set_P(part_id, P);
   Matrix stress = -4 * inv_dx * inv_dx * dt * V * P;
 

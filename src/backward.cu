@@ -6,6 +6,13 @@
 
 // For deformation gradient update
 
+__device__ Matrix PK1(Matrix F) {
+  real J = determinant(F);
+  Matrix r, s;
+  polar_decomp(F, r, s);
+  return (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+}
+
 __global__ void P2G_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
@@ -181,6 +188,24 @@ __global__ void G2P_backward(State state, State next_state) {
   // (H) term 2
   Times_Rotated_dP_dF_FixedCorotated(mu, lambda, F.data(), grad_P.data(),
                                      grad_F.data());
+  //auto P = (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+  Matrix grad_F2;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      Matrix inc = F;
+      real delta = 1e-3f;
+      inc[i][j] += delta;
+      auto diff = (1 / delta) * (PK1(inc) - PK1(F));
+      grad_F2 = grad_F2 + grad_P[i][j] * diff;
+    }
+  }
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+
+    }
+  }
+
+
 
   for (int alpha = 0; alpha < dim; alpha++) {
     for (int beta = 0; beta < dim; beta++) {
