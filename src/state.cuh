@@ -266,8 +266,8 @@ struct TransferCommon {
   }
 };
 
-constexpr real m_p = 1;   // TODO: variable m_p
-constexpr real V = 1;     // TODO: variable vol
+constexpr real m_p = 100;   // TODO: variable m_p
+constexpr real V = 10;     // TODO: variable vol
 constexpr real E = 10;     // TODO: variable E
 constexpr real nu = 0.3;  // TODO: variable nu
 constexpr real mu = E / (2 * (1 + nu)),

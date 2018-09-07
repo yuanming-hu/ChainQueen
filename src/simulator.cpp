@@ -76,14 +76,14 @@ auto gpu_mpm3d = []() {
 */
 
 auto gpu_mpm3d = []() {
-  int n = 1;
+  int n = 3;
   int num_particles = n * n * n;
   std::vector<real> initial_positions;
   std::vector<real> initial_velocities;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        initial_positions.push_back(i * 0.025_f + 0.3_f);
+        initial_positions.push_back(i * 0.025_f + 0.3123_f);
         // initial_velocities.push_back(1 - (i / (n / 2)));
         initial_velocities.push_back(1);
       }
@@ -92,7 +92,7 @@ auto gpu_mpm3d = []() {
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        initial_positions.push_back(j * 0.025_f + 0.4_f);
+        initial_positions.push_back(j * 0.025_f + 0.4344_f);
         initial_velocities.push_back(0);
       }
     }
@@ -100,7 +100,7 @@ auto gpu_mpm3d = []() {
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
-        initial_positions.push_back(k * 0.025_f + 0.4_f);
+        initial_positions.push_back(k * 0.025_f + 0.9854_f);
         initial_velocities.push_back(0);
       }
     }
@@ -146,12 +146,15 @@ auto gpu_mpm3d = []() {
     backward_mpm3d_state(states[i], states[i + 1]);
     auto grad_x = fetch_mpm3d_grad_x(states[i]);
     auto grad_v = fetch_mpm3d_grad_v(states[i]);
-    TC_INFO("grad vx {}", grad_v[0]);
-    TC_INFO("grad vy {}", grad_v[num_particles]);
-    TC_INFO("grad vz {}", grad_v[2 * num_particles]);
-    TC_INFO("grad xx {}", grad_x[0]);
-    TC_INFO("grad xy {}", grad_x[num_particles]);
-    TC_INFO("grad xz {}", grad_x[2 * num_particles]);
+    Vector3f vgrad_v, vgrad_x;
+    for (int j = 0; j < num_particles; j++) {
+      for (int k = 0; k < 3; k++) {
+        vgrad_v[k] += grad_v[k * num_particles + j];
+        vgrad_x[k] += grad_x[k * num_particles + j];
+      }
+    }
+    TC_P(vgrad_v);
+    TC_P(vgrad_x);
   }
 };
 

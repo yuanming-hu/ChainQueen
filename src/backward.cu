@@ -60,6 +60,7 @@ __global__ void P2G_backward(State state, State next_state) {
         auto grad_n = state.grad_grid_node(
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
         for (int d = 0; d < dim; d++) {
+          //printf("grad_v_i %d %f\n", d, grad_v_i[d]);
           atomicAdd(&grad_n[d], grad_v_i[d]);
         }
       }
@@ -191,7 +192,7 @@ __global__ void G2P_backward(State state, State next_state) {
             tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
 
         for (int d = 0; d < dim; d++) {
-          // printf("grad p %f\n", grad_p[d]);
+          //printf("grad p[%d] %.10f\n", d, grad_p[d]);
         }
 
         auto grad_N = tc.dw(i, j, k);
@@ -281,7 +282,7 @@ void set_grad_loss(void *state_) {
   int num_particles = state->num_particles;
   std::vector<float> grad_x_host(num_particles * dim);
   for (int i = 0; i < num_particles; i++) {
-    grad_x_host[i * 3] = 1;
+    grad_x_host[i] = 1.0f / num_particles;
   }
   cudaMemcpy(state->grad_x_storage, grad_x_host.data(),
              sizeof(real) * dim * num_particles, cudaMemcpyHostToDevice);
