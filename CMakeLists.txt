@@ -39,9 +39,10 @@ else()
     message("Environment variable CUDA_ARCH not found. Not using CUDA.")
 endif()
 
+add_subdirectory(external/partio)
+
 add_library(taichi_${TAICHI_PROJECT_NAME} SHARED ${PROJECT_SOURCES})
-target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CORE_LIBRARY_NAME} ${SHARED_LIBS} cudmpm ${TF_LIBRARY_DIR}/libtensorflow_framework.so)
-target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/external/partio/lib/libpartio.a)
+target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CORE_LIBRARY_NAME} ${SHARED_LIBS} cudmpm ${TF_LIBRARY_DIR}/libtensorflow_framework.so partio)
 find_package(ZLIB)
 if (ZLIB_FOUND)
     target_link_libraries(taichi_${TAICHI_PROJECT_NAME} z)

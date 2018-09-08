@@ -31,24 +31,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-include_directories(
-   ${CMAKE_SOURCE_DIR}/src/lib
-)
+FILE(GLOB io_cpp "src/io/*.cpp")
+FILE(GLOB core_cpp "src/core/*.cpp")
+ADD_LIBRARY (partio SHARED ${io_cpp} ${core_cpp})
 
-IF(GLUT_FOUND AND OPENGL_FOUND)
-    ADD_EXECUTABLE(partview partview.cpp)
-    target_link_libraries(partview ${PARTIO_LIBRARIES} ${GLUT_LIBRARY} ${OPENGL_LIBRARY})
-    install(TARGETS  partview DESTINATION bin)
-ENDIF(GLUT_FOUND AND OPENGL_FOUND)
-
-ADD_EXECUTABLE(partinfo partinfo.cpp)
-target_link_libraries(partinfo ${PARTIO_LIBRARIES})
-
-ADD_EXECUTABLE(partconv partconv.cpp)
-target_link_libraries(partconv ${PARTIO_LIBRARIES})
-
-ADD_EXECUTABLE(partattr partattr.cpp)
-target_link_libraries(partattr ${PARTIO_LIBRARIES})
-
-install(TARGETS partattr partconv partinfo DESTINATION bin)
+FILE(GLOB public_includes "*.h")
 
