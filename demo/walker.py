@@ -11,12 +11,12 @@ import tensorflow.contrib.layers as ly
 from vector_math import *
 import export 
 
-lr = 0.1
+lr = 0.02
 gamma = 0.0
 
 sample_density = 20
 group_num_particles = sample_density**2
-goal_pos = np.array([1.4, 0.5])
+goal_pos = np.array([1.4, 0.4])
 goal_range = np.array([0.4, 0.00])
 batch_size = 10
 actuation_strength = 8
@@ -69,7 +69,7 @@ def main(sess):
       vel = tf.reduce_sum(mask * state.velocity, axis=1, keepdims=False)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
-      controller_inputs.append((goal - goal_pos * 0.5) / np.maximum(goal_range, 1e-30))
+      controller_inputs.append((goal - goal_pos) / np.maximum(goal_range, 1e-5))
     # Batch, dim
     controller_inputs = tf.concat(controller_inputs, axis=1)
     assert controller_inputs.shape == (batch_size, 6 * num_groups), controller_inputs.shape
@@ -106,7 +106,7 @@ def main(sess):
       dt=0.005,
       num_particles=num_particles,
       grid_res=res,
-      dx=1.5 / res[1],
+      dx=1.0 / res[1],
       gravity=gravity,
       controller=controller,
       batch_size=batch_size,
@@ -188,7 +188,7 @@ def main(sess):
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
       sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                    show=True, interval=2)
+                    show=True, interval=4)
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     

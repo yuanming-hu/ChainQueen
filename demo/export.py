@@ -20,7 +20,7 @@ class Export:
     self.cnt += 1
     self.last = img.copy()
   
-  def wait(self, sec = 1):
+  def wait(self, sec = 0.4):
     frame = int(sec * self.fps)
     for i in range(frame):
       self(self.last)
