@@ -9,15 +9,24 @@ using namespace tensorflow;
     Register MPM operation
 */
 
+    
+int res[3] = {20, 20, 20};
+float gravity[3] = {0, -0, 0};
+float dx = 1.0 / res[0];
+float dt = 1e-2;
+int num_cells = res[0] * res[1] * res[2];
+
 REGISTER_OP("Mpm")
-  .Input("position: float") //(batch_size, dim, particles)
-  .Input("velocity: float") //(batch_size, dim, particles)
-  .Input("affine: float") //(batch_size, dim, dim, particles)
-  .Input("deformation: float") //(batch_size, dim, dim, particles)
-  .Output("position_out: float")
-  .Output("velocity_out: float")
-  .Output("affine_out: float")
-  .Output("deformation_out: float")
+  .Input("position: float")         //(batch_size, dim, particles)
+  .Input("velocity: float")         //(batch_size, dim, particles)
+  .Input("affine: float")           //(batch_size, dim, dim, particles)
+  .Input("deformation: float")      //(batch_size, dim, dim, particles)
+  .Output("position_out: float")    
+  .Output("velocity_out: float")    
+  .Output("affine_out: float")      
+  .Output("deformation_out: float") 
+  .Output("poly_out: float")        //(batch_size, dim, dim, particles)
+  .Output("grid_out: float")        //(batch_size, dim + 1, num_cells)
   .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
 
     shape_inference::ShapeHandle x_shape;
@@ -29,15 +38,15 @@ REGISTER_OP("Mpm")
     shape_inference::ShapeHandle C_shape;
     TF_RETURN_IF_ERROR(c->WithRank(c->input(3), 4, &C_shape));
     
-    shape_inference::DimensionHandle merge;
+    shape_inference::DimensionHandle temp;
     
     shape_inference::DimensionHandle batch_size = c->Dim(x_shape, 0);
     shape_inference::DimensionHandle batch_sizev = c->Dim(v_shape, 0);
     shape_inference::DimensionHandle batch_sizeF = c->Dim(F_shape, 0);
     shape_inference::DimensionHandle batch_sizeC = c->Dim(C_shape, 0);
-    TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizev, &merge));
-    TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizeF, &merge));
-    TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizeC, &merge));
+    TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizev, &temp));
+    TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizeF, &temp));
+    TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizeC, &temp));
     
     shape_inference::DimensionHandle dim = c->Dim(x_shape, 1);
     shape_inference::DimensionHandle dimv = c->Dim(v_shape, 1);
@@ -45,24 +54,33 @@ REGISTER_OP("Mpm")
     shape_inference::DimensionHandle dimF2 = c->Dim(F_shape, 2);
     shape_inference::DimensionHandle dimC1 = c->Dim(C_shape, 1);
     shape_inference::DimensionHandle dimC2 = c->Dim(C_shape, 2);
-    TF_RETURN_IF_ERROR(c->Merge(dim, dimv, &merge));
-    TF_RETURN_IF_ERROR(c->Merge(dim, dimF1, &merge));
-    TF_RETURN_IF_ERROR(c->Merge(dim, dimF2, &merge));
-    TF_RETURN_IF_ERROR(c->Merge(dim, dimC1, &merge));
-    TF_RETURN_IF_ERROR(c->Merge(dim, dimC2, &merge));
+    TF_RETURN_IF_ERROR(c->Merge(dim, dimv, &temp));
+    TF_RETURN_IF_ERROR(c->Merge(dim, dimF1, &temp));
+    TF_RETURN_IF_ERROR(c->Merge(dim, dimF2, &temp));
+    TF_RETURN_IF_ERROR(c->Merge(dim, dimC1, &temp));
+    TF_RETURN_IF_ERROR(c->Merge(dim, dimC2, &temp));
     
     shape_inference::DimensionHandle particle = c->Dim(x_shape, 2);
     shape_inference::DimensionHandle particlev = c->Dim(v_shape, 2);
     shape_inference::DimensionHandle particleF = c->Dim(F_shape, 3);
     shape_inference::DimensionHandle particleC = c->Dim(C_shape, 3);
-    TF_RETURN_IF_ERROR(c->Merge(particle, particlev, &merge));
-    TF_RETURN_IF_ERROR(c->Merge(particle, particleF, &merge));
-    TF_RETURN_IF_ERROR(c->Merge(particle, particleC, &merge));
+    TF_RETURN_IF_ERROR(c->Merge(particle, particlev, &temp));
+    TF_RETURN_IF_ERROR(c->Merge(particle, particleF, &temp));
+    TF_RETURN_IF_ERROR(c->Merge(particle, particleC, &temp));
     
     c->set_output(0, x_shape);
     c->set_output(1, v_shape);
     c->set_output(2, F_shape);
     c->set_output(3, C_shape);
+    c->set_output(4, C_shape);
+    std::vector<shape_inference::DimensionHandle> new_shape;
+    new_shape.clear();
+    new_shape.push_back(batch_size);
+    new_shape.push_back(dim);
+    new_shape.push_back(dim);
+    new_shape.push_back(
+         c->MakeDim(shape_inference::DimensionOrConstant(num_cells)));
+    c->set_output(5, c->MakeShape(new_shape));
 
     return Status::OK();
   });
@@ -74,7 +92,8 @@ REGISTER_OP("Mpm")
 void MPMKernelLauncher(
     int res[3], int num_particles, float dx, float dt, float gravity[3],
     const float *inx, const float *inv, const float *inF, const float *inC,
-    float *outx, float *outv, float *outF, float *outC);
+    float *outx, float *outv, float *outF, float *outC, float *outP,
+    float *outgrid);
 
 class MPMOpGPU : public OpKernel {
 public:
@@ -101,6 +120,7 @@ public:
     const TensorShape& v_shape = inv.shape();
     const TensorShape& F_shape = inF.shape();
     const TensorShape& C_shape = inC.shape();
+    TensorShape grid_shape = inC.shape();
     
     //Check that inputs' dimensional
     DCHECK_EQ(x_shape.dims(), 3);
@@ -139,10 +159,15 @@ public:
     Tensor* outv = NULL;
     Tensor* outF = NULL;
     Tensor* outC = NULL;
+    Tensor* outP = NULL;
+    Tensor* outgrid = NULL;
     OP_REQUIRES_OK(context, context->allocate_output(0, x_shape, &outx));
     OP_REQUIRES_OK(context, context->allocate_output(1, v_shape, &outv));
     OP_REQUIRES_OK(context, context->allocate_output(2, F_shape, &outF));
     OP_REQUIRES_OK(context, context->allocate_output(3, C_shape, &outC));
+    OP_REQUIRES_OK(context, context->allocate_output(4, C_shape, &outP));
+    grid_shape.set_dim(3, num_cells);
+    OP_REQUIRES_OK(context, context->allocate_output(5, grid_shape, &outgrid));
     
     auto f_inx = inx.flat<float>();
     auto f_inv = inv.flat<float>();
@@ -152,11 +177,8 @@ public:
     auto f_outv = outv->template flat<float>();
     auto f_outF = outF->template flat<float>();
     auto f_outC = outC->template flat<float>();
-    
-    int res[3] = {20, 20, 20};
-    float gravity[3] = {0, -0, 0};
-    float dx = 1.0 / res[0];
-    float dt = 1e-2;
+    auto f_outP = outP->template flat<float>();
+    auto f_outgrid = outgrid->template flat<float>();
     
 
     MPMKernelLauncher(
@@ -168,7 +190,9 @@ public:
         f_outx.data(),
         f_outv.data(),
         f_outF.data(),
-        f_outC.data());
+        f_outC.data(),
+        f_outP.data(),
+        f_outgrid.data());
   }
 };
 

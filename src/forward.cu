@@ -214,12 +214,13 @@ void advance(State &state, State &new_state) {
 void MPMKernelLauncher(
     int res[dim], int num_particles, real dx, real dt, real gravity[dim],
     const real *inx, const real *inv, const real *inF, const real *inC,
-    real *outx, real *outv, real *outF, real *outC) {
+    real *outx, real *outv, real *outF, real *outC,
+    real *outP, real *outgrid) {
   printf("MPM Kernel Launch:\n");
   auto instate = new State(res, num_particles, dx, dt, gravity, 
-      (real *)inx, (real *)inv, (real *)inF, (real *)inC);
+      (real *)inx, (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
   auto outstate = new State(res, num_particles, dx, dt, gravity, 
-      outx, outv, outF, outC);
+      outx, outv, outF, outC, NULL, NULL);
   advance(*instate, *outstate);
 }
 

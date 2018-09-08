@@ -139,7 +139,8 @@ struct State : public StateBase {
   TC_MPM_MATRIX(C);
 
   State(int res[dim], int num_particles, real dx, real dt, real gravity[dim],
-      real *x_storage, real *v_storage, real *F_storage, real *C_storage) {
+      real *x_storage, real *v_storage, real *F_storage, real *C_storage,
+      real *P_storage, real *grid_storage) {
     this->num_cells = 1;
     for (int i = 0; i < dim; i++) {
       this->res[i] = res[i];
@@ -156,24 +157,26 @@ struct State : public StateBase {
     this->v_storage = v_storage;
     this->F_storage = F_storage;
     this->C_storage = C_storage;
-    cudaMalloc(&P_storage, sizeof(real) * dim * dim * num_particles);
-    cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
-
-    cudaMalloc(&grad_x_storage, sizeof(real) * dim * num_particles);
-    cudaMalloc(&grad_v_storage, sizeof(real) * dim * num_particles);
-    cudaMalloc(&grad_F_storage, sizeof(real) * dim * dim * num_particles);
-    cudaMalloc(&grad_P_storage, sizeof(real) * dim * dim * num_particles);
-    cudaMalloc(&grad_C_storage, sizeof(real) * dim * dim * num_particles);
-    cudaMalloc(&grad_grid_storage, sizeof(real) * (dim + 1) * num_cells);
+    this->P_storage = P_storage;
+    this->grid_storage = grid_storage;
   }
 
   State(int res[dim], int num_particles, real dx, real dt, real gravity[dim]) :
       State(res, num_particles, dx, dt, gravity,
-          NULL, NULL, NULL, NULL) {
+          NULL, NULL, NULL, NULL, NULL, NULL) {
     cudaMalloc(&x_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&v_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&F_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&C_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&P_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
+    
+    cudaMalloc(&grad_x_storage, sizeof(real) * dim * num_particles);
+    cudaMalloc(&grad_v_storage, sizeof(real) * dim * num_particles);
+    cudaMalloc(&grad_F_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&grad_C_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&grad_P_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&grad_grid_storage, sizeof(real) * (dim + 1) * num_cells);
 
     std::vector<real> F_initial(num_particles * dim * dim, 0);
     for (int i = 0; i < num_particles; i++) {

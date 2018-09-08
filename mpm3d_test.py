@@ -26,12 +26,14 @@ class MPMOpTest(unittest.TestCase):
             f[0, 1, 1, 0] = 1
             f[0, 2, 2, 0] = 1
             F = tf.constant(f)
-            xx, vv, CC, FF = MPM_module.mpm(x, v, C, F)
+            xx, vv, CC, FF, PP, grid = MPM_module.mpm(x, v, C, F)
             step = MPM_module.mpm(xx, vv, CC, FF)
             feed_dict = {x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
                 v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)}
             o = sess.run(step, feed_dict = feed_dict)
+            a, b, c, d, e, f = o
             print(o)
+            print(f.max())
             
                 
 if __name__ == '__main__':
