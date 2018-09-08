@@ -21,6 +21,8 @@ message("Including tensorflow include dir: ${TF_INCLUDE_DIRS}")
 message("          tensorflow library dir: ${TF_LIBRARY_DIR}")
 include_directories(${TF_INCLUDE_DIRS})
 
+include_directories(external/partio/include)
+
 if ($ENV{CUDA_ARCH})
     message("CUDA Arch: $ENV{CUDA_ARCH}")
     find_package(CUDA 8.0 REQUIRED)
@@ -37,4 +39,8 @@ endif()
 
 add_library(taichi_${TAICHI_PROJECT_NAME} SHARED ${PROJECT_SOURCES})
 target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CORE_LIBRARY_NAME} ${SHARED_LIBS} cudmpm ${TF_LIBRARY_DIR}/libtensorflow_framework.so)
-
+target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/external/partio/lib/libpartio.a)
+find_package(ZLIB)
+if (ZLIB_FOUND)
+    target_link_libraries(taichi_${TAICHI_PROJECT_NAME} z)
+endif(ZLIB_FOUND)

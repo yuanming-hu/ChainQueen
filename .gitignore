@@ -54,3 +54,4 @@ __pycache__
 *.ini
 videos
 *.mp4
+*.bgeo

@@ -2,6 +2,7 @@
 #include <taichi/common/task.h>
 #include <taichi/testing.h>
 #include <taichi/io/optix.h>
+#include <Partio.h>
 #include "kernels.h"
 #include "state_base.h"
 
@@ -25,6 +26,57 @@ class DMPMSimulator3D {
   void test() {
   }
 };
+
+void write_partio(std::vector<Vector3> positions, const std::string &file_name) {
+  Partio::ParticlesDataMutable *parts = Partio::create();
+  Partio::ParticleAttribute posH, vH, mH, typeH, normH, statH, boundH, distH,
+      debugH, indexH, limitH, apicH;
+
+  bool verbose = false;
+
+  posH = parts->addAttribute("position", Partio::VECTOR, 3);
+  //typeH = parts->addAttribute("type", Partio::INT, 1);
+  //indexH = parts->addAttribute("index", Partio::INT, 1);
+  //limitH = parts->addAttribute("limit", Partio::INT, 3);
+  //vH = parts->addAttribute("v", Partio::VECTOR, 3);
+
+  if (verbose) {
+    mH = parts->addAttribute("m", Partio::VECTOR, 1);
+    normH = parts->addAttribute("boundary_normal", Partio::VECTOR, 3);
+    debugH = parts->addAttribute("debug", Partio::VECTOR, 3);
+    statH = parts->addAttribute("states", Partio::INT, 1);
+    distH = parts->addAttribute("boundary_distance", Partio::FLOAT, 1);
+    boundH = parts->addAttribute("near_boundary", Partio::INT, 1);
+    apicH = parts->addAttribute("apic_frobenius_norm", Partio::FLOAT, 1);
+  }
+  for (auto p : positions) {
+    //const Particle *p = allocator.get_const(p_i);
+    int idx = parts->addParticle();
+    //Vector vel = p->get_velocity();
+    //float32 *v_p = parts->dataWrite<float32>(vH, idx);
+    //for (int k = 0; k < 3; k++)
+    //  v_p[k] = vel[k];
+    //int *type_p = parts->dataWrite<int>(typeH, idx);
+    //int *index_p = parts->dataWrite<int>(indexH, idx);
+    //int *limit_p = parts->dataWrite<int>(limitH, idx);
+    float32 *p_p = parts->dataWrite<float32>(posH, idx);
+
+    //Vector pos = p->pos;
+
+    for (int k = 0; k < 3; k++)
+      p_p[k] = 0.f;
+
+    for (int k = 0; k < 3; k++)
+      p_p[k] = p[k];
+    //type_p[0] = int(p->is_rigid());
+    //index_p[0] = p->id;
+    //limit_p[0] = p->dt_limit;
+    //limit_p[1] = p->stiffness_limit;
+    //limit_p[2] = p->cfl_limit;
+  }
+  Partio::write(file_name.c_str(), *parts);
+  parts->release();
+}
 
 /*
 auto gpu_mpm3d = []() {
@@ -232,5 +284,25 @@ auto test_cuda_svd = []() {
 };
 
 TC_REGISTER_TASK(test_cuda_svd);
+
+
+auto test_partio = []() {
+  real dx = 0.01_f;
+  for (int f = 0; f < 100; f++) {
+    std::vector<Vector3> positions;
+    for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
+        for (int k = 0; k < 10; k++) {
+          positions.push_back(dx * Vector3(i + f, j, k));
+        }
+      }
+    }
+    auto fn = fmt::format("{:04d}.bgeo", f);
+    TC_INFO(fn);
+    write_partio(positions, fn);
+  }
+};
+
+TC_REGISTER_TASK(test_partio);
 
 TC_NAMESPACE_END
