@@ -1,6 +1,6 @@
 set(TAICHI_PROJECT_NAME "differentiable_mpm")
 
-file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.h" "src/*/*.h" "src/*/*.cpp" "src/*.cuh")
+file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.h" "src/*/*.h" "src/*/*.cpp" "src/*.cuh" "src/*.cc")
 file(GLOB_RECURSE PROJECT_SOURCES_CUDA "src/*.cu")
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -16,6 +16,8 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} -c
         "import tensorflow as tf; import sys;\
         sys.stdout.write(tf.sysconfig.get_lib())"
         OUTPUT_VARIABLE TF_LIBRARY_DIR)
+
+
 
 message("Including tensorflow include dir: ${TF_INCLUDE_DIRS}")
 message("          tensorflow library dir: ${TF_LIBRARY_DIR}")
