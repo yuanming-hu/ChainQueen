@@ -11,13 +11,13 @@ import tensorflow.contrib.layers as ly
 from vector_math import *
 import export 
 
-lr = 1
+lr = 0.1
 gamma = 0.0
 
 sample_density = 20
 group_num_particles = sample_density**2
-goal_pos = np.array([0.5, 0.5])
-goal_range = np.array([0.25, 0.25])
+goal_pos = np.array([1.4, 0.5])
+goal_range = np.array([0.4, 0.00])
 batch_size = 10
 actuation_strength = 8
 
@@ -69,7 +69,7 @@ def main(sess):
       vel = tf.reduce_sum(mask * state.velocity, axis=1, keepdims=False)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
-      controller_inputs.append((goal - goal_pos) / goal_range)
+      controller_inputs.append((goal - goal_pos * 0.5) / np.maximum(goal_range, 1e-30))
     # Batch, dim
     controller_inputs = tf.concat(controller_inputs, axis=1)
     assert controller_inputs.shape == (batch_size, 6 * num_groups), controller_inputs.shape
@@ -99,18 +99,20 @@ def main(sess):
         act, transpose(state['deformation_gradient']))
     return total_actuation, debug
   
-  res = (25, 25)
+  res = (80, 40)
   bc = get_bounding_box_bc(res)
   
   sim = Simulation(
-      dt=0.01,
+      dt=0.005,
       num_particles=num_particles,
       grid_res=res,
+      dx=1.5 / res[1],
       gravity=gravity,
       controller=controller,
       batch_size=batch_size,
       bc=bc,
-      sess=sess)
+      sess=sess,
+      scale=10)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
@@ -155,7 +157,7 @@ def main(sess):
   goal_train = [np.array(
     [[pos_x + (random.random() - 0.5) * gx,
       pos_y + (random.random() - 0.5) * gy] for _ in range(batch_size)],
-    dtype=np.float32) for __ in range(10)]
+    dtype=np.float32) for __ in range(1)]
 
   vis_id = list(range(batch_size))
   random.shuffle(vis_id)
@@ -171,7 +173,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=50,
+          num_steps=400,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
@@ -185,8 +187,9 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      sim.visualize(memo, batch = 0)
-
+      sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
+                    show=True, interval=2)
+    #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
 if __name__ == '__main__':

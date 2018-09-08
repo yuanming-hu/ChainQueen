@@ -25,12 +25,13 @@ class Export:
     for i in range(frame):
       self(self.last)
 
-  def export(self):
+  def export(self, delete = False):
     fps, d = self.fps, self.dir
     os.system('cd {}\nti video {}'.format(d, fps))
     os.system('mv {} ./{}.mp4'.format(os.path.join(d, 'video.mp4'), d))
-    import shutil
-    shutil.rmtree(d, ignore_errors = True)
+    if delete:
+      import shutil
+      shutil.rmtree(d, ignore_errors = True)
 
 if __name__ == '__main__':
   pass

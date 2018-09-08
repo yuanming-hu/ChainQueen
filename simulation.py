@@ -27,10 +27,14 @@ class Simulation:
                damping=0.0,
                dx=None,
                bc=None,
-               batch_size=1):
+               batch_size=1,
+               scale=None):
     self.sess = sess
     self.num_particles = num_particles
-    self.scale = 900 // grid_res[0]
+    if scale is None:
+      self.scale = 900 // grid_res[0]
+    else:
+      self.scale = scale
     self.grid_res = grid_res
     self.dim = len(self.grid_res)
     if dx is None:
@@ -55,7 +59,7 @@ class Simulation:
     self.point_visualization = []
     self.vector_visualization = []
     
-  def visualize(self, memo, interval=1, batch = 0, export = None):
+  def visualize(self, memo, interval=1, batch = 0, export=None, show=False):
     import math
     import cv2
     import numpy as np
@@ -101,10 +105,10 @@ class Simulation:
         cv2.line(img, (pos[b][1], pos[b][0]), (vec[b][1], vec[b][0]), color = color, thickness = 1)
     
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
-      if export is None:
+      if export is None or show:
         cv2.imshow('Differentiable MPM Simulator', img)
         cv2.waitKey(1)
-      else:
+      if export is not None:
         export(img)
 
     if export is not None:
