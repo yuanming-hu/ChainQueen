@@ -3,6 +3,7 @@ sys.path.append('..')
 
 import random
 import os
+import numpy as np
 from simulation import Simulation, get_bounding_box_bc
 import time
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -11,7 +12,7 @@ import tensorflow.contrib.layers as ly
 from vector_math import *
 import export 
 
-lr = 0.02
+lr = 0.005
 gamma = 0.0
 
 sample_density = 20
@@ -112,7 +113,7 @@ def main(sess):
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      scale=10)
+      scale=20)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
@@ -173,13 +174,16 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=400,
+          num_steps=600,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
       tt = time.time()
       grad = sim.eval_gradients(sym=sym, memo=memo)
       print('backward', time.time() - tt)
+
+      for i, g in enumerate(grad):
+        print(i, np.mean(np.abs(g)))
       gradient_descent = [
           v.assign(v - lr * g) for v, g in zip(trainables, grad)
       ]
