@@ -2,9 +2,10 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import sparse_ops
-from IPython import embed
 
 MPM_module = tf.load_op_library('../../build/libtaichi_differentiable_mpm.so')
+
+mpm = MPM_module.mpm
 
 @ops.RegisterGradient("Mpm")
 def _mpm_grad_cc(op, *grads):
