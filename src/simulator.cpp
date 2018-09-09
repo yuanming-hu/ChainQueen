@@ -3,6 +3,7 @@
 #include <taichi/testing.h>
 #include <taichi/io/optix.h>
 #include <Partio.h>
+#include <taichi/system/profiler.h>
 #include "kernels.h"
 #include "state_base.h"
 
@@ -27,7 +28,8 @@ class DMPMSimulator3D {
   }
 };
 
-void write_partio(std::vector<Vector3> positions, const std::string &file_name) {
+void write_partio(std::vector<Vector3> positions,
+                  const std::string &file_name) {
   Partio::ParticlesDataMutable *parts = Partio::create();
   Partio::ParticleAttribute posH, vH, mH, typeH, normH, statH, boundH, distH,
       debugH, indexH, limitH, apicH;
@@ -35,10 +37,10 @@ void write_partio(std::vector<Vector3> positions, const std::string &file_name) 
   bool verbose = false;
 
   posH = parts->addAttribute("position", Partio::VECTOR, 3);
-  //typeH = parts->addAttribute("type", Partio::INT, 1);
-  //indexH = parts->addAttribute("index", Partio::INT, 1);
-  //limitH = parts->addAttribute("limit", Partio::INT, 3);
-  //vH = parts->addAttribute("v", Partio::VECTOR, 3);
+  // typeH = parts->addAttribute("type", Partio::INT, 1);
+  // indexH = parts->addAttribute("index", Partio::INT, 1);
+  // limitH = parts->addAttribute("limit", Partio::INT, 3);
+  // vH = parts->addAttribute("v", Partio::VECTOR, 3);
 
   if (verbose) {
     mH = parts->addAttribute("m", Partio::VECTOR, 1);
@@ -50,29 +52,29 @@ void write_partio(std::vector<Vector3> positions, const std::string &file_name) 
     apicH = parts->addAttribute("apic_frobenius_norm", Partio::FLOAT, 1);
   }
   for (auto p : positions) {
-    //const Particle *p = allocator.get_const(p_i);
+    // const Particle *p = allocator.get_const(p_i);
     int idx = parts->addParticle();
-    //Vector vel = p->get_velocity();
-    //float32 *v_p = parts->dataWrite<float32>(vH, idx);
-    //for (int k = 0; k < 3; k++)
+    // Vector vel = p->get_velocity();
+    // float32 *v_p = parts->dataWrite<float32>(vH, idx);
+    // for (int k = 0; k < 3; k++)
     //  v_p[k] = vel[k];
-    //int *type_p = parts->dataWrite<int>(typeH, idx);
-    //int *index_p = parts->dataWrite<int>(indexH, idx);
-    //int *limit_p = parts->dataWrite<int>(limitH, idx);
+    // int *type_p = parts->dataWrite<int>(typeH, idx);
+    // int *index_p = parts->dataWrite<int>(indexH, idx);
+    // int *limit_p = parts->dataWrite<int>(limitH, idx);
     float32 *p_p = parts->dataWrite<float32>(posH, idx);
 
-    //Vector pos = p->pos;
+    // Vector pos = p->pos;
 
     for (int k = 0; k < 3; k++)
       p_p[k] = 0.f;
 
     for (int k = 0; k < 3; k++)
       p_p[k] = p[k];
-    //type_p[0] = int(p->is_rigid());
-    //index_p[0] = p->id;
-    //limit_p[0] = p->dt_limit;
-    //limit_p[1] = p->stiffness_limit;
-    //limit_p[2] = p->cfl_limit;
+    // type_p[0] = int(p->is_rigid());
+    // index_p[0] = p->id;
+    // limit_p[0] = p->dt_limit;
+    // limit_p[1] = p->stiffness_limit;
+    // limit_p[2] = p->cfl_limit;
   }
   Partio::write(file_name.c_str(), *parts);
   parts->release();
@@ -136,10 +138,10 @@ auto gpu_mpm3d = []() {
     for (int j = 0; j < n; j++) {
       for (int k = 0; k < n; k++) {
         bool right = (i / (n / 2));
-        //initial_positions.push_back(i * 0.025_f + 0.2123_f);
+        // initial_positions.push_back(i * 0.025_f + 0.2123_f);
         initial_positions.push_back(i * 0.025_f + 0.2123_f + 0.2 * right);
-        initial_velocities.push_back(1 - 1*right);
-        //initial_velocities.push_back(0.0);
+        initial_velocities.push_back(1 - 1 * right);
+        // initial_velocities.push_back(0.0);
       }
     }
   }
@@ -175,7 +177,7 @@ auto gpu_mpm3d = []() {
   Vector3 gravity(0, 0, 0);
   for (int i = 0; i < num_steps + 1; i++) {
     initialize_mpm3d_state(&res[0], num_particles, &gravity[0], states[i],
-                           5e-3_f, initial_positions.data());
+                           1.0_f / res[0], 5e-3_f, initial_positions.data());
     std::fill(initial_positions.begin(), initial_positions.end(), 0);
     if (i == 0) {
       set_initial_velocities(states[i], initial_velocities.data());
@@ -223,6 +225,81 @@ auto gpu_mpm3d = []() {
 };
 
 TC_REGISTER_TASK(gpu_mpm3d);
+
+auto gpu_mpm3d_falling_cube = []() {
+  // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
+  int n = 20;
+  real dx = 0.2;
+  real sample_density = 0.1;
+  Vector3 corner(2, 5 + 2 * dx, 2);
+  int num_particles = n * n * n;
+  std::vector<real> initial_positions;
+  std::vector<real> initial_velocities;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
+        // initial_positions.push_back(i * 0.025_f + 0.2123_f);
+        initial_positions.push_back(i * sample_density + corner[0]);
+        initial_velocities.push_back(0);
+      }
+    }
+  }
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
+        initial_positions.push_back(j * sample_density + corner[1]);
+        initial_velocities.push_back(0);
+      }
+    }
+  }
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
+        initial_positions.push_back(k * sample_density + corner[2]);
+        initial_velocities.push_back(0);
+      }
+    }
+  }
+  std::vector<real> initial_F;
+  for (int a = 0; a < 3; a++) {
+    for (int b = 0; b < 3; b++) {
+      for (int i = 0; i < num_particles; i++) {
+        initial_F.push_back(real(a == b) * 1.1);
+      }
+    }
+  }
+  int num_frames = 300;
+  Vector3i res(50, 50, 50);
+  Vector3 gravity(0, -10, 0);
+  void * state;
+  int substep = 3;
+  real dt = 1.0_f / 60 / substep;
+  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], state, dx, dt,
+                         initial_positions.data());
+  set_initial_velocities(state, initial_velocities.data());
+
+  for (int i = 0; i < num_frames; i++) {
+    TC_INFO("forward step {}", i);
+    auto x = fetch_mpm3d_particles(state);
+    auto fn = fmt::format("{:04d}.bgeo", i);
+    TC_INFO(fn);
+    std::vector<Vector3> parts;
+    for (int p = 0; p < (int)initial_positions.size() / 3; p++) {
+      auto pos = Vector3(x[p], x[p + num_particles], x[p + 2 * num_particles]);
+      parts.push_back(pos);
+    }
+    write_partio(parts, fn);
+
+    {
+      TC_PROFILER("simulate one frame");
+      for (int j = 0; j < substep; j++)
+        forward_mpm3d_state(state, state);
+    }
+    taichi::print_profile_info();
+  }
+};
+
+TC_REGISTER_TASK(gpu_mpm3d_falling_cube);
 
 auto test_cuda = []() {
   int N = 10;
@@ -284,7 +361,6 @@ auto test_cuda_svd = []() {
 };
 
 TC_REGISTER_TASK(test_cuda_svd);
-
 
 auto test_partio = []() {
   real dx = 0.01_f;
