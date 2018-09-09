@@ -12,7 +12,7 @@ class SimulationState:
 
   def __init__(self, sim):
     self.sim = sim
-    self.affine = tf.zeros(shape=(self.sim.batch_size, sim.num_particles, dim, dim))
+    self.affine = tf.zeros(shape=(self.sim.batch_size, dim, dim, sim.num_particles))
     self.position = None
     self.particle_mass = None
     self.particle_volume = None
@@ -28,6 +28,7 @@ class SimulationState:
     self.debug = None
 
   def center_of_mass(self, left = None, right = None):
+    assert False, 'not implemented'
     return tf.reduce_sum(self.position[:, left:right] * self.particle_mass[:, left:right], axis=1) *\
            (1 / tf.reduce_sum(self.particle_mass[:, left:right], axis=1))
 
@@ -78,17 +79,22 @@ class SimulationState:
 
   @staticmethod
   def compute_kernels(positions):
+    # (x, y, dim)
     grid_node_coord = [[(i, j) for j in range(3)] for i in range(3)]
-    grid_node_coord = np.array(grid_node_coord)[None, None, :, :]
-    frac = (positions - tf.floor(positions - 0.5))[:, :, None, None, :]
+    grid_node_coord = np.array(grid_node_coord)[None, :, :, :, None]
+    frac = (positions - tf.floor(positions - 0.5))[:, None, None, :, :]
+    assert frac.shape()[3] == dim
+    print('frac', frac.shape)
+    print('grid_node_coord', grid_node_coord.shape)
 
+    # (batch, x, y, dim, p) - (?, x, y, dim, ?)
     x = tf.abs(frac - grid_node_coord)
-    #print('x', x.shape)
+    print('x', x.shape)
 
     mask = tf.cast(x < 0.5, tf.float32)
     y = mask * (0.75 - x * x) + (1 - mask) * (0.5 * (1.5 - x)**2)
     #print('y', y.shape)
-    y = tf.reduce_prod(y, axis=4, keepdims=True)
+    y = tf.reduce_prod(y, axis=3, keepdims=True)
     #print('y', y.shape)
     return y
 
@@ -100,23 +106,23 @@ class InitialSimulationState(SimulationState):
     self.t = 0
     num_particles = sim.num_particles
     self.position = tf.placeholder(
-        tf.float32, [self.sim.batch_size, num_particles, dim], name='position')
+        tf.float32, [self.sim.batch_size, dim, num_particles], name='position')
 
     self.velocity = tf.placeholder(
-        tf.float32, [self.sim.batch_size, num_particles, dim], name='velocity')
+        tf.float32, [self.sim.batch_size, dim, num_particles], name='velocity')
     self.deformation_gradient = tf.placeholder(
-        tf.float32, [self.sim.batch_size, num_particles, dim, dim], name='dg')
+        tf.float32, [self.sim.batch_size, dim, dim, num_particles], name='dg')
     self.particle_mass = tf.placeholder(
-        tf.float32, [self.sim.batch_size, num_particles, 1],
+        tf.float32, [self.sim.batch_size, 1, num_particles],
         name='particle_mass')
     self.particle_volume = tf.placeholder(
-        tf.float32, [self.sim.batch_size, num_particles, 1],
+        tf.float32, [self.sim.batch_size, 1, num_particles],
         name='particle_volume')
     self.youngs_modulus = tf.placeholder(
-        tf.float32, [self.sim.batch_size, num_particles, 1],
+        tf.float32, [self.sim.batch_size, 1, num_particles],
         name='youngs_modulus')
     self.poissons_ratio = tf.placeholder(
-        tf.float32, [self.sim.batch_size, num_particles, 1],
+        tf.float32, [self.sim.batch_size, 1, num_particles],
         name='poissons_ratio')
     self.grid_mass = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
                                      self.sim.grid_res[1], 1))
@@ -163,13 +169,15 @@ class UpdatedSimulationState(SimulationState):
     batch_size = self.sim.batch_size
     num_particles = sim.num_particles
     # TODO:
+
     # Add the batch size indices
     base_indices = tf.concat(
         [
-            tf.zeros(shape=(batch_size, num_particles, 1), dtype=tf.int32),
+            tf.zeros(shape=(batch_size, 1, num_particles), dtype=tf.int32),
             base_indices
         ],
         axis=2)
+
     # print('base indices', base_indices.shape)
     self.grid_mass = tf.zeros(shape=(batch_size, self.sim.grid_res[0],
                                      self.sim.grid_res[1], 1))
