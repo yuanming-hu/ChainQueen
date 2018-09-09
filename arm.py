@@ -20,52 +20,28 @@ goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
 
-nn_control = False
-use_bfgs = False
+
 use_pygmo = True
-wolfe_search = False
-num_acts = 40
 
-config = 'B'
-if config == 'A':
-  num_steps = 150
-else:
-  num_steps = 800
 
-if config == 'A':
-  # Robot A
-  num_groups = 5
-  group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
-  group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
-  actuations = [0, 4]
-  head = 2
-  gravity = (0, -2)
-elif config == 'B':
-  # Finger
-  num_links = 1
-  group_sizes = []
-  group_offsets = []
-  actuations = []
-  group_size = [(0.5, 2 / num_links), (0.5, 2 / num_links), (1, 1 / num_links)]
-  for i in range(num_links):
-    group_offsets += [(1, group_size[0][1] *i + 0), (1.5, group_size[1][1] *i + 0), (1, group_size[2][1] *i + 2)]
-    group_sizes += copy.deepcopy(group_size)
-    actuations += [0  + 3*i, 1 + 3*i]
-  num_groups = len(group_sizes)
-  
-  head = 2
-  gravity = (0, 0)
-elif config == 'C':
-  # Robot B
-  num_groups = 7
-  group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
-  group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
-  actuations = [0, 1, 5, 6]
-  fixed_groups = []
-  head = 3
-  gravity = (0, -2)
-else:
-  print('Unknown config {}'.format(config))
+num_steps = 400
+num_acts = num_steps
+
+# Finger
+num_links = 1
+group_sizes = []
+group_offsets = []
+actuations = []
+group_size = [(0.5, 2 / num_links), (0.5, 2 / num_links), (1, 1 / num_links)]
+for i in range(num_links):
+  group_offsets += [(1, group_size[0][1] *i + 0), (1.5, group_size[1][1] *i + 0), (1, group_size[2][1] *i + 2)]
+  group_sizes += copy.deepcopy(group_size)
+  actuations += [0  + 3*i, 1 + 3*i]
+num_groups = len(group_sizes)
+
+head = num_groups - 1
+gravity = (0, 0)
+
 
 num_particles = group_num_particles * num_groups
 num_actuators = len(actuations)
@@ -80,14 +56,8 @@ def particle_mask_from_group(g):
   return particle_mask(g * group_num_particles, (g + 1) * group_num_particles)
 
 
-# NN weights
-if nn_control:
-  W1 = tf.Variable(
-      0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))),
-      trainable=True)
-  b1 = tf.Variable([0.0] * len(actuations), trainable=True)
-else:
-  actuation_seq = tf.Variable(1.0 * tf.random_normal(shape=(1, num_acts, num_actuators), dtype=np.float32), trainable=True)
+
+actuation_seq = tf.Variable(1.0 * tf.random_normal(shape=(1, num_acts, num_actuators), dtype=np.float32), trainable=True)
 
 def step_callback(dec_vec):
   pass
@@ -117,19 +87,8 @@ def main(sess):
     assert controller_inputs.shape == (batch_size, 6 * num_groups), controller_inputs.shape
     controller_inputs = controller_inputs[:, :, None]
     assert controller_inputs.shape == (batch_size, 6 * num_groups, 1)
-    # Batch, 6 * num_groups, 1
-    if nn_control:
-      intermediate = tf.matmul(W1[None, :, :] +
-                               tf.zeros(shape=[batch_size, 1, 1]), controller_inputs)
-      # Batch, #actuations, 1
-      assert intermediate.shape == (batch_size, len(actuations), 1)
-      assert intermediate.shape[2] == 1
-      intermediate = intermediate[:, :, 0]
-      # Batch, #actuations
-      actuation = tf.tanh(intermediate + b1[None, :]) * actuation_strength
-    else:
-      #IPython.embed()
-      actuation = tf.expand_dims(actuation_seq[0, state.step_count // (num_steps // num_acts), :], 0)
+
+    actuation = tf.expand_dims(actuation_seq[0, state.step_count // (num_steps // num_acts), :], 0)
     debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation}
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
@@ -148,12 +107,12 @@ def main(sess):
   res = (30, 30)
   bc = get_bounding_box_bc(res)
   
-  if config == 'B':
-    bc[0][:, :, :5] = -1 # Sticky
-    bc[1][:, :, :5] = 0 # Sticky
+
+  bc[0][:, :, :5] = -1 # Sticky
+  bc[1][:, :, :5] = 0 # Sticky
 
   sim = Simulation(
-      dt=0.0025,
+      dt=0.005,
       num_particles=num_particles,
       grid_res=res,
       gravity=gravity,
@@ -169,13 +128,11 @@ def main(sess):
   final_position = final_state[:, s:s+2]
   final_velocity = final_state[:, s + 2: s + 4]
   gamma = 0.0
-  loss1 = tf.reduce_sum((final_position - goal) ** 2)
-  loss2 = tf.reduce_sum(final_velocity ** 2)
-  loss_velocity = loss2
+  loss_position = tf.reduce_sum((final_position - goal) ** 2)
+  loss_velocity = tf.reduce_sum(final_velocity ** 2)
   loss_act = tf.reduce_sum(actuation_seq ** 2.0)
-  loss_zero = tf.reduce_sum(actuation_seq * 0.0)
+  loss_zero = tf.Variable(0.0, trainable=False)
 
-  loss = loss1 + gamma * loss2
 
   initial_positions = [[] for _ in range(batch_size)]
   for b in range(batch_size):
@@ -195,61 +152,38 @@ def main(sess):
       position=np.array(initial_positions), youngs_modulus=tf.identity(youngs_modulus))
       
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-  if use_bfgs:
-    B = [tf.Variable(tf.eye(tf.size(trainable)), trainable=False) for trainable in trainables]
+ 
+  
   
   sess.run(tf.global_variables_initializer())
   
   sim.set_initial_state(initial_state=initial_state)
   
-  sym = sim.gradients_sym(loss, variables=trainables)
+  sym_pos = sim.gradients_sym(loss_position, variables=trainables)
+  sym_vel = sim.gradients_sym(loss_velocity, variables=trainables)
+  sym_act = sim.gradients_sym(loss_act, variables=trainables)
+  sym_zero = sim.gradients_sym(loss_zero, variables=trainables)
+  
   sim.add_point_visualization(pos=goal, color=(0, 1, 0), radius=3)
   sim.add_vector_visualization(pos=final_position, vector=final_velocity, color=(0, 0, 1), scale=50)
  
   sim.add_point_visualization(pos=final_position, color=(1, 0, 0), radius=3)
 
-  if config == 'A':
-    goal_input = np.array(
-      [[0.5 + (random.random() - 0.5) * goal_range * 2,
-        0.6 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
-      dtype=np.float32)
-  elif config == 'B':
-    goal_input = np.array(
-    [[0.65 + (random.random() - 0.5) * goal_range * 2,
-      0.55 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
-    dtype=np.float32)
-  # Optimization loop
-  #IPython.embed()
-  #In progress code
-  '''
-  memo = sim.run(
-        initial_state=initial_state,
-        num_steps=num_steps,
-        iteration_feed_dict={goal: goal_input},
-        loss=loss)
-  IPython.embed()
+
+  goal_input = np.array(
+  [[0.7 + (random.random() - 0.5) * goal_range * 2,
+    0.5 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
+  dtype=np.float32)
+ 
   
-  
-  def loss_callback():
-    memo = sim.run(
-        initial_state=initial_state,
-        num_steps=num_steps,
-        iteration_feed_dict={goal: goal_input},
-        loss=loss)
-    
-    return loss
-  '''
-  
-  c1 = 1e-4
-  c2 = 0.9
-  
-  def eval_sim(loss_tensor):
+
+  def eval_sim(loss_tensor, sym_):
     memo = sim.run(
         initial_state=initial_state,
         num_steps=num_steps,
         iteration_feed_dict={goal: goal_input},
         loss=loss_tensor)
-    grad = sim.eval_gradients(sym=sym, memo=memo)
+    grad = sim.eval_gradients(sym=sym_, memo=memo)
     return memo.loss, grad, memo
   
   def flatten_trainables():
@@ -261,245 +195,116 @@ def main(sess):
   def assignment_run(xs):
     sess.run([trainable.assign(x) for x, trainable in zip(xs, trainables)])
   
-  def f_and_grad_step(step_size, x, delta_x):
-    old_x = [x_i.eval() for x_i in x]
-    assignment_run([x_i + step_size * delta_x_i for x_i, delta_x_i in zip(x, delta_x)]) #take step
-    loss, grad, _ = eval_sim(loss)
-    assignment_run(old_x) #revert
-    return loss, grad
-    
-  def wolfe_1(delta_x, new_f, current_f, current_grad, step_size):    
-    valid = new_f <= current_f + c1 * step_size * tf.tensordot(flatten_vectors(current_grad), flatten_vectors(delta_x), 1)   
-    return valid.eval()
-    
-  def wolfe_2(delta_x, new_grad, current_grad, step_size):   
-    valid = np.abs(tf.tensordot(flatten_vectors(new_grad), flatten_vectors(delta_x), 1).eval()) <= -c2 * tf.tensordot(flatten_vectors(current_grad), flatten_vectors(delta_x), 1).eval()
-    return valid
-    
   
-  def zoom(a_min, a_max, search_dirs, current_f, current_grad):
-    while True:
-      a_mid = (a_min + a_max) / 2.0
-      print('a_min: ', a_min, 'a_max: ', a_max, 'a_mid: ', a_mid)
-      step_loss_min, step_grad_min = f_and_grad_step(a_min, trainables, search_dirs)
-      step_loss, step_grad = f_and_grad_step(a_mid, trainables, search_dirs)      
-      valid_1 = wolfe_1(search_dirs, step_loss, current_f, current_grad, a_mid)
-      valid_2 = wolfe_2(search_dirs, step_grad, current_grad, a_mid)
-      if not valid_1 or step_loss >= step_loss_min:
-        a_max = a_mid
-      else:
-        if valid_2:
-          return a_mid
-        if tf.tensordot(flatten_vectors(step_grad), flatten_vectors(search_dirs), 1) * (a_max - a_min) >= 0:
-          a_max = a_min
-        a_min = a_mid
         
-  loss_val, grad, memo = eval_sim(loss) #TODO: this is to get dimensions, find a better way to do this without simming
-  old_g_flat = [None] * len(grad)
-  old_v_flat = [None] * len(grad)
   
   
   t = time.time()
     
-  loss_val, grad, memo = eval_sim(loss)
+  loss_val, grad, memo = eval_sim(loss_position, sym_pos)
   
   #BFGS update:
   #IPython.embed()
 
   
-  if use_pygmo:
-    def assignment_helper(x):
-      assignments = []
-      idx = 0
-      x = x.astype(np.float32)
-      for v in trainables:
-        #first, get count:
-        var_cnt = tf.size(v).eval()
-        assignments += [v.assign(tf.reshape(x[idx:idx+var_cnt],v.shape))]
-        idx += var_cnt
-      sess.run(assignments)
-      
-    class RobotProblem:
-      def __init__(self, use_act):
-        self.use_act = use_act
+  def assignment_helper(x):
+    assignments = []
+    idx = 0
+    x = x.astype(np.float32)
+    for v in trainables:
+      #first, get count:
+      var_cnt = tf.size(v).eval()
+      assignments += [v.assign(tf.reshape(x[idx:idx+var_cnt],v.shape))]
+      idx += var_cnt
+    sess.run(assignments)
     
-      goal_ball = 0.002
-      def fitness(self, x):
-        assignment_helper(x)
-        if self.use_act:
-          loss_act_val, _, _ = eval_sim(loss_act)
-        else:
-          loss_act_val, _, _ = eval_sim(loss_zero)
-        loss_val, _, _ = eval_sim(loss)
-        c1, _, memo = eval_sim(loss_velocity)        
-        sim.visualize(memo)
-        return [loss_act_val.astype(np.float64), loss_val.astype(np.float64) - self.goal_ball, c1.astype(np.float64) - self.goal_ball]
-        
-
-      def get_nic(self):
-        return 2
-      def get_nec(self):
-        return 0
-        
-      def gradient(self, x):
-        assignment_helper(x)
-        _, grad, _ = eval_sim(loss)
-        _, grad_velocity, _ = eval_sim(loss_velocity)
-        _, grad_act, _ = eval_sim(loss_act)
-        return np.concatenate([flatten_vectors(grad_act).eval().astype(np.float64),
-                               flatten_vectors(grad).eval().astype(np.float64), 
-                               flatten_vectors(grad_velocity).eval().astype(np.float64)])
-        #return flatten_vectors(grad).eval().astype(np.float64)
-
-      def get_bounds(self):
-        #actuation
-        lb = []
-        ub = []
-        acts = trainables[0]
-        lb += [-5] * tf.size(acts).eval()
-        ub += [5] * tf.size(acts).eval()
-        designs = trainables[1]
-        lb += [5] * tf.size(designs).eval()
-        ub += [20] * tf.size(designs).eval()
-    
-        return (lb, ub)
-        
-        
-    #IPython.embed()
-    uda = pg.nlopt("slsqp")
-    #uda = ppnf.snopt7(screen_output = False, library = "/home/aespielberg/snopt/lib/libsnopt7.so")
-    algo = pg.algorithm(uda)
-    #algo.extract(pg.nlopt).local_optimizer = pg.nlopt('lbfgs')
-    
-    algo.extract(pg.nlopt).maxeval = 20
-    algo.set_verbosity(1)
-    udp = RobotProblem(False)
-    bounds = udp.get_bounds()
-    mean = (np.array(bounds[0]) + np.array(bounds[1])) / 2.0
-    num_vars = len(mean)
-    prob = pg.problem(udp)
-    pop = pg.population(prob, size = 1)   
-    pop.set_x(0,np.random.normal(scale=0.3, loc=mean, size=(num_vars,)))
-    pop.problem.c_tol = [1e-4] * prob.get_nc()
-    #pop.problem.c_tol = [1e-4] * prob.get_nc()
-    pop.problem.f_tol_rel = [100000.0]
-    #IPython.embed()
-    pop = algo.evolve(pop)
-    IPython.embed()      
-    
-    #IPython.embed() #We need to refactor this for real
-    old_x = pop.champion_x
-    udp = RobotProblem(True)
-    prob = pg.problem(udp)
-    pop = pg.population(prob, size = 1)   
-    pop.set_x(0,old_x)
-    pop.problem.c_tol = [1e-4] * prob.get_nc()
-    #pop.problem.f_tol = [1e-6] 
-    pop.problem.f_tol_rel = [1e-4]  
-    pop = algo.evolve(pop)
-     
-    #now a second time
-    
-    
-    _, _, memo = eval_sim(loss)
-    sim.visualize(memo)
-    return
+  class RobotProblem:
+    def __init__(self, use_act):
+      self.use_act = use_act
   
-  for i in range(1000000):
-    
-      
-    
-    
-    if use_bfgs:
-      bfgs = [None] * len(grad)
-      B_update = [None] * len(grad)
-      search_dirs = [None] * len(grad)    
-      #TODO: for now, assuming there is only one trainable and one grad for ease
-      for v, g, idx in zip(trainables, grad, range(len(grad))):
-        g_flat = ly.flatten(g) 
-        v_flat = ly.flatten(v)
-        if B[idx] == None:
-            B[idx] = tf.eye(tf.size(v_flat))
-        if i > 0:          
-          y_flat = tf.squeeze(g_flat - old_g_flat[idx])
-          s_flat = tf.squeeze(v_flat - old_v_flat[idx])
-          B_s_flat = tf.tensordot(B[idx], s_flat, 1)
-          term_1 = -tf.tensordot(B_s_flat, tf.transpose(B_s_flat), 0) / tf.tensordot(s_flat, B_s_flat, 1)
-          term_2 = tf.tensordot(y_flat, y_flat, 0) / tf.tensordot(y_flat, s_flat, 1)
-          B_update[idx] = B[idx].assign(B[idx] + term_1 + term_2)    
-          sess.run([B_update[idx]])
-        
-        
-
-        if tf.abs(tf.matrix_determinant(B[idx])).eval() < 1e-6:
-          sess.run( [ B[idx].assign(tf.eye(tf.size(v_flat))) ] )
-          search_dir = -tf.transpose(g_flat)
-        else:
-          #search_dir = -tf.matrix_solve_ls(B[idx],tf.transpose(g_flat), l2_regularizer=0.0, fast=True) #adding regularizer for stability
-          search_dir = -tf.matmul(tf.linalg.inv(B[idx]), tf.transpose(g_flat))   #TODO: inverse bad,speed htis up
-        search_dir_reshape = tf.reshape(search_dir, g.shape)
-        search_dirs[idx] = search_dir_reshape
-        old_g_flat[idx] = g_flat
-        old_v_flat[idx] = v_flat.eval()
-          #TODO: B upate
-      
-      #Now it's linesearch time
-      if wolfe_search:
-        a_max = 0.1
-        a_1 = a_max / 2.0
-        a_0 = 0.0
-        
-        iterate = 1
-        while True:
-          step_loss, step_grad = f_and_grad_step(a_1, trainables, search_dirs)
-          print(a_1)
-          valid_1 = wolfe_1(search_dirs, step_loss, loss_val, grad, a_1)
-          valid_2 = wolfe_2(search_dirs, step_grad, grad, a_1)
-          print('wolfe 1: ', valid_1, 'wolfe 2: ', valid_2)
-          if (not valid_1) or (iterate > 1 and step_loss > loss_val):
-            print('cond1')
-            a = zoom(a_0, a_1, search_dirs, loss_val, grad)
-          if valid_2:
-            print('cond2')
-            a = a_1
-            break
-          if tf.tensordot(flatten_vectors(step_grad), flatten_vectors(search_dirs), 1).eval() >= 0:
-            print('cond3')
-            a = zoom(a_1, a_0, search_dirs, current_f, current_grad)
-            break
-          print('no cond')
-          temp = a_1
-          a_1 = (a_1 + a_max) / 2.0
-          a_0 = temp        
-          iterate+=1
-          if iterate > 5:
-            #close enough
-            a = a_1
-            break
+    goal_ball = 0.00
+    def fitness(self, x):      
+      assignment_helper(x)
+      if self.use_act:
+        loss_act_val, _, _ = eval_sim(loss_act, sym_act)
       else:
-        a = lr
-      for v, idx in zip(trainables, range(len(grad))):
-        print('final a ', a)
-        bfgs[idx] = v.assign(v + search_dirs[idx] * a)
-      sess.run(bfgs)
-      print('stepped!!')
-    else:
-      gradient_descent = [
-        v.assign(v - lr * g) for v, g in zip(trainables, grad)
-      ]
-      sess.run(gradient_descent)
-      
-    print('iter {:5d} time {:.3f} loss {:.4f}'.format(
-        i, time.time() - t, memo.loss))
-    if i % 1 == 0:
+        loss_act_val, _, _ = eval_sim(loss_zero, sym_zero)
+      loss_pos_val, _, _ = eval_sim(loss_position, sym_pos)
+      c1, _, memo = eval_sim(loss_velocity, sym_vel)        
       sim.visualize(memo)
-    
-  #in progress code
-  '''
-  optimizer = tf.contrib.opt.ScipyOptimizerInterface(
-    loss, method='BFGS')
-  optimizer.minimize(sess, loss_callback=loss_callback)
-  '''
+      return [loss_act_val.astype(np.float64), loss_pos_val.astype(np.float64) - self.goal_ball, c1.astype(np.float64) - self.goal_ball]
+      
+
+    def get_nic(self):
+      return 2
+    def get_nec(self):
+      return 0
+      
+    def gradient(self, x):
+      assignment_helper(x)
+      _, grad_position, _ = eval_sim(loss_position, sym_pos)
+      _, grad_velocity, _ = eval_sim(loss_velocity, sym_vel)
+      if self.use_act:
+        _, grad_act, _ = eval_sim(loss_act, sym_act)
+      else:
+        _, grad_act, _ = eval_sim(loss_zero, sym_zero)
+      return np.concatenate([flatten_vectors(grad_act).eval().astype(np.float64),
+                             flatten_vectors(grad_position).eval().astype(np.float64), 
+                             flatten_vectors(grad_velocity).eval().astype(np.float64)])
+      #return flatten_vectors(grad).eval().astype(np.float64)
+
+    def get_bounds(self):
+      #actuation
+      lb = []
+      ub = []
+      acts = trainables[0]
+      lb += [-5] * tf.size(acts).eval()
+      ub += [5] * tf.size(acts).eval()
+      designs = trainables[1]
+      lb += [9] * tf.size(designs).eval()
+      ub += [11] * tf.size(designs).eval()
+  
+      return (lb, ub)
+      
+      
+  #IPython.embed()
+  uda = pg.nlopt("slsqp")
+  #uda = ppnf.snopt7(screen_output = False, library = "/home/aespielberg/snopt/lib/libsnopt7.so")
+  algo = pg.algorithm(uda)
+  #algo.extract(pg.nlopt).local_optimizer = pg.nlopt('lbfgs')
+  
+  algo.extract(pg.nlopt).maxeval = 20
+  algo.set_verbosity(1)
+  udp = RobotProblem(False)
+  bounds = udp.get_bounds()
+  mean = (np.array(bounds[0]) + np.array(bounds[1])) / 2.0
+  num_vars = len(mean)
+  prob = pg.problem(udp)
+  pop = pg.population(prob, size = 1)   
+  pop.set_x(0,np.random.normal(scale=0.1, loc=mean, size=(num_vars,)))
+  pop.problem.c_tol = [1e-4] * prob.get_nc()
+  #pop.problem.c_tol = [1e-4] * prob.get_nc()
+  pop.problem.f_tol_rel = [100000.0]
+  #IPython.embed()
+  pop = algo.evolve(pop)
+  IPython.embed()      
+  
+  #IPython.embed() #We need to refactor this for real
+  old_x = pop.champion_x
+  udp = RobotProblem(True)
+  prob = pg.problem(udp)
+  pop = pg.population(prob, size = 1)   
+  pop.set_x(0,old_x)
+  pop.problem.c_tol = [1e-4] * prob.get_nc()
+  #pop.problem.f_tol = [1e-6] 
+  pop.problem.f_tol_rel = [1e-4]  
+  pop = algo.evolve(pop)
+   
+  #now a second time
+  
+  
+  _, _, memo = eval_sim(loss)
+  sim.visualize(memo)
 
 
 
