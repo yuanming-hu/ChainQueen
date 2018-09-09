@@ -11,6 +11,7 @@ import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
 import export 
+import IPython
 
 lr = 0.03
 gamma = 0.0
@@ -184,6 +185,7 @@ def main(sess):
 
       for i, g in enumerate(grad):
         print(i, np.mean(np.abs(g)))
+      
       gradient_descent = [
           v.assign(v - lr * g) for v, g in zip(trainables, grad)
       ]
