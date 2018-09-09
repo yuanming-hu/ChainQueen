@@ -14,8 +14,7 @@ import pygmo_plugins_nonfree as ppnf
 
 lr = 1.0
 
-sample_density = 20
-group_num_particles = sample_density**2
+
 goal_range = 0.0
 batch_size = 1
 actuation_strength = 8
@@ -25,19 +24,23 @@ use_pygmo = True
 
 
 num_steps = 400
-num_acts = num_steps
+
 
 # Finger
-num_links = 1
+num_links = 2
+num_acts = int(num_steps // num_links) #TBH this is just to keep the number of variables tame
+sample_density = int(20 // (np.sqrt(num_links)))
+group_num_particles = sample_density**2
 group_sizes = []
 group_offsets = []
 actuations = []
-group_size = [(0.5, 2 / num_links), (0.5, 2 / num_links), (1, 1 / num_links)]
+group_size = [(0.5, 2.0 / num_links), (0.5, 2.0 / num_links), (1, 1.0 / num_links)]
 for i in range(num_links):
-  group_offsets += [(1, group_size[0][1] *i + 0), (1.5, group_size[1][1] *i + 0), (1, group_size[2][1] *i + 2)]
+  group_offsets += [(1, (group_size[0][1] + group_size[2][1])*i ), (1.5, (group_size[1][1] + group_size[2][1])*i), (1, (group_size[0][1] + group_size[2][1])*i + group_size[0][1] )]
   group_sizes += copy.deepcopy(group_size)
   actuations += [0  + 3*i, 1 + 3*i]
 num_groups = len(group_sizes)
+
 
 head = num_groups - 1
 gravity = (0, 0)
@@ -140,7 +143,7 @@ def main(sess):
       for x in range(sample_density):
         for y in range(sample_density):
           scale = 0.2
-          u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]
+          u = ((x +0.5) / sample_density * group_sizes[i][0] + offset[0]
               ) * scale + 0.2
           v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
               ) * scale + 0.1
@@ -203,8 +206,10 @@ def main(sess):
     
   loss_val, grad, memo = eval_sim(loss_position, sym_pos)
   
-  #BFGS update:
   #IPython.embed()
+  
+  
+  #Begin optimization
 
   
   def assignment_helper(x):
@@ -222,7 +227,7 @@ def main(sess):
     def __init__(self, use_act):
       self.use_act = use_act
   
-    goal_ball = 0.00
+    goal_ball = 0.0001
     def fitness(self, x):      
       assignment_helper(x)
       if self.use_act:
@@ -258,8 +263,8 @@ def main(sess):
       lb = []
       ub = []
       acts = trainables[0]
-      lb += [-5] * tf.size(acts).eval()
-      ub += [5] * tf.size(acts).eval()
+      lb += [-3 / num_links] * tf.size(acts).eval()
+      ub += [3 / num_links] * tf.size(acts).eval()
       designs = trainables[1]
       lb += [9] * tf.size(designs).eval()
       ub += [11] * tf.size(designs).eval()
