@@ -160,6 +160,23 @@ struct State : public StateBase {
     this->P_storage = P_storage;
     this->grid_storage = grid_storage;
   }
+  
+  State(int res[dim], int num_particles, real dx, real dt, real gravity[dim],
+      real *x_storage, real *v_storage, real *F_storage, real *C_storage,
+      real *P_storage, real *grid_storage,
+      real *grad_x_storage, real *grad_v_storage,
+      real *grad_F_storage, real *grad_C_storage,
+      real *grad_P_storage, real *grad_grid_storage):
+      State(res, num_particles, dx, dt, gravity,
+          x_storage, v_storage, F_storage, C_storage,
+          P_storage, grid_storage) {
+    this->grad_x_storage = grad_x_storage;
+    this->grad_v_storage = grad_v_storage;
+    this->grad_F_storage = grad_F_storage;
+    this->grad_C_storage = grad_C_storage;
+    this->grad_P_storage = grad_P_storage;
+    this->grad_grid_storage = grad_grid_storage;
+  }
 
   State(int res[dim], int num_particles, real dx, real dt, real gravity[dim]) :
       State(res, num_particles, dx, dt, gravity,

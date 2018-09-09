@@ -308,6 +308,31 @@ void backward(State &state, State &next) {
   G2P_backward<<<num_blocks, particle_block_dim>>>(state, next);
 }
 
+void MPMGradKernelLauncher(
+    int res[dim], int num_particles, real dx, real dt, real gravity[dim],
+    const real *inx, const real *inv, const real *inF, const real *inC,
+    const real *outx, const real *outv, const real *outF, const real *outC,
+    const real *outP, const real *outgrid,
+    real *grad_inx, real *grad_inv, real *grad_inF, real *grad_inC,
+    const real *grad_outx, const real *grad_outv, 
+    const real *grad_outF, const real *grad_outC,
+    const real *grad_outP, const real *grad_outgrid) {
+  printf("MPM_grad Kernel launch~~\n");
+  auto instate = new State(res, num_particles, dx, dt, gravity, 
+      (real *)inx, (real *)inv, (real *)inF, (real *)inC,
+      (real *)outP, (real *)outgrid,
+      grad_inx, grad_inv, grad_inF, grad_inC,
+      (real *)grad_outP, (real *)grad_outgrid);
+  auto outstate = new State(res, num_particles, dx, dt, gravity, 
+      (real *)outx, (real *)outv, (real *)outF, (real *)outC,
+      NULL, NULL,
+      (real *)grad_outx, (real *)grad_outv,
+      (real *)grad_outF, (real *)grad_outC,
+      NULL, NULL);
+  backward(*instate, *outstate);
+  printf("MPM_grad Kernel Finish~~\n");
+}
+
 void backward_mpm3d_state(void *state_, void *next_state_) {
   State *state = reinterpret_cast<State *>(state_);
   State *next_state = reinterpret_cast<State *>(next_state_);
