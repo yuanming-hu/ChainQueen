@@ -5,13 +5,14 @@ from vector_math import *
 sticky = False
 linear = False
 dim = 2
+kernel_size = 3
 
 
 class SimulationState:
 
   def __init__(self, sim):
     self.sim = sim
-    self.affine = tf.zeros(shape=(self.sim.batch_size, sim.num_particles, 2, 2))
+    self.affine = tf.zeros(shape=(self.sim.batch_size, sim.num_particles, dim, dim))
     self.position = None
     self.particle_mass = None
     self.particle_volume = None
@@ -123,7 +124,7 @@ class InitialSimulationState(SimulationState):
         shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
                dim))
     self.kernels = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
-                                   self.sim.grid_res[1], 3, 3))
+                                   self.sim.grid_res[1], kernel_size, kernel_size))
     self.step_count = tf.zeros(shape=(), dtype=np.int32)
 
     self.controller = controller
@@ -213,15 +214,15 @@ class UpdatedSimulationState(SimulationState):
                                          self.sim.grid_res[1], dim))
 
     self.kernels = self.compute_kernels(position * sim.inv_dx)
-    assert self.kernels.shape == (batch_size, num_particles, 3, 3, 1)
+    assert self.kernels.shape == (batch_size, num_particles, kernel_size, kernel_size, 1)
 
     self.velocity = previous_state.velocity
 
     # Quadratic B-spline kernel
-    for i in range(3):
-      for j in range(3):
+    for i in range(kernel_size):
+      for j in range(kernel_size):
         delta_indices = np.zeros(
-            shape=(self.sim.batch_size, 1, 3), dtype=np.int32)
+            shape=(self.sim.batch_size, 1, kernel_size), dtype=np.int32)
         for b in range(batch_size):
           delta_indices[b, 0] = [b, i, j]
         #delta_indices = np.array([0, i, j])[:, None, :]
@@ -278,10 +279,10 @@ class UpdatedSimulationState(SimulationState):
 
     # Resample velocity and local affine velocity field
     self.velocity *= 0
-    for i in range(3):
-      for j in range(3):
+    for i in range(kernel_size):
+      for j in range(kernel_size):
         delta_indices = np.zeros(
-            shape=(self.sim.batch_size, 1, 3), dtype=np.int32)
+            shape=(self.sim.batch_size, 1, kernel_size), dtype=np.int32)
         for b in range(batch_size):
           delta_indices[b, 0] = [b, i, j]
         self.velocity = self.velocity + tf.gather_nd(
