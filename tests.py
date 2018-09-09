@@ -30,18 +30,18 @@ class TestSimulator(unittest.TestCase):
         batch_size=batch_size)
     initial = sim.initial_state
     next_state = UpdatedSimulationState(sim, initial)
-    position = np.zeros(shape=(batch_size, num_particles, 2))
-    velocity = np.zeros(shape=(batch_size, num_particles, 2))
+    position = np.zeros(shape=(batch_size, 2, num_particles))
+    velocity = np.zeros(shape=(batch_size, 2, num_particles))
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
-          position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
+          position[b, :, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
-          velocity[b, i * 10 + j] = initial_velocity
+          velocity[b, :, i * 10 + j] = initial_velocity
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
     def center_of_mass():
-      return np.mean(input_state[0][:, :, 0]), np.mean(input_state[0][:, :, 1])
+      return np.mean(input_state[0][:, 0, :]), np.mean(input_state[0][:, 1, :])
 
     x, y = 15.0 * dx, 15.0 * dx
     vx, vy = initial_velocity
@@ -141,14 +141,14 @@ class TestSimulator(unittest.TestCase):
         gravity=gravity,
         dt=1e-3,
         sess=sess)
-    position = np.zeros(shape=(batch_size, num_particles, 2))
-    velocity = np.zeros(shape=(batch_size, num_particles, 2))
+    position = np.zeros(shape=(batch_size, 2, num_particles))
+    velocity = np.zeros(shape=(batch_size, 2, num_particles))
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
-          position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
+          position[b, :, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
-          velocity[b, i * 10 + j] = (1 * (j - 4.5), -1 * (i - 4.5))
+          velocity[b, :, i * 10 + j] = (1 * (j - 4.5), -1 * (i - 4.5))
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
     memo = sim.run(100, input_state)
@@ -196,15 +196,15 @@ class TestSimulator(unittest.TestCase):
         gravity=gravity,
         dt=dt,
         sess=sess)
-    position = np.zeros(shape=(batch_size, num_particles, 2))
-    youngs_modulus = np.zeros(shape=(batch_size, num_particles, 1))
+    position = np.zeros(shape=(batch_size, 2, num_particles))
+    youngs_modulus = np.zeros(shape=(batch_size, 1, num_particles))
     velocity_ph = tf.placeholder(shape=(2,), dtype=tf.float32)
-    velocity = velocity_ph[None, None, :] + tf.zeros(
-        shape=[batch_size, num_particles, 2], dtype=tf.float32)
+    velocity = velocity_ph[None, :, None] + tf.zeros(
+        shape=[batch_size, 2, num_particles], dtype=tf.float32)
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):
-          position[b, i * N + j] = ((i * 0.5 + 12.75) * dx,
+          position[b, :, i * N + j] = ((i * 0.5 + 12.75) * dx,
                                     (j * 0.5 + 12.75) * dx)
     input_state = sim.get_initial_state(
         position=position, velocity=velocity, youngs_modulus=youngs_modulus)
