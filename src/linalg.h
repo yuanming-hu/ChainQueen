@@ -1,6 +1,7 @@
 #pragma once
 
 #include "svd.cuh"
+#include "../../../../../../../usr/lib/gcc/x86_64-pc-linux-gnu/6.4.1/include/c++/type_traits"
 
 #define TC_FORCE_INLINE __forceinline__
 using real = float;
@@ -22,8 +23,16 @@ class TVector {
     return &d[0];
   }
 
+  template <int dim__ = dim_>
+  TC_FORCE_INLINE __device__ TVector(real x, real y) {
+    static_assert(dim__ == 2, "");
+    d[0] = x;
+    d[1] = y;
+  }
+
+  template <int dim__ = dim_>
   TC_FORCE_INLINE __device__ TVector(real x, real y, real z) {
-    static_assert(dim == 3);
+    static_assert(dim__ == 3, "");
     d[0] = x;
     d[1] = y;
     d[2] = z;
@@ -72,9 +81,10 @@ TC_FORCE_INLINE __device__ TVector<T, dim> operator*(real alpha,
   return ret;
 }
 
-class Matrix {
+template <typename T, int dim_>
+class TMatrix {
  public:
-  static constexpr int dim = 3;
+  static constexpr int dim = dim_;
 
   real d[dim][dim];
 
@@ -82,15 +92,10 @@ class Matrix {
     return &d[0][0];
   }
 
-  TC_FORCE_INLINE __device__ Matrix(real a00,
-                                    real a01,
-                                    real a02,
-                                    real a10,
-                                    real a11,
-                                    real a12,
-                                    real a20,
-                                    real a21,
-                                    real a22) {
+  template <int dim__ = dim_>
+  TC_FORCE_INLINE __device__
+  TMatrix(T a00, T a01, T a02, T a10, T a11, T a12, T a20, T a21, T a22) {
+    static_assert(dim__ == 3, "");
     d[0][0] = a00;
     d[0][1] = a01;
     d[0][2] = a02;
@@ -102,7 +107,7 @@ class Matrix {
     d[2][2] = a22;
   }
 
-  TC_FORCE_INLINE __host__ __device__ Matrix(real x = 0) {
+  TC_FORCE_INLINE __host__ __device__ TMatrix(real x = 0) {
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         d[i][j] = (i == j) ? x : 0;
@@ -118,8 +123,8 @@ class Matrix {
     return d[i];
   }
 
-  __device__ Matrix operator*(const Matrix &o) {
-    Matrix ret;
+  __device__ TMatrix operator*(const TMatrix &o) {
+    TMatrix ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         for (int k = 0; k < dim; k++) {
@@ -130,8 +135,8 @@ class Matrix {
     return ret;
   }
 
-  __device__ Matrix operator+(const Matrix &o) {
-    Matrix ret;
+  __device__ TMatrix operator+(const TMatrix &o) {
+    TMatrix ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         ret[i][j] = d[i][j] + o[i][j];
@@ -140,8 +145,8 @@ class Matrix {
     return ret;
   }
 
-  __device__ Matrix operator-(const Matrix &o) {
-    Matrix ret;
+  __device__ TMatrix operator-(const TMatrix &o) {
+    TMatrix ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         ret[i][j] = d[i][j] - o[i][j];
@@ -160,8 +165,9 @@ class Matrix {
     return ret;
   }
 
-  static __device__ Matrix outer_product(const Vector &col, const Vector &row) {
-    Matrix ret;
+  static __device__ TMatrix outer_product(const Vector &col,
+                                          const Vector &row) {
+    TMatrix ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         ret[i][j] = col[i] * row[j];
@@ -170,6 +176,8 @@ class Matrix {
     return ret;
   }
 };
+
+using Matrix = TMatrix<real, 3>;
 
 TC_FORCE_INLINE __device__ Matrix transposed(const Matrix &A) {
   return Matrix(A[0][0], A[1][0], A[2][0], A[0][1], A[1][1], A[2][1], A[0][2],
