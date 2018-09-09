@@ -228,7 +228,7 @@ TC_REGISTER_TASK(gpu_mpm3d);
 
 auto gpu_mpm3d_falling_cube = []() {
   // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
-  int n = 20;
+  int n = 40;
   real dx = 0.2;
   real sample_density = 0.1;
   Vector3 corner(2, 5 + 2 * dx, 2);
@@ -269,7 +269,7 @@ auto gpu_mpm3d_falling_cube = []() {
     }
   }
   int num_frames = 300;
-  Vector3i res(50, 50, 50);
+  Vector3i res(50, 70, 50);
   Vector3 gravity(0, -10, 0);
   void * state;
   int substep = 3;
