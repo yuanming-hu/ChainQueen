@@ -1,7 +1,7 @@
 import tensorflow as tf
 from vector_math import *
 import numpy as np
-from time_integration import InitialSimulationState, UpdatedSimulationState
+from time_integration_2d import InitialSimulationState2D, UpdatedSimulationState2D
 from memo import Memo
 
 def get_bounding_box_bc(res, boundary_thickness=3):
@@ -46,14 +46,14 @@ class Simulation:
       bc = get_bounding_box_bc(grid_res)
       
     self.bc_parameter, self.bc_normal = bc
-    self.initial_state = InitialSimulationState(self, controller)
-    self.grad_state = InitialSimulationState(self, controller)
+    self.initial_state = InitialSimulationState2D(self, controller)
+    self.grad_state = InitialSimulationState2D(self, controller)
     self.updated_states = []
     self.gravity = gravity
     self.dt = dt
     self.dx = dx
     self.inv_dx = 1.0 / dx
-    self.updated_state = UpdatedSimulationState(self, self.initial_state)
+    self.updated_state = UpdatedSimulationState2D(self, self.initial_state)
     self.controller = controller
     self.parameterized_initial_state = None
     self.point_visualization = []

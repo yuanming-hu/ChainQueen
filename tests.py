@@ -1,6 +1,6 @@
 import unittest
 from simulation import Simulation
-from time_integration import UpdatedSimulationState
+from time_integration_2d import UpdatedSimulationState2D
 import tensorflow as tf
 import numpy as np
 
@@ -29,7 +29,7 @@ class TestSimulator(unittest.TestCase):
         gravity=gravity,
         batch_size=batch_size)
     initial = sim.initial_state
-    next_state = UpdatedSimulationState(sim, initial)
+    next_state = UpdatedSimulationState2D(sim, initial)
     position = np.zeros(shape=(batch_size, 2, num_particles))
     velocity = np.zeros(shape=(batch_size, 2, num_particles))
     for b in range(batch_size):

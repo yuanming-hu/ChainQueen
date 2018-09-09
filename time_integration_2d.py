@@ -8,7 +8,7 @@ dim = 2
 kernel_size = 3
 
 
-class SimulationState:
+class SimulationState2D:
 
   def __init__(self, sim):
     self.sim = sim
@@ -98,7 +98,7 @@ class SimulationState:
     return y
 
 
-class InitialSimulationState(SimulationState):
+class InitialSimulationState2D(SimulationState2D):
 
   def __init__(self, sim, controller=None):
     super().__init__(sim)
@@ -137,7 +137,7 @@ class InitialSimulationState(SimulationState):
       self.actuation, self.debug = controller(self)
 
 
-class UpdatedSimulationState(SimulationState):
+class UpdatedSimulationState2D(SimulationState2D):
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
