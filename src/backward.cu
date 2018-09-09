@@ -6,12 +6,6 @@
 
 // For deformation gradient update
 
-__device__ Matrix PK1(Matrix F) {
-  real J = determinant(F);
-  Matrix r, s;
-  polar_decomp(F, r, s);
-  return (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
-}
 
 template <int dim>
 __global__ void P2G_backward(State state, State next_state) {
@@ -155,7 +149,7 @@ __global__ void G2P_backward(State state, State next_state) {
     */
   }
   Vector grad_v;
-  real grad_P_scale = state.dt * state.invD * V;
+  real grad_P_scale = state.dt * state.invD * state.V;
 
   // (G) Compute grad_P
   for (int i = 0; i < dim; i++) {
@@ -175,7 +169,7 @@ __global__ void G2P_backward(State state, State next_state) {
             }
             // (I) C_p^n
             if (mpm_enalbe_apic)
-              grad_C[alpha][beta] += N * grad_p[alpha] * m_p * dpos[beta];
+              grad_C[alpha][beta] += N * grad_p[alpha] * state.m_p * dpos[beta];
           }
         }
       }
@@ -189,7 +183,7 @@ __global__ void G2P_backward(State state, State next_state) {
   }
 
   // (H) term 2
-  Times_Rotated_dP_dF_FixedCorotated(mu, lambda, F.data(), grad_P.data(),
+  Times_Rotated_dP_dF_FixedCorotated(state.mu, state.lambda, F.data(), grad_P.data(),
                                      grad_F.data());
   /*
   Matrix grad_F2;
@@ -228,7 +222,7 @@ __global__ void G2P_backward(State state, State next_state) {
   // printf("grad_x %f\n", grad_x[0]);
   auto G = -state.invD * state.dt * P * transposed(F);
   if (mpm_enalbe_apic) {
-    G = G + m_p * C;
+    G = G + state.m_p * C;
   }
 
   for (int i = 0; i < dim; i++) {
@@ -261,10 +255,10 @@ __global__ void G2P_backward(State state, State next_state) {
         // printf("\n");
         for (int alpha = 0; alpha < dim; alpha++) {
           // (F) v_p^n
-          grad_v[alpha] += N * m_p * grad_p[alpha];
+          grad_v[alpha] += N * state.m_p * grad_p[alpha];
 
           // (J) term 5
-          grad_x[alpha] += grad_N[alpha] * grad_mi * m_p;
+          grad_x[alpha] += grad_N[alpha] * grad_mi * state.m_p;
 
           for (int beta = 0; beta < dim; beta++) {
             for (int gamma = 0; gamma < dim; gamma++) {
@@ -281,7 +275,7 @@ __global__ void G2P_backward(State state, State next_state) {
             // (J), term 4
             grad_x[alpha] +=
                 grad_p[beta] *
-                (grad_N[alpha] * (m_p * v[beta] + (G * dpos)[beta]) -
+                (grad_N[alpha] * (state.m_p * v[beta] + (G * dpos)[beta]) -
                  N * G[beta][alpha]);
           }
         }

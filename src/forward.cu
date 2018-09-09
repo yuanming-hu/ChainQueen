@@ -33,13 +33,6 @@ void saxpy_cuda(int N, real alpha, real *x, real *y) {
 
 // Do not consider sorting for now. Use atomics instead.
 
-inline __device__ Matrix PK1(Matrix F) {
-  real J = determinant(F);
-  Matrix r, s;
-  polar_decomp(F, r, s);
-  return (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
-}
-
 // One particle per thread
 template <int dim>
 __global__ void P2G(State state) {
@@ -61,12 +54,12 @@ __global__ void P2G(State state) {
   TransferCommon<dim> tc(state, x);
 
   // Fixed corotated
-  auto P = PK1(F);
+  auto P = PK1(state.mu, state.lambda, F);
   state.set_P(part_id, P);
-  Matrix stress = -4 * inv_dx * inv_dx * dt * V * P;
+  Matrix stress = -4 * inv_dx * inv_dx * dt * state.V * P;
 
   auto affine =
-      real(mpm_enalbe_force) * stress + real(mpm_enalbe_apic) * m_p * C;
+      real(mpm_enalbe_force) * stress + real(mpm_enalbe_apic) * state.m_p * C;
 
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
@@ -75,13 +68,13 @@ __global__ void P2G(State state) {
 
         real contrib[dim + 1];
 
-        auto tmp = affine * dpos + m_p * v;
+        auto tmp = affine * dpos + state.m_p * v;
 
         auto w = tc.w(i, j, k);
         contrib[0] = tmp[0] * w;
         contrib[1] = tmp[1] * w;
         contrib[2] = tmp[2] * w;
-        contrib[3] = m_p * w;
+        contrib[3] = state.m_p * w;
 
         auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
                                     tc.base_coord[2] + k);

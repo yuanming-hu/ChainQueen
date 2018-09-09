@@ -356,6 +356,13 @@ inline __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
           (dP_hat[6] * U[2] + dP_hat[7] * U[5] + dP_hat[8] * U[8]) * V[8];
 };
 
+TC_FORCE_INLINE __device__ Matrix PK1(real mu, real lambda, Matrix F) {
+  real J = determinant(F);
+  Matrix r, s;
+  polar_decomp(F, r, s);
+  return (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+}
+
 /*
 // Takes B, dL/dAB
 // Returns dL/dA
