@@ -107,6 +107,7 @@ def determinant(a):
   return a[:, 0, 0, :] * a[:, 1, 1, :] - a[:, 1, 0, :] * a[:, 0, 1, :]
 
 
+# returns (b, p)
 def trace(a):
   assert len(a.shape) == 4  # Batch, row, column, particles
   return a[:, 0, 0, :] + a[:, 1, 1, :]

@@ -189,20 +189,21 @@ class UpdatedSimulationState(SimulationState):
     mu = self.youngs_modulus / (2 * (1 + self.poissons_ratio))
     lam = self.youngs_modulus * self.poissons_ratio / ((
         1 + self.poissons_ratio) * (1 - 2 * self.poissons_ratio))
-    mu = mu[:, :, :, None]
-    lam = lam[:, :, :, None]
+    # (b, 1, p) -> (b, 1, 1, p)
+    mu = mu[:, :, None, :]
+    lam = lam[:, :, None, :]
     if linear:
       self.stress_tensor1 = mu * (
           transpose(self.deformation_gradient) + self.deformation_gradient -
           2 * identity_matrix)
       self.stress_tensor2 = lam * identity_matrix * (
-          trace(self.deformation_gradient)[:, :, None, None] - dim)
+          trace(self.deformation_gradient)[:, None, None, :] - dim)
     else:
       # Corotated elasticity
       # P(F) = dPhi/dF(F) = 2 mu (F-R) + lambda (J-1)JF^-T
 
       r, s = polar_decomposition(self.deformation_gradient)
-      j = determinant(self.deformation_gradient)[:, :, None, None]
+      j = determinant(self.deformation_gradient)[:, None, None, :]
 
       # Note: stress_tensor here is right-multiplied by F^T
       self.stress_tensor1 = 2 * mu * matmatmul(
@@ -222,7 +223,7 @@ class UpdatedSimulationState(SimulationState):
                                          self.sim.grid_res[1], dim))
 
     self.kernels = self.compute_kernels(position * sim.inv_dx)
-    assert self.kernels.shape == (batch_size, num_particles, kernel_size, kernel_size, 1)
+    assert self.kernels.shape == (batch_size, kernel_size, kernel_size, 1, num_particles)
 
     self.velocity = previous_state.velocity
 
@@ -231,6 +232,7 @@ class UpdatedSimulationState(SimulationState):
       for j in range(kernel_size):
         delta_indices = np.zeros(
             shape=(self.sim.batch_size, 1, kernel_size), dtype=np.int32)
+        #TODO
         for b in range(batch_size):
           delta_indices[b, 0] = [b, i, j]
         #delta_indices = np.array([0, i, j])[:, None, :]
@@ -238,17 +240,18 @@ class UpdatedSimulationState(SimulationState):
         self.grid_mass = self.grid_mass + tf.scatter_nd(
             shape=(batch_size, self.sim.grid_res[0], self.sim.grid_res[1], 1),
             indices=base_indices + delta_indices,
-            updates=self.particle_mass * self.kernels[:, :, i, j])
+            updates=self.particle_mass[:, 0, :] * self.kernels[:, i, j, :])
 
-        delta_node_position = np.array([i, j])[None, None, :]
+        # (b, dim, p)
+        delta_node_position = np.array([i, j])[None, :, None]
         # xi - xp
         offset = (tf.floor(position * sim.inv_dx - 0.5) +
                   tf.cast(delta_node_position, tf.float32) -
                   position * sim.inv_dx) * sim.dx
 
-        grid_velocity_contributions = self.particle_mass * self.kernels[:, :, i, j] * (
+        grid_velocity_contributions = self.particle_mass * self.kernels[:, i, j, :] * (
             self.velocity + matvecmul(previous_state.affine, offset))
-        grid_force_contributions = self.particle_volume * self.kernels[:, :, i, j] * (
+        grid_force_contributions = self.particle_volume * self.kernels[:, i, j, :] * (
             matvecmul(self.stress_tensor, offset) *
             (-4 * self.sim.dt * self.sim.inv_dx * self.sim.inv_dx))
         self.grid_velocity = self.grid_velocity + tf.scatter_nd(
@@ -295,9 +298,9 @@ class UpdatedSimulationState(SimulationState):
           delta_indices[b, 0] = [b, i, j]
         self.velocity = self.velocity + tf.gather_nd(
             params=self.grid_velocity,
-            indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
+            indices=base_indices + delta_indices) * self.kernels[:, i, j, :]
 
-        delta_node_position = np.array([i, j])[None, None, :]
+        delta_node_position = np.array([i, j])[None, :, None]
 
         # xi - xp
         offset = (tf.floor(position * sim.inv_dx - 0.5) +
@@ -306,7 +309,7 @@ class UpdatedSimulationState(SimulationState):
         assert offset.shape == position.shape
         weighted_node_velocity = tf.gather_nd(
             params=self.grid_velocity,
-            indices=base_indices + delta_indices) * self.kernels[:, :, i, j]
+            indices=base_indices + delta_indices) * self.kernels[:, i, j, :]
         self.affine += outer_product(weighted_node_velocity, offset)
 
     if sim.damping != 0:
