@@ -22,7 +22,6 @@ class WalkerEnv(gym.Env):
     self.state = None
     self.goal_input = goal_input
     
-    #TODO: get sim somehow
     self.init_stte, self.sim, self.loss, self.x, self.y = w_s.generate_sim(sess)
     sim.set_initial_state(initial_state=init_state)
     
@@ -42,7 +41,7 @@ class WalkerEnv(gym.Env):
       memo = sim.run(
           initial_state=self.state,
           num_steps=1,
-          iteration_feed_dict={goal: self.goal_input},
+          iteration_feed_dict={goal: self.goal_input, actuation: action},
           loss=self.loss)
           
       memo_x = sim.run(
