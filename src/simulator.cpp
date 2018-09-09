@@ -228,7 +228,7 @@ TC_REGISTER_TASK(gpu_mpm3d);
 
 auto gpu_mpm3d_falling_cube = []() {
   // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
-  int n = 40;
+  int n = 20;
   real dx = 0.2;
   real sample_density = 0.1;
   Vector3 corner(2, 5 + 2 * dx, 2);
@@ -272,9 +272,12 @@ auto gpu_mpm3d_falling_cube = []() {
   Vector3i res(50, 70, 50);
   Vector3 gravity(0, -10, 0);
   void * state;
+  void * state2;
   int substep = 3;
   real dt = 1.0_f / 60 / substep;
   initialize_mpm3d_state(&res[0], num_particles, &gravity[0], state, dx, dt,
+                         initial_positions.data());
+  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], state2, dx, dt,
                          initial_positions.data());
   set_initial_velocities(state, initial_velocities.data());
 
@@ -295,6 +298,12 @@ auto gpu_mpm3d_falling_cube = []() {
       for (int j = 0; j < substep; j++)
         forward_mpm3d_state(state, state);
     }
+    taichi::print_profile_info();
+  }
+  while (true) {
+    TC_PROFILER("backward");
+    for (int j = 0; j < substep; j++)
+      backward_mpm3d_state(state2, state);
     taichi::print_profile_info();
   }
 };
