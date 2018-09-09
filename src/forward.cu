@@ -56,7 +56,7 @@ __global__ void P2G(State state) {
   // Fixed corotated
   auto P = PK1(state.mu, state.lambda, F);
   state.set_P(part_id, P);
-  Matrix stress = -4 * inv_dx * inv_dx * dt * state.V * P;
+  Matrix stress = -4 * inv_dx * inv_dx * dt * state.V_p * P;
 
   auto affine =
       real(mpm_enalbe_force) * stress + real(mpm_enalbe_apic) * state.m_p * C;

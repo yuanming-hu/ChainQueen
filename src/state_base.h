@@ -7,11 +7,20 @@ struct StateBase {
   int num_particles;
   int res[3];
 
-  real V = 10;     // TODO: variable vol
+  real V_p = 10;   // TODO: variable vol
+  real m_p = 100;  // TODO: variable m_p
   real E = 5;      // TODO: variable E
   real nu = 0.3;   // TODO: variable nu
-  real m_p = 100;  // TODO: variable m_p
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
+
+  void set(real V_p, real m_p, real E, real nu) {
+    this->V_p = V_p;
+    this->m_p = m_p;
+    this->E = E;
+    this->nu = nu;
+    this->mu = E / (2 * (1 + nu));
+    this->lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
+  }
 
   real *x_storage;
   real *v_storage;

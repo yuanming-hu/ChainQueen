@@ -148,8 +148,9 @@ __global__ void G2P_backward(State state, State next_state) {
     }
     */
   }
+
   Vector grad_v;
-  real grad_P_scale = state.dt * state.invD * state.V;
+  real grad_P_scale = state.dt * state.invD * state.V_p;
 
   // (G) Compute grad_P
   for (int i = 0; i < dim; i++) {

@@ -278,8 +278,10 @@ auto gpu_mpm3d_falling_cube = []() {
   real dt = 1.0_f / 60 / substep;
   initialize_mpm3d_state(&res[0], num_particles, &gravity[0], state, dx, dt,
                          initial_positions.data());
+  reinterpret_cast<StateBase *>(state)->set(10, 100, 5000, 0.3);
   initialize_mpm3d_state(&res[0], num_particles, &gravity[0], state2, dx, dt,
                          initial_positions.data());
+  reinterpret_cast<StateBase *>(state2)->set(10, 100, 5000, 0.3);
   set_initial_velocities(state, initial_velocities.data());
 
   for (int i = 0; i < num_frames; i++) {
