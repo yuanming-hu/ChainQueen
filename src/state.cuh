@@ -7,8 +7,10 @@ static constexpr int mpm_enalbe_force = true;
 static constexpr int particle_block_dim = 128;
 static constexpr int grid_block_dim = 128;
 
-struct State : public StateBase {
-  State() {
+template <int dim_>
+struct TState : public StateBase {
+  static constexpr int dim = dim_;
+  TState() {
     num_cells = res[0] * res[1] * res[2];
   }
 
@@ -36,6 +38,7 @@ struct State : public StateBase {
     return grad_grid_node(linearized_offset(x, y, z));
   }
 
+  template <int dim__ = dim_, typename _ = std::enable_if_t<dim_ == 3, void>>
   TC_FORCE_INLINE __device__ Matrix get_matrix(real *p, int part_id) const {
     return Matrix(
         p[part_id + 0 * num_particles], p[part_id + 1 * num_particles],
@@ -138,9 +141,9 @@ struct State : public StateBase {
   TC_MPM_MATRIX(P);
   TC_MPM_MATRIX(C);
 
-  State(int res[dim], int num_particles, real dx, real dt, real gravity[dim],
+  TState(int res[dim], int num_particles, real dx, real dt, real gravity[dim],
       real *x_storage, real *v_storage, real *F_storage, real *C_storage,
-      real *P_storage, real *grid_storage) {
+      real *P_storage, real *grid_storage): StateBase() {
     this->num_cells = 1;
     for (int i = 0; i < dim; i++) {
       this->res[i] = res[i];
@@ -161,13 +164,13 @@ struct State : public StateBase {
     this->grid_storage = grid_storage;
   }
   
-  State(int res[dim], int num_particles, real dx, real dt, real gravity[dim],
+  TState(int res[dim], int num_particles, real dx, real dt, real gravity[dim],
       real *x_storage, real *v_storage, real *F_storage, real *C_storage,
       real *P_storage, real *grid_storage,
       real *grad_x_storage, real *grad_v_storage,
       real *grad_F_storage, real *grad_C_storage,
       real *grad_P_storage, real *grad_grid_storage):
-      State(res, num_particles, dx, dt, gravity,
+      TState(res, num_particles, dx, dt, gravity,
           x_storage, v_storage, F_storage, C_storage,
           P_storage, grid_storage) {
     this->grad_x_storage = grad_x_storage;
@@ -178,8 +181,8 @@ struct State : public StateBase {
     this->grad_grid_storage = grad_grid_storage;
   }
 
-  State(int res[dim], int num_particles, real dx, real dt, real gravity[dim]) :
-      State(res, num_particles, dx, dt, gravity,
+  TState(int res[dim], int num_particles, real dx, real dt, real gravity[dim]) :
+      TState(res, num_particles, dx, dt, gravity,
           NULL, NULL, NULL, NULL, NULL, NULL) {
     cudaMalloc(&x_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&v_storage, sizeof(real) * dim * num_particles);
@@ -237,6 +240,8 @@ struct State : public StateBase {
 };
 
 constexpr int spline_size = 3;
+
+using State = TState<3>;
 
 
 template <int dim = 3, bool with_grad = false>

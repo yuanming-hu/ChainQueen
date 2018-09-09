@@ -13,6 +13,10 @@ struct StateBase {
   real nu = 0.3;   // TODO: variable nu
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
 
+  StateBase() {
+    set(10, 100, 5, 0.3);
+  }
+
   void set(real V_p, real m_p, real E, real nu) {
     this->V_p = V_p;
     this->m_p = m_p;

@@ -93,6 +93,15 @@ class TMatrix {
   }
 
   template <int dim__ = dim_>
+  TC_FORCE_INLINE __device__ TMatrix(T a00, T a01, T a10, T a11) {
+    static_assert(dim__ == 2, "");
+    d[0][0] = a00;
+    d[0][1] = a01;
+    d[1][0] = a10;
+    d[1][1] = a11;
+  }
+
+  template <int dim__ = dim_>
   TC_FORCE_INLINE __device__
   TMatrix(T a00, T a01, T a02, T a10, T a11, T a12, T a20, T a21, T a22) {
     static_assert(dim__ == 3, "");
@@ -179,12 +188,24 @@ class TMatrix {
 
 using Matrix = TMatrix<real, 3>;
 
-TC_FORCE_INLINE __device__ Matrix transposed(const Matrix &A) {
-  return Matrix(A[0][0], A[1][0], A[2][0], A[0][1], A[1][1], A[2][1], A[0][2],
-                A[1][2], A[2][2]);
+template <typename T>
+TC_FORCE_INLINE __device__ TMatrix<T, 2> transposed(const TMatrix<T, 2> &A) {
+  return TMatrix<T, 2>(A[0][0], A[1][0], A[0][1], A[1][1]);
 }
 
-TC_FORCE_INLINE __device__ real determinant(const Matrix &mat) {
+template <typename T>
+TC_FORCE_INLINE __device__ TMatrix<T, 3> transposed(const TMatrix<T, 3> &A) {
+  return TMatrix<T, 3>(A[0][0], A[1][0], A[2][0], A[0][1], A[1][1], A[2][1],
+                       A[0][2], A[1][2], A[2][2]);
+}
+
+template <typename T>
+TC_FORCE_INLINE __device__ T determinant(const TMatrix<T, 2> &mat) {
+  return mat[0][0] * mat[1][1] - mat[1][0] * mat[0][1];
+}
+
+template <typename T>
+TC_FORCE_INLINE __device__ T determinant(const TMatrix<T, 3> &mat) {
   return mat[0][0] * (mat[1][1] * mat[2][2] - mat[2][1] * mat[1][2]) -
          mat[1][0] * (mat[0][1] * mat[2][2] - mat[2][1] * mat[0][2]) +
          mat[2][0] * (mat[0][1] * mat[1][2] - mat[1][1] * mat[0][2]);
