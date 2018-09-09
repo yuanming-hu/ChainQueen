@@ -13,9 +13,6 @@ class TestSimulator(unittest.TestCase):
     if abs(a - b) > 1e-5 * max(max(a, b), 1e-3):
       self.assertEqual(a, b)
 
-  def test_acceleration(self):
-    pass
-
   def motion_test(self,
                   gravity=(0, -10),
                   initial_velocity=(0, 0),
@@ -88,12 +85,14 @@ class TestSimulator(unittest.TestCase):
   def test_free_fall(self):
     self.motion_test(gravity=(0, -10))
 
+  '''
   def test_recursive_placeholder(self):
     a = tf.placeholder(dtype=tf.float32)
     b = tf.placeholder(dtype=tf.float32)
     self.assertAlmostEqual(sess.run(a + b, feed_dict={(a, b): [1, 2]}), 3)
     # The following will not work
     # print(sess.run(a + b, feed_dict={{'a':a, 'b':b}: {'a':1, 'b':2}}))
+  '''
 
   def test_bouncing_cube(self):
     gravity = (0, -10)
@@ -108,15 +107,15 @@ class TestSimulator(unittest.TestCase):
         dt=1e-3,
         batch_size=batch_size,
         sess=sess)
-    position = np.zeros(shape=(batch_size, num_particles, 2))
-    poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.45
+    position = np.zeros(shape=(batch_size, 2, num_particles))
+    poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.45
     initial_velocity = tf.placeholder(shape=(2,), dtype=tf.float32)
     velocity = tf.broadcast_to(
-        initial_velocity[None, None, :], shape=(batch_size, num_particles, 2))
+        initial_velocity[None, None, :], shape=(batch_size, 2, num_particles))
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
-          position[b, i * 10 + j] = (((i + b * 3) * 0.5 + 12.75) * dx,
+          position[b, :, i * 10 + j] = (((i + b * 3) * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
     input_state = sim.get_initial_state(
         position=position,
@@ -167,25 +166,20 @@ class TestSimulator(unittest.TestCase):
         gravity=gravity,
         dt=1e-3,
         sess=sess)
-    position = np.zeros(shape=(batch_size, num_particles, 2))
-    velocity = np.zeros(shape=(batch_size, num_particles, 2))
-    youngs_modulus = np.zeros(shape=(batch_size, num_particles, 1))
+    position = np.zeros(shape=(batch_size, 2, num_particles))
+    velocity = np.zeros(shape=(batch_size, 2, num_particles))
+    youngs_modulus = np.zeros(shape=(batch_size, 1, num_particles))
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
-          position[b, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
+          position[b, :, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
-          velocity[b, i * 10 + j] = (0.5 * (i - 4.5), 0)
+          velocity[b, :, i * 10 + j] = (0.5 * (i - 4.5), 0)
     input_state = sim.get_initial_state(
         position=position, velocity=velocity, youngs_modulus=youngs_modulus)
 
     memo = sim.run(100, input_state)
     sim.visualize(memo)
-
-  def test_sess(self):
-    return
-    # This is NOT going to work.
-    print(sess.run(1))
 
   def test_initial_gradient(self):
     gravity = (0, 1)

@@ -80,10 +80,12 @@ class Simulation:
           background[i][j] *= 0.7
     background = cv2.resize(
         background, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+
     for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0:
         continue
       pos = s[0][b] * self.inv_dx + 0.5
+      pos = np.transpose(pos)
 
       scale = self.scale
 
@@ -123,7 +125,7 @@ class Simulation:
     pos_tensors = [p[0] for p in self.point_visualization]
     feed_dict = {self.initial_state.to_tuple(): state}
     feed_dict.update(extra)
-    
+
     pos = self.sess.run(pos_tensors, feed_dict=feed_dict)
     return [(p,) + tuple(list(r)[1:])
             for p, r in zip(pos, self.point_visualization)]
@@ -307,26 +309,25 @@ class Simulation:
       initial_velocity = velocity
     else:
       initial_velocity = np.zeros(
-          shape=[self.batch_size, self.num_particles, 2])
+          shape=[self.batch_size, 2, self.num_particles])
     deformation_gradient = identity_matrix +\
-                           np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
+                           np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
     affine = identity_matrix * 0 + \
-                           np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
+                           np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
     batch_size = self.batch_size
-    num_particles = len(position[0])
+    num_particles = len(position[0][0])
 
     if particle_mass is None:
-      particle_mass = np.ones(shape=(batch_size, num_particles, 1))
+      particle_mass = np.ones(shape=(batch_size, 1, num_particles))
     if particle_volume is None:
-      particle_volume = np.ones(shape=(batch_size, num_particles, 1))
+      particle_volume = np.ones(shape=(batch_size, 1, num_particles))
     if youngs_modulus is None:
-      youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * 10
+      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * 10
     if type(youngs_modulus) in [int, float]:
-      youngs_modulus = np.ones(shape=(batch_size, num_particles,
-                                      1)) * youngs_modulus
+      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * youngs_modulus
 
     if poissons_ratio is None:
-      poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.3
+      poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.3
 
     return (position, initial_velocity, deformation_gradient, affine,
             particle_mass, particle_volume, youngs_modulus, poissons_ratio, 0)
