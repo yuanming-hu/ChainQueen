@@ -238,13 +238,13 @@ struct State : public StateBase {
 
 constexpr int spline_size = 3;
 
-using BSplineWeights = real[dim][spline_size];
 
-template <bool with_grad = false>
+template <int dim = 3, bool with_grad = false>
 struct TransferCommon {
   int base_coord[dim];
   Vector fx;
   real dx, inv_dx;
+  using BSplineWeights = real[dim][spline_size];
   BSplineWeights weights[1 + (int)with_grad];
 
   TC_FORCE_INLINE __device__ TransferCommon(const State &state, Vector x) {

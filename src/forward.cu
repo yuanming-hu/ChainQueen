@@ -41,6 +41,7 @@ inline __device__ Matrix PK1(Matrix F) {
 }
 
 // One particle per thread
+template <int dim>
 __global__ void P2G(State state) {
   // constexpr int scratch_size = 8;
   //__shared__ real scratch[dim + 1][scratch_size][scratch_size][scratch_size];
@@ -57,7 +58,7 @@ __global__ void P2G(State state) {
   Matrix F = state.get_F(part_id);
   Matrix C = state.get_C(part_id);
 
-  TransferCommon<> tc(state, x);
+  TransferCommon<dim> tc(state, x);
 
   // Fixed corotated
   auto P = PK1(F);
@@ -92,6 +93,7 @@ __global__ void P2G(State state) {
   }
 }
 
+template <int dim>
 __global__ void G2P(State state, State next_state) {
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
@@ -106,7 +108,7 @@ __global__ void G2P(State state, State next_state) {
   Matrix F = state.get_F(part_id);
   Matrix C;
 
-  TransferCommon<> tc(state, x);
+  TransferCommon<dim> tc(state, x);
 
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
@@ -135,6 +137,7 @@ __global__ void test_svd(int n, Matrix *A, Matrix *U, Matrix *sig, Matrix *V) {
   }
 }
 
+// 3D only..
 void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
   Matrix *d_A, *d_U, *d_sig, *d_V;
 
@@ -164,6 +167,7 @@ void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
   }
 }
 
+template <int dim>
 __global__ void normalize_grid(State state) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   int boundary = 3;
@@ -171,9 +175,9 @@ __global__ void normalize_grid(State state) {
     auto node = state.grid_node(id);
     if (node[dim] > 0) {
       real inv_m = 1.0f / node[dim];
-      node[0] *= inv_m;
-      node[1] *= inv_m;
-      node[2] *= inv_m;
+      for (int i = 0; i < dim; i++) {
+        node[i] *= inv_m;
+      }
       for (int i = 0; i < dim; i++) {
         node[i] += state.gravity[i] * state.dt;
       }
@@ -195,21 +199,25 @@ __global__ void normalize_grid(State state) {
 }
 
 void advance(State &state, State &new_state) {
+  static constexpr int dim = 3;
   cudaMemset(state.grid_storage, 0,
              state.num_cells * (state.dim + 1) * sizeof(real));
   int num_blocks =
       (state.num_particles + particle_block_dim - 1) / particle_block_dim;
-  P2G<<<num_blocks, particle_block_dim>>>(state);
+  P2G<dim><<<num_blocks, particle_block_dim>>>(state);
 
   auto err = cudaThreadSynchronize();
   if (err) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  normalize_grid<<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
+  normalize_grid<dim><<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
                    grid_block_dim>>>(state);
-  G2P<<<num_blocks, particle_block_dim>>>(state, new_state);
+  G2P<dim><<<num_blocks, particle_block_dim>>>(state, new_state);
 }
+
+// compability
+static constexpr int dim = 3;
 
 void MPMKernelLauncher(
     int res[dim], int num_particles, real dx, real dt, real gravity[dim],

@@ -4,31 +4,32 @@
 
 #define TC_FORCE_INLINE __forceinline__
 using real = float;
-constexpr int dim = 3;
 
-class Vector {
+template <typename T, int dim_>
+class TVector {
  public:
-  static constexpr int dim = 3;
+  static constexpr int dim = dim_;
 
   real d[dim];
 
-  TC_FORCE_INLINE __device__ Vector(real *val) {
-    d[0] = val[0];
-    d[1] = val[1];
-    d[2] = val[2];
+  TC_FORCE_INLINE __device__ TVector(real *val) {
+    for (int i = 0; i < dim; i++) {
+      d[i] = val[i];
+    }
   }
 
   TC_FORCE_INLINE __device__ __host__ real *data() {
     return &d[0];
   }
 
-  TC_FORCE_INLINE __device__ Vector(real x, real y, real z) {
+  TC_FORCE_INLINE __device__ TVector(real x, real y, real z) {
+    static_assert(dim == 3);
     d[0] = x;
     d[1] = y;
     d[2] = z;
   }
 
-  TC_FORCE_INLINE __device__ Vector(real x = 0) {
+  TC_FORCE_INLINE __device__ TVector(real x = 0) {
     for (int i = 0; i < dim; i++) {
       d[i] = x;
     }
@@ -42,16 +43,16 @@ class Vector {
     return d[i];
   }
 
-  TC_FORCE_INLINE __device__ Vector operator+(const Vector &o) {
-    Vector ret;
+  TC_FORCE_INLINE __device__ TVector operator+(const TVector &o) {
+    TVector ret;
     for (int i = 0; i < dim; i++) {
       ret[i] = d[i] + o[i];
     }
     return ret;
   }
 
-  TC_FORCE_INLINE __device__ Vector operator-(const Vector &o) {
-    Vector ret;
+  TC_FORCE_INLINE __device__ TVector operator-(const TVector &o) {
+    TVector ret;
     for (int i = 0; i < dim; i++) {
       ret[i] = d[i] - o[i];
     }
@@ -59,8 +60,12 @@ class Vector {
   }
 };
 
-TC_FORCE_INLINE __device__ Vector operator*(real alpha, const Vector &o) {
-  Vector ret;
+using Vector = TVector<real, 3>;
+
+template <typename T, int dim>
+TC_FORCE_INLINE __device__ TVector<T, dim> operator*(real alpha,
+                                                     const TVector<T, dim> &o) {
+  TVector<T, dim> ret;
   for (int i = 0; i < dim; i++) {
     ret[i] = alpha * o[i];
   }
@@ -179,6 +184,7 @@ TC_FORCE_INLINE __device__ real determinant(const Matrix &mat) {
 
 TC_FORCE_INLINE __device__ Matrix operator*(real alpha, const Matrix &o) {
   Matrix ret;
+  constexpr int dim = Matrix::dim;
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
       ret[i][j] = alpha * o[i][j];
@@ -227,10 +233,10 @@ TC_FORCE_INLINE __device__ real Clamp_Small_Magnitude(const real input) {
 }
 
 inline __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
-                                                   const real lambda,
-                                                   const real *F,
-                                                   const real *dF,
-                                                   real *dP) {
+                                                          const real lambda,
+                                                          const real *F,
+                                                          const real *dF,
+                                                          real *dP) {
   real U[9];
   real S[3];
   real V[9];
@@ -342,6 +348,7 @@ inline __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
           (dP_hat[6] * U[2] + dP_hat[7] * U[5] + dP_hat[8] * U[8]) * V[8];
 };
 
+/*
 // Takes B, dL/dAB
 // Returns dL/dA
 TC_FORCE_INLINE __device__ Matrix dAB2dA(const Matrix &B, const Matrix &dAB) {
@@ -377,4 +384,4 @@ TC_FORCE_INLINE __device__ Vector duTv2du(const Vector &v, const real &duTv) {
 TC_FORCE_INLINE __device__ Vector duTv2dv(const Vector &u, const real &duTv) {
   return duTv * u;
 }
-
+*/

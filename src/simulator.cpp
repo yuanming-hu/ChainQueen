@@ -4,6 +4,7 @@
 #include <taichi/io/optix.h>
 #include <Partio.h>
 #include <taichi/system/profiler.h>
+#include "config.h"
 #include "kernels.h"
 #include "state_base.h"
 

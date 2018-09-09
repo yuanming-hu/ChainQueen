@@ -13,6 +13,7 @@ __device__ Matrix PK1(Matrix F) {
   return (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
 }
 
+template <int dim>
 __global__ void P2G_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
@@ -48,7 +49,7 @@ __global__ void P2G_backward(State state, State next_state) {
   next_state.set_grad_v(part_id, grad_v_next);
   next_state.set_grad_C(part_id, grad_C_next);
 
-  TransferCommon<true> tc(state, x);
+  TransferCommon<dim, true> tc(state, x);
 
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
@@ -76,6 +77,7 @@ __global__ void P2G_backward(State state, State next_state) {
   }
 }
 
+template <int dim>
 __global__ void grid_backward(State state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
@@ -111,6 +113,7 @@ __global__ void grid_backward(State state) {
 }
 
 // (F), (G), (H), (I), (J)
+template <int dim>
 __global__ void G2P_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
@@ -136,7 +139,7 @@ __global__ void G2P_backward(State state, State next_state) {
   Matrix grad_F;
   Matrix grad_C;
 
-  TransferCommon<true> tc(state, x);
+  TransferCommon<dim, true> tc(state, x);
   {
     /*
     real dx = 1e-4f;
@@ -208,7 +211,6 @@ __global__ void G2P_backward(State state, State next_state) {
 
   grad_F = grad_F2;
   */
-
 
   for (int alpha = 0; alpha < dim; alpha++) {
     for (int beta = 0; beta < dim; beta++) {
@@ -292,51 +294,66 @@ __global__ void G2P_backward(State state, State next_state) {
   state.set_grad_C(part_id, grad_C);
 }
 
+template <int dim>
 void backward(State &state, State &next) {
   state.clear_gradients();
   int num_blocks =
       (state.num_particles + particle_block_dim - 1) / particle_block_dim;
   int num_blocks_grid = state.grid_size();
-  P2G_backward<<<num_blocks, particle_block_dim>>>(state, next);
+  P2G_backward<dim><<<num_blocks, particle_block_dim>>>(state, next);
   auto err = cudaThreadSynchronize();
   if (err) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  grid_backward<<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(
-      state);
-  G2P_backward<<<num_blocks, particle_block_dim>>>(state, next);
+  grid_backward<dim>
+      <<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(state);
+  G2P_backward<dim><<<num_blocks, particle_block_dim>>>(state, next);
 }
 
-void MPMGradKernelLauncher(
-    int res[dim], int num_particles, real dx, real dt, real gravity[dim],
-    const real *inx, const real *inv, const real *inF, const real *inC,
-    const real *outx, const real *outv, const real *outF, const real *outC,
-    const real *outP, const real *outgrid,
-    real *grad_inx, real *grad_inv, real *grad_inF, real *grad_inC,
-    const real *grad_outx, const real *grad_outv, 
-    const real *grad_outF, const real *grad_outC,
-    const real *grad_outP, const real *grad_outgrid) {
+static constexpr int dim = 3;
+void MPMGradKernelLauncher(int res[dim],
+                           int num_particles,
+                           real dx,
+                           real dt,
+                           real gravity[dim],
+                           const real *inx,
+                           const real *inv,
+                           const real *inF,
+                           const real *inC,
+                           const real *outx,
+                           const real *outv,
+                           const real *outF,
+                           const real *outC,
+                           const real *outP,
+                           const real *outgrid,
+                           real *grad_inx,
+                           real *grad_inv,
+                           real *grad_inF,
+                           real *grad_inC,
+                           const real *grad_outx,
+                           const real *grad_outv,
+                           const real *grad_outF,
+                           const real *grad_outC,
+                           const real *grad_outP,
+                           const real *grad_outgrid) {
   printf("MPM_grad Kernel launch~~\n");
-  auto instate = new State(res, num_particles, dx, dt, gravity, 
-      (real *)inx, (real *)inv, (real *)inF, (real *)inC,
-      (real *)outP, (real *)outgrid,
-      grad_inx, grad_inv, grad_inF, grad_inC,
-      (real *)grad_outP, (real *)grad_outgrid);
-  auto outstate = new State(res, num_particles, dx, dt, gravity, 
-      (real *)outx, (real *)outv, (real *)outF, (real *)outC,
-      NULL, NULL,
-      (real *)grad_outx, (real *)grad_outv,
-      (real *)grad_outF, (real *)grad_outC,
-      NULL, NULL);
-  backward(*instate, *outstate);
+  auto instate = new State(res, num_particles, dx, dt, gravity, (real *)inx,
+                           (real *)inv, (real *)inF, (real *)inC, (real *)outP,
+                           (real *)outgrid, grad_inx, grad_inv, grad_inF,
+                           grad_inC, (real *)grad_outP, (real *)grad_outgrid);
+  auto outstate = new State(res, num_particles, dx, dt, gravity, (real *)outx,
+                            (real *)outv, (real *)outF, (real *)outC, NULL,
+                            NULL, (real *)grad_outx, (real *)grad_outv,
+                            (real *)grad_outF, (real *)grad_outC, NULL, NULL);
+  backward<dim>(*instate, *outstate);
   printf("MPM_grad Kernel Finish~~\n");
 }
 
 void backward_mpm3d_state(void *state_, void *next_state_) {
   State *state = reinterpret_cast<State *>(state_);
   State *next_state = reinterpret_cast<State *>(next_state_);
-  backward(*state, *next_state);
+  backward<dim>(*state, *next_state);
 }
 
 void set_grad_loss(void *state_) {
