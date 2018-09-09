@@ -7,7 +7,7 @@ import numpy as np
 sess = tf.Session()
 
 
-class TestSimulator(unittest.TestCase):
+class TestSimulator2D(unittest.TestCase):
 
   def assertAlmostEqualFloat32(self, a, b):
     if abs(a - b) > 1e-5 * max(max(a, b), 1e-3):

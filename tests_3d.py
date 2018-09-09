@@ -9,13 +9,9 @@ import mpm3d
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-
-class MPMOpTest(unittest.TestCase):
-    
+class TestSimulator3D(unittest.TestCase):
     def test_forward(self):
-    
-        print('\n==============\ntest_forward start')
-        
+        # print('\n==============\ntest_forward start')
         with tf.Session('') as sess:
             x = tf.placeholder(tf.float32, shape = (1, 3, 1))
             v = tf.placeholder(tf.float32, shape = (1, 3, 1))
@@ -35,9 +31,7 @@ class MPMOpTest(unittest.TestCase):
             print(f.max())
 
     def test_backward(self):
-    
-        print('\n==============\ntest_backward start')
-        
+        # print('\n==============\ntest_backward start')
         with tf.Session('') as sess:
             x = tf.placeholder(tf.float32, shape = (1, 3, 1))
             v = tf.placeholder(tf.float32, shape = (1, 3, 1))
