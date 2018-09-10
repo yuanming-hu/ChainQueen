@@ -7,39 +7,80 @@ static constexpr int mpm_enalbe_force = true;
 static constexpr int particle_block_dim = 128;
 static constexpr int grid_block_dim = 128;
 
+template <int dim>
+__device__ constexpr int kernel_volume();
+
+template <>
+__device__ constexpr int kernel_volume<2>() {
+  return 9;
+}
+
+template <>
+__device__ constexpr int kernel_volume<3>() {
+  return 27;
+}
+
+template <int dim>
+__device__ TC_FORCE_INLINE TVector<int, dim> offset_from_scalar(int i);
+
+template <>
+__device__ TC_FORCE_INLINE TVector<int, 2> offset_from_scalar<2>(int i) {
+  return TVector<int, 2>(i / 3, i % 3);
+};
+
+template <>
+__device__ TC_FORCE_INLINE TVector<int, 3> offset_from_scalar<3>(int i) {
+  return TVector<int, 3>(i / 9, i / 3 % 3, i % 3);
+};
+
+template <int dim>
+__device__ TC_FORCE_INLINE TVector<real, dim> offset_from_scalar_f(int i);
+
+template <>
+__device__ TC_FORCE_INLINE TVector<real, 2> offset_from_scalar_f<2>(int i) {
+  return TVector<real, 2>(i / 3, i % 3);
+};
+
+template <>
+__device__ TC_FORCE_INLINE TVector<real, 3> offset_from_scalar_f<3>(int i) {
+  return TVector<real, 3>(i / 9, i / 3 % 3, i % 3);
+};
+
 template <int dim_>
 struct TState : public TStateBase<dim_> {
   static constexpr int dim = dim_;
   using Base = TStateBase<dim>;
 
-  using Base::num_particles;
-  using Base::num_cells;
-  using Base::V_p;
-  using Base::m_p;
-  using Base::E;
-  using Base::nu;
-  using Base::mu;
-  using Base::lambda;
-  using Base::dt;
-  using Base::invD;
-  using Base::dx;
-  using Base::res;
-  using Base::gravity;
-  using Base::inv_dx;
-  using Base::grid_storage;
-  using Base::grad_grid_storage;
-  using Base::x_storage;
-  using Base::grad_x_storage;
-  using Base::v_storage;
-  using Base::grad_v_storage;
-  using Base::F_storage;
-  using Base::grad_F_storage;
-  using Base::P_storage;
-  using Base::grad_P_storage;
   using Base::C_storage;
+  using Base::E;
+  using Base::F_storage;
+  using Base::P_storage;
+  using Base::V_p;
+  using Base::dt;
+  using Base::dx;
   using Base::grad_C_storage;
+  using Base::grad_F_storage;
+  using Base::grad_P_storage;
+  using Base::grad_grid_storage;
+  using Base::grad_v_storage;
+  using Base::grad_x_storage;
+  using Base::gravity;
+  using Base::grid_storage;
+  using Base::invD;
+  using Base::inv_dx;
+  using Base::lambda;
+  using Base::m_p;
+  using Base::mu;
+  using Base::nu;
+  using Base::num_cells;
+  using Base::num_particles;
+  using Base::res;
+  using Base::v_storage;
+  using Base::x_storage;
 
-  using VectorI = TVector<int, 3>;
+  using VectorI = TVector<int, dim>;
+  using Vector = TVector<real, dim>;
+  using Matrix = TMatrix<real, dim>;
 
   TState() {
     num_cells = res[0] * res[1] * res[2];
@@ -67,10 +108,6 @@ struct TState : public TStateBase<dim_> {
     return grad_grid_storage + (dim + 1) * offset;
   }
 
-  TC_FORCE_INLINE __device__ real *grid_node(int x, int y, int z) const {
-    return grid_node(linearized_offset(x, y, z));
-  }
-
   TC_FORCE_INLINE __device__ real *grid_node(VectorI x) const {
     return grid_node(linearized_offset(x[0], x[1], x[2]));
   }
@@ -83,7 +120,14 @@ struct TState : public TStateBase<dim_> {
     return grad_grid_node(linearized_offset(x[0], x[1], x[2]));
   }
 
-  template <int dim__ = dim_, typename _ = std::enable_if_t<dim_ == 3, void>>
+  template <int dim__ = dim_, std::enable_if_t<dim__ == 2, int> = 0>
+  TC_FORCE_INLINE __device__ Matrix get_matrix(real *p, int part_id) const {
+    return Matrix(
+        p[part_id + 0 * num_particles], p[part_id + 1 * num_particles],
+        p[part_id + 2 * num_particles], p[part_id + 3 * num_particles]);
+  }
+
+  template <int dim__ = dim_, std::enable_if_t<dim__ == 3, int> = 0>
   TC_FORCE_INLINE __device__ Matrix get_matrix(real *p, int part_id) const {
     return Matrix(
         p[part_id + 0 * num_particles], p[part_id + 1 * num_particles],
@@ -103,6 +147,12 @@ struct TState : public TStateBase<dim_> {
     }
   }
 
+  template <int dim__ = dim_, std::enable_if_t<dim__ == 2, int> = 0>
+  TC_FORCE_INLINE __device__ Vector get_vector(real *p, int part_id) {
+    return Vector(p[part_id], p[part_id + num_particles]);
+  }
+
+  template <int dim__ = dim_, std::enable_if_t<dim__ == 3, int> = 0>
   TC_FORCE_INLINE __device__ Vector get_vector(real *p, int part_id) {
     return Vector(p[part_id], p[part_id + num_particles],
                   p[part_id + num_particles * 2]);
@@ -303,15 +353,20 @@ constexpr int spline_size = 3;
 
 using State = TState<3>;
 
-template <int dim = 3, bool with_grad = false>
+template <int dim, bool with_grad = false>
 struct TransferCommon {
-  TVector<int, 3> base_coord;
+  using VectorI = TVector<int, dim>;
+  using Vector = TVector<real, dim>;
+  using Matrix = TMatrix<real, dim>;
+
+  TVector<int, dim> base_coord;
   Vector fx;
   real dx, inv_dx;
   using BSplineWeights = real[dim][spline_size];
   BSplineWeights weights[1 + (int)with_grad];
 
-  TC_FORCE_INLINE __device__ TransferCommon(const State &state, Vector x) {
+  TC_FORCE_INLINE __device__ TransferCommon(const TState<dim> &state,
+                                            Vector x) {
     dx = state.dx;
     inv_dx = state.inv_dx;
     for (int i = 0; i < dim; i++) {
@@ -344,10 +399,6 @@ struct TransferCommon {
     }
   }
 
-  TC_FORCE_INLINE __device__ real w(int i, int j, int k) {
-    return weights[0][0][i] * weights[0][1][j] * weights[0][2][k];
-  }
-
   TC_FORCE_INLINE __device__ real w(int i) {
     return weights[0][0][i / 9] * weights[0][1][i / 3 % 3] *
            weights[0][2][i % 3];
@@ -362,32 +413,8 @@ struct TransferCommon {
                   weights[0][0][i] * weights[0][1][j] * weights[1][2][k]);
   }
 
-  TC_FORCE_INLINE __device__ Vector dpos(int i, int j, int k) {
-    return dx * (fx + Vector(i, j, k));
-  }
-
   TC_FORCE_INLINE __device__ Vector dpos(int i) {
-    return dx * (fx + Vector(i / 9, i / 3 % 3, i % 3));
+    return dx * (fx + offset_from_scalar_f<dim>(i));
   }
 };
 
-template <int dim>
-__device__ constexpr int kernel_volume();
-
-template <>
-__device__ constexpr int kernel_volume<2>() {
-  return 9;
-}
-
-template <>
-__device__ constexpr int kernel_volume<3>() {
-  return 27;
-}
-
-template <int dim>
-__device__ TC_FORCE_INLINE TVector<int, dim> offset_from_scalar(int i);
-
-template <>
-__device__ TC_FORCE_INLINE TVector<int, 3> offset_from_scalar<3>(int i) {
-  return TVector<int, 3>(i / 9, i / 3 % 3, i % 3);
-};

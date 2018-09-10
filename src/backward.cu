@@ -5,7 +5,7 @@
 #include <vector>
 
 template <int dim>
-__global__ void P2G_backward(State state, State next_state) {
+__global__ void P2G_backward(TState<dim> state, TState<dim> next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -13,10 +13,10 @@ __global__ void P2G_backward(State state, State next_state) {
     return;
   }
 
-  Vector x = state.get_x(part_id);
-  Vector v = state.get_v(part_id);
-  Matrix F = state.get_F(part_id);
-  Matrix C = state.get_C(part_id);
+  auto x = state.get_x(part_id);
+  auto v = state.get_v(part_id);
+  auto F = state.get_F(part_id);
+  auto C = state.get_C(part_id);
 
   auto grad_x_next = next_state.get_grad_x(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
@@ -44,7 +44,7 @@ __global__ void P2G_backward(State state, State next_state) {
 
   for (int i = 0; i < kernel_volume<dim>(); i++) {
     real N = tc.w(i);
-    Vector dpos = tc.dpos(i);
+    auto dpos = tc.dpos(i);
 
     // (C) v_i^n
     real grad_v_i[dim];
@@ -65,7 +65,7 @@ __global__ void P2G_backward(State state, State next_state) {
 }
 
 template <int dim>
-__global__ void grid_backward(State state) {
+__global__ void grid_backward(TState<dim> state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
   int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -80,7 +80,7 @@ __global__ void grid_backward(State state) {
       // grad_p = grad_v / m
       auto m = node[dim];
       real inv_m = 1.0f / m;  // TODO: guard?
-      auto grad_v_i = state.get_grad_grid_velocity(TVector<int, 3>(x, y, z));
+      auto grad_v_i = state.get_grad_grid_velocity(TVector<int, dim>(x, y, z));
       auto grad_p = inv_m * grad_v_i;
       auto v_i = Vector(node);
       for (int d = 0; d < dim; d++) {
@@ -101,7 +101,7 @@ __global__ void grid_backward(State state) {
 
 // (F), (G), (H), (I), (J)
 template <int dim>
-__global__ void G2P_backward(State state, State next_state) {
+__global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -122,9 +122,7 @@ __global__ void G2P_backward(State state, State next_state) {
 
   auto C_next = next_state.get_C(part_id);
 
-  Matrix grad_P;
-  Matrix grad_F;
-  Matrix grad_C;
+  TMatrix<real, dim> grad_P, grad_F, grad_C;
 
   TransferCommon<dim, true> tc(state, x);
   {
@@ -142,7 +140,7 @@ __global__ void G2P_backward(State state, State next_state) {
     */
   }
 
-  Vector grad_v;
+  TVector<real, dim> grad_v;
   real grad_P_scale = state.dt * state.invD * state.V_p;
 
   // (G) Compute grad_P
@@ -202,7 +200,7 @@ __global__ void G2P_backward(State state, State next_state) {
   }
 
   // (J) term 1
-  Vector grad_x = next_state.get_grad_x(part_id);
+  auto grad_x = next_state.get_grad_x(part_id);
   // printf("grad_x %f\n", grad_x[0]);
   auto G = -state.invD * state.dt * P * transposed(F);
   if (mpm_enalbe_apic) {
@@ -211,7 +209,7 @@ __global__ void G2P_backward(State state, State next_state) {
 
   for (int i = 0; i < kernel_volume<dim>(); i++) {
     real N = tc.w(i);
-    Vector dpos = tc.dpos(i);
+    auto dpos = tc.dpos(i);
     auto grid_coord = tc.base_coord + offset_from_scalar<dim>(i);
     auto grad_p = state.get_grad_grid_velocity(grid_coord);
 
@@ -275,7 +273,7 @@ __global__ void G2P_backward(State state, State next_state) {
 }
 
 template <int dim>
-void backward(State &state, State &next) {
+void backward(TState<dim> &state, TState<dim> &next) {
   state.clear_gradients();
   int num_blocks =
       (state.num_particles + particle_block_dim - 1) / particle_block_dim;
@@ -330,11 +328,15 @@ void MPMGradKernelLauncher(int res[dim],
   // printf("MPM_grad Kernel Finish~~\n");
 }
 
-void backward_mpm3d_state(void *state_, void *next_state_) {
-  State *state = reinterpret_cast<State *>(state_);
-  State *next_state = reinterpret_cast<State *>(next_state_);
+template <int dim>
+void backward_mpm_state(void *state_, void *next_state_) {
+  TState<dim> *state = reinterpret_cast<TState<dim> *>(state_);
+  TState<dim> *next_state = reinterpret_cast<TState<dim> *>(next_state_);
   backward<dim>(*state, *next_state);
 }
+
+template void backward_mpm_state<2>(void *state_, void *next_state_);
+template void backward_mpm_state<3>(void *state_, void *next_state_);
 
 void set_grad_loss(void *state_) {
   State *state = reinterpret_cast<State *>(state_);

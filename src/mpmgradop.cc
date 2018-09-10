@@ -124,4 +124,3 @@ public:
 };
 
 REGISTER_KERNEL_BUILDER(Name("MpmGrad").Device(DEVICE_GPU), MPMGradOpGPU);
-

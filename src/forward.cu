@@ -22,23 +22,24 @@ __global__ void P2G(State state) {
 
   real dt = state.dt;
 
-  Vector x = state.get_x(part_id), v = state.get_v(part_id);
-  Matrix F = state.get_F(part_id);
-  Matrix C = state.get_C(part_id);
+  auto x = state.get_x(part_id);
+  auto v = state.get_v(part_id);
+  auto F = state.get_F(part_id);
+  auto C = state.get_C(part_id);
 
   TransferCommon<dim> tc(state, x);
 
   // Fixed corotated
   auto P = PK1(state.mu, state.lambda, F);
   state.set_P(part_id, P);
-  Matrix stress = -state.invD * dt * state.V_p * P;
+  auto stress = -state.invD * dt * state.V_p * P;
 
   auto affine =
       real(mpm_enalbe_force) * stress + real(mpm_enalbe_apic) * state.m_p * C;
 
 #pragma unroll
   for (int i = 0; i < kernel_volume<dim>(); i++) {
-    Vector dpos = tc.dpos(i);
+    auto dpos = tc.dpos(i);
 
     real contrib[dim + 1];
 
@@ -185,8 +186,11 @@ void initialize_mpm3d_state(int *res,
              sizeof(Vector) * num_particles, cudaMemcpyHostToDevice);
 }
 
-void forward_mpm3d_state(void *state_, void *new_state_) {
-  State *state = reinterpret_cast<State *>(state_);
-  State *new_state = reinterpret_cast<State *>(new_state_);
+template<int dim>
+void forward_mpm_state(void *state_, void *new_state_) {
+  State *state = reinterpret_cast<TState<dim> *>(state_);
+  State *new_state = reinterpret_cast<TState<dim> *>(new_state_);
   advance<dim>(*state, *new_state);
 }
+
+template void forward_mpm_state<3>(void *, void *);
