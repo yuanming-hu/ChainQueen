@@ -68,7 +68,8 @@ void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
 template <int dim>
 __host__ std::vector<real> TStateBase<dim>::fetch_x() {
   std::vector<real> host_x(dim * num_particles);
-  cudaMemcpy(host_x.data(), x_storage, sizeof(Vector) * num_particles,
+  cudaMemcpy(host_x.data(), x_storage,
+             sizeof(TVector<real, dim>) * num_particles,
              cudaMemcpyDeviceToHost);
   return host_x;
 }
@@ -76,7 +77,8 @@ __host__ std::vector<real> TStateBase<dim>::fetch_x() {
 template <int dim>
 __host__ std::vector<real> TStateBase<dim>::fetch_grad_v() {
   std::vector<real> host_grad_v(dim * num_particles);
-  cudaMemcpy(host_grad_v.data(), grad_v_storage, sizeof(Vector) * num_particles,
+  cudaMemcpy(host_grad_v.data(), grad_v_storage,
+             sizeof(TVector<real, dim>) * num_particles,
              cudaMemcpyDeviceToHost);
   return host_grad_v;
 }
@@ -84,11 +86,11 @@ __host__ std::vector<real> TStateBase<dim>::fetch_grad_v() {
 template <int dim>
 __host__ std::vector<real> TStateBase<dim>::fetch_grad_x() {
   std::vector<real> host_grad_x(dim * num_particles);
-  cudaMemcpy(host_grad_x.data(), grad_x_storage, sizeof(Vector) * num_particles,
+  cudaMemcpy(host_grad_x.data(), grad_x_storage,
+             sizeof(TVector<real, dim>) * num_particles,
              cudaMemcpyDeviceToHost);
   return host_grad_x;
 }
-
 
 template <int dim>
 void TStateBase<dim>::set_initial_v(float *v) {
@@ -98,15 +100,13 @@ void TStateBase<dim>::set_initial_v(float *v) {
 
 template <int dim>
 void TStateBase<dim>::set_initial_F(float *F) {
-  cudaMemcpy(F_storage, F,
-             sizeof(real) * dim * dim * num_particles,
+  cudaMemcpy(F_storage, F, sizeof(real) * dim * dim * num_particles,
              cudaMemcpyHostToDevice);
 }
-
 
 template std::vector<float> TStateBase<3>::fetch_x();
 template std::vector<float> TStateBase<3>::fetch_grad_x();
 template std::vector<float> TStateBase<3>::fetch_grad_v();
 template void TStateBase<3>::set_initial_F(float *);
 template void TStateBase<3>::set_initial_v(float *);
-//}
+

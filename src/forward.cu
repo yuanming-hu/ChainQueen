@@ -22,23 +22,24 @@ __global__ void P2G(State state) {
 
   real dt = state.dt;
 
-  Vector x = state.get_x(part_id), v = state.get_v(part_id);
-  Matrix F = state.get_F(part_id);
-  Matrix C = state.get_C(part_id);
+  auto x = state.get_x(part_id);
+  auto v = state.get_v(part_id);
+  auto F = state.get_F(part_id);
+  auto C = state.get_C(part_id);
 
   TransferCommon<dim> tc(state, x);
 
   // Fixed corotated
   auto P = PK1(state.mu, state.lambda, F);
   state.set_P(part_id, P);
-  Matrix stress = -state.invD * dt * state.V_p * P;
+  auto stress = -state.invD * dt * state.V_p * P * transposed(F);
 
   auto affine =
       real(mpm_enalbe_force) * stress + real(mpm_enalbe_apic) * state.m_p * C;
 
 #pragma unroll
   for (int i = 0; i < kernel_volume<dim>(); i++) {
-    Vector dpos = tc.dpos(i);
+    auto dpos = tc.dpos(i);
 
     real contrib[dim + 1];
 
@@ -103,17 +104,17 @@ __global__ void G2P(State state, State next_state) {
   }
 
   real dt = state.dt;
-  Vector x = state.get_x(part_id);
-  Vector v;
+  auto x = state.get_x(part_id);
+  State::Vector v;
   Matrix F = state.get_F(part_id);
   Matrix C;
 
   TransferCommon<dim> tc(state, x);
 
   for (int i = 0; i < kernel_volume<dim>(); i++) {
-    Vector dpos = tc.dpos(i);
+    auto dpos = tc.dpos(i);
     auto node = state.grid_node(tc.base_coord + offset_from_scalar<dim>(i));
-    auto node_v = Vector(node);
+    auto node_v = State::Vector(node);
     auto w = tc.w(i);
     v = v + w * node_v;
     C = C + Matrix::outer_product(w * node_v, state.invD * dpos);
@@ -200,11 +201,14 @@ void initialize_mpm3d_state(int *res,
   auto state = new State(res, num_particles, dx, dt, gravity);
   state_ = state;
   cudaMemcpy(state->x_storage, initial_positions,
-             sizeof(Vector) * num_particles, cudaMemcpyHostToDevice);
+             sizeof(TVector<real, dim>) * num_particles, cudaMemcpyHostToDevice);
 }
 
-void forward_mpm3d_state(void *state_, void *new_state_) {
-  State *state = reinterpret_cast<State *>(state_);
-  State *new_state = reinterpret_cast<State *>(new_state_);
+template<int dim>
+void forward_mpm_state(void *state_, void *new_state_) {
+  State *state = reinterpret_cast<TState<dim> *>(state_);
+  State *new_state = reinterpret_cast<TState<dim> *>(new_state_);
   advance<dim>(*state, *new_state);
 }
+
+template void forward_mpm_state<3>(void *, void *);

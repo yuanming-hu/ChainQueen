@@ -138,13 +138,13 @@ auto gpu_mpm3d = []() {
     if (i % interval == 0) {
       write_to_binary_file(scene, fmt::format("{:05d}.tcb", i / interval));
     }
-    forward_mpm3d_state(states[i], states[i + 1]);
+    forward_mpm_state<dim>(states[i], states[i + 1]);
   }
 
   set_grad_loss(states[num_steps]);
   for (int i = num_steps - 1; i >= 0; i--) {
     TC_INFO("backward step {}", i);
-    backward_mpm3d_state(states[i], states[i + 1]);
+    backward_mpm_state<dim>(states[i], states[i + 1]);
     auto grad_x = states[i]->fetch_grad_x();
     auto grad_v = states[i]->fetch_grad_v();
     Vector3f vgrad_v, vgrad_x;
@@ -234,14 +234,14 @@ auto gpu_mpm3d_falling_cube = []() {
     {
       TC_PROFILER("simulate one frame");
       for (int j = 0; j < substep; j++)
-        forward_mpm3d_state(state, state);
+        forward_mpm_state<dim>(state, state);
     }
     taichi::print_profile_info();
   }
   while (true) {
     TC_PROFILER("backward");
     for (int j = 0; j < substep; j++)
-      backward_mpm3d_state(state2, state);
+      backward_mpm_state<dim>(state2, state);
     taichi::print_profile_info();
   }
 };

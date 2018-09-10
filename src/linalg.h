@@ -68,8 +68,6 @@ class TVector {
   }
 };
 
-using Vector = TVector<real, 3>;
-
 template <typename T, int dim>
 TC_FORCE_INLINE __device__ TVector<T, dim> operator*(real alpha,
                                                      const TVector<T, dim> &o) {
@@ -84,6 +82,7 @@ template <typename T, int dim_>
 class TMatrix {
  public:
   static constexpr int dim = dim_;
+  using Vector = TVector<T, dim>;
 
   real d[dim][dim];
 
@@ -210,9 +209,10 @@ TC_FORCE_INLINE __device__ T determinant(const TMatrix<T, 3> &mat) {
          mat[2][0] * (mat[0][1] * mat[1][2] - mat[1][1] * mat[0][2]);
 }
 
-TC_FORCE_INLINE __device__ Matrix operator*(real alpha, const Matrix &o) {
-  Matrix ret;
-  constexpr int dim = Matrix::dim;
+template <typename T, int dim>
+TC_FORCE_INLINE __device__ TMatrix<T, dim> operator*(T alpha,
+                                                     const TMatrix<T, dim> &o) {
+  TMatrix<T, dim> ret;
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
       ret[i][j] = alpha * o[i][j];
@@ -260,11 +260,23 @@ TC_FORCE_INLINE __device__ real Clamp_Small_Magnitude(const real input) {
   return output * sign;
 }
 
-inline __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
-                                                          const real lambda,
-                                                          const real *F,
-                                                          const real *dF,
-                                                          real *dP) {
+template <int dim>
+__device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
+                                                   const real lambda,
+                                                   TMatrix<real, dim> &F_,
+                                                   TMatrix<real, dim> &dF_,
+                                                   TMatrix<real, dim> &dP_);
+
+template <>
+inline __device__ void Times_Rotated_dP_dF_FixedCorotated<3>(
+    const real mu,
+    const real lambda,
+    TMatrix<real, 3> &F_,
+    TMatrix<real, 3> &dF_,
+    TMatrix<real, 3> &dP_) {
+  real *F = F_.data();
+  real *dF = dF_.data();
+  real *dP = dP_.data();
   real U[9];
   real S[3];
   real V[9];
@@ -376,11 +388,57 @@ inline __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
           (dP_hat[6] * U[2] + dP_hat[7] * U[5] + dP_hat[8] * U[8]) * V[8];
 };
 
-TC_FORCE_INLINE __device__ Matrix PK1(real mu, real lambda, Matrix F) {
+template <>
+inline __device__ void Times_Rotated_dP_dF_FixedCorotated<2>(
+    const real mu,
+    const real lambda,
+    TMatrix<real, 2> &F_,
+    TMatrix<real, 2> &dF_,
+    TMatrix<real, 2> &dP_){
+
+};
+
+TC_FORCE_INLINE __device__ TMatrix<real, 2> inversed(
+    const TMatrix<real, 2> &mat) {
+  real det = determinant(mat);
+  return (1 / det) *
+         TMatrix<real, 2>(mat[1][1], -mat[0][1], -mat[1][0], mat[0][0]);
+}
+
+TC_FORCE_INLINE __device__ TMatrix<real, 3> inversed(
+    const TMatrix<real, 3> &mat) {
+  real det = determinant(mat);
+  return 1.0f / det *
+         TMatrix<real, 3>(mat[1][1] * mat[2][2] - mat[2][1] * mat[1][2],
+                          mat[2][1] * mat[0][2] - mat[0][1] * mat[2][2],
+                          mat[0][1] * mat[1][2] - mat[1][1] * mat[0][2],
+                          mat[2][0] * mat[1][2] - mat[1][0] * mat[2][2],
+                          mat[0][0] * mat[2][2] - mat[2][0] * mat[0][2],
+                          mat[1][0] * mat[0][2] - mat[0][0] * mat[1][2],
+                          mat[1][0] * mat[2][1] - mat[2][0] * mat[1][1],
+                          mat[2][0] * mat[0][1] - mat[0][0] * mat[2][1],
+                          mat[0][0] * mat[1][1] - mat[1][0] * mat[0][1]);
+}
+
+template <int dim>
+TC_FORCE_INLINE __device__ Matrix PK1(real mu,
+                                      real lambda,
+                                      TMatrix<real, dim> F) {
   real J = determinant(F);
-  Matrix r, s;
+  TMatrix<real, dim> r, s;
   polar_decomp(F, r, s);
-  return (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+  return 2 * mu * (F - r) + Matrix(lambda * (J - 1) * J) *
+         transposed(inversed(F));
+}
+
+template <int dim>
+TC_FORCE_INLINE __device__ Matrix kirchhoff_stress(real mu,
+                                                   real lambda,
+                                                   TMatrix<real, dim> F) {
+  real J = determinant(F);
+  TMatrix<real, dim> r, s;
+  polar_decomp(F, r, s);
+  return 2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J);
 }
 
 /*
