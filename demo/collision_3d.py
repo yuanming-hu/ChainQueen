@@ -58,7 +58,7 @@ def main(sess):
   sess.run(tf.global_variables_initializer())
 
   initial_state = sim.get_initial_state(
-      position=position, velocity=velocity, youngs_modulus=1)
+      position=position, velocity=velocity, youngs_modulus=0)
 
   final_position = sim.initial_state.center_of_mass(group_particles, None)
   loss = tf.reduce_sum((final_position - goal) ** 2) ** 0.5
