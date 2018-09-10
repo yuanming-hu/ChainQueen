@@ -204,23 +204,3 @@ void forward_mpm3d_state(void *state_, void *new_state_) {
   advance(*state, *new_state);
 }
 
-template <int dim>
-std::vector<float> fetch_mpm3d_particles(void *state_) {
-  State *state = reinterpret_cast<TState<dim> *>(state_);
-  return state->fetch_x();
-}
-
-template <int dim>
-void set_initial_velocities(void *state_, float *v) {
-  State *state = reinterpret_cast<State *>(state_);
-  cudaMemcpy(state->v_storage, v, sizeof(real) * dim * state->num_particles,
-             cudaMemcpyHostToDevice);
-}
-
-template <int dim>
-void set_initial_F(void *state_, float *F) {
-  State *state = reinterpret_cast<State *>(state_);
-  cudaMemcpy(state->F_storage, F,
-             sizeof(real) * dim * dim * state->num_particles,
-             cudaMemcpyHostToDevice);
-}

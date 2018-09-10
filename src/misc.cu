@@ -64,3 +64,27 @@ void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
     }
   }
 }
+
+//template class TState<2>;
+//template class TState<3>;
+
+template <int dim>
+void TStateBase<dim>::set_initial_v(float *v) {
+  cudaMemcpy(v_storage, v, sizeof(real) * dim * num_particles,
+             cudaMemcpyHostToDevice);
+}
+
+template <int dim>
+void TStateBase<dim>::set_initial_F(float *F) {
+  cudaMemcpy(F_storage, F,
+             sizeof(real) * dim * dim * num_particles,
+             cudaMemcpyHostToDevice);
+}
+
+
+template std::vector<float> TStateBase<3>::fetch_x();
+template std::vector<float> TStateBase<3>::fetch_grad_x();
+template std::vector<float> TStateBase<3>::fetch_grad_v();
+template void TStateBase<3>::set_initial_F(float *);
+template void TStateBase<3>::set_initial_v(float *);
+//}

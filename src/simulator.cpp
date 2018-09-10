@@ -164,7 +164,7 @@ auto gpu_mpm3d = []() {
                            initial_positions.data());
     std::fill(initial_positions.begin(), initial_positions.end(), 0);
     if (i == 0) {
-      states[i]->set_initial_velocities(initial_velocities.data());
+      states[i]->set_initial_v(initial_velocities.data());
       states[i]->set_initial_F(initial_F.data());
     }
   }
@@ -266,7 +266,7 @@ auto gpu_mpm3d_falling_cube = []() {
   initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state2, dx, dt,
                          initial_positions.data());
   reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 5000, 0.3);
-  state->set_initial_velocities(initial_velocities.data());
+  state->set_initial_v(initial_velocities.data());
 
   for (int i = 0; i < num_frames; i++) {
     TC_INFO("forward step {}", i);

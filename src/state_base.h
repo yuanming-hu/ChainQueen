@@ -50,7 +50,7 @@ struct TStateBase {
   std::vector<float> fetch_x();
   std::vector<float> fetch_grad_v();
   std::vector<float> fetch_grad_x();
-  void set_initial_velocities(float *);
+  void set_initial_v(float *);
   void set_initial_F(float *F);
 };
 

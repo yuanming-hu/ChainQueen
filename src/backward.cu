@@ -367,12 +367,3 @@ void set_grad_loss(void *state_) {
              sizeof(real) * dim * num_particles, cudaMemcpyHostToDevice);
 }
 
-std::vector<float> fetch_mpm3d_grad_v(void *state_) {
-  State *state = reinterpret_cast<State *>(state_);
-  return state->fetch_grad_v();
-}
-
-std::vector<float> fetch_mpm3d_grad_x(void *state_) {
-  State *state = reinterpret_cast<State *>(state_);
-  return state->fetch_grad_x();
-}

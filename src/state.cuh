@@ -170,9 +170,18 @@ struct TState : public TStateBase<dim_> {
   TC_MPM_MATRIX(P);
   TC_MPM_MATRIX(C);
 
-  TState(int res[dim], int num_particles, real dx, real dt, real gravity[dim],
-      real *x_storage, real *v_storage, real *F_storage, real *C_storage,
-      real *P_storage, real *grid_storage): Base() {
+  TState(int res[dim],
+         int num_particles,
+         real dx,
+         real dt,
+         real gravity[dim],
+         real *x_storage,
+         real *v_storage,
+         real *F_storage,
+         real *C_storage,
+         real *P_storage,
+         real *grid_storage)
+      : Base() {
     this->num_cells = 1;
     for (int i = 0; i < dim; i++) {
       this->res[i] = res[i];
@@ -184,7 +193,7 @@ struct TState : public TStateBase<dim_> {
     this->inv_dx = 1.0f / dx;
     this->dt = dt;
     this->invD = 4 * inv_dx * inv_dx;
-    
+
     this->x_storage = x_storage;
     this->v_storage = v_storage;
     this->F_storage = F_storage;
@@ -192,36 +201,66 @@ struct TState : public TStateBase<dim_> {
     this->P_storage = P_storage;
     this->grid_storage = grid_storage;
   }
-  
-  TState(int res[dim], int num_particles, real dx, real dt, real gravity[dim],
-      real *x_storage, real *v_storage, real *F_storage, real *C_storage,
-      real *P_storage, real *grid_storage,
-      real *grad_x_storage, real *grad_v_storage,
-      real *grad_F_storage, real *grad_C_storage,
-      real *grad_P_storage, real *grad_grid_storage):
-      TState(res, num_particles, dx, dt, gravity,
-          x_storage, v_storage, F_storage, C_storage,
-          P_storage, grid_storage) {
+
+  TState(int res[dim],
+         int num_particles,
+         real dx,
+         real dt,
+         real gravity[dim],
+         real *x_storage,
+         real *v_storage,
+         real *F_storage,
+         real *C_storage,
+         real *P_storage,
+         real *grid_storage,
+         real *grad_x_storage,
+         real *grad_v_storage,
+         real *grad_F_storage,
+         real *grad_C_storage,
+         real *grad_P_storage,
+         real *grad_grid_storage)
+      : TState(res,
+               num_particles,
+               dx,
+               dt,
+               gravity,
+               x_storage,
+               v_storage,
+               F_storage,
+               C_storage,
+               P_storage,
+               grid_storage) {
     this->grad_x_storage = grad_x_storage;
     this->grad_v_storage = grad_v_storage;
     this->grad_F_storage = grad_F_storage;
     this->grad_C_storage = grad_C_storage;
     this->grad_P_storage = grad_P_storage;
     this->grad_grid_storage = grad_grid_storage;
-    //cudaMalloc(&this->grad_P_storage, sizeof(real) * dim * dim * num_particles);
-    //cudaMalloc(&this->grad_grid_storage, sizeof(real) * (dim + 1) * res[0] * res[1] * res[2]);
+    // cudaMalloc(&this->grad_P_storage, sizeof(real) * dim * dim *
+    // num_particles);
+    // cudaMalloc(&this->grad_grid_storage, sizeof(real) * (dim + 1) * res[0] *
+    // res[1] * res[2]);
   }
 
-  TState(int res[dim], int num_particles, real dx, real dt, real gravity[dim]) :
-      TState(res, num_particles, dx, dt, gravity,
-          NULL, NULL, NULL, NULL, NULL, NULL) {
+  TState(int res[dim], int num_particles, real dx, real dt, real gravity[dim])
+      : TState(res,
+               num_particles,
+               dx,
+               dt,
+               gravity,
+               NULL,
+               NULL,
+               NULL,
+               NULL,
+               NULL,
+               NULL) {
     cudaMalloc(&x_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&v_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&F_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&C_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&P_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
-    
+
     cudaMalloc(&grad_x_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&grad_v_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&grad_F_storage, sizeof(real) * dim * dim * num_particles);
@@ -239,27 +278,6 @@ struct TState : public TStateBase<dim_> {
                cudaMemcpyHostToDevice);
   }
 
-  __host__ std::vector<real> fetch_x() {
-    std::vector<real> host_x(dim * num_particles);
-    cudaMemcpy(host_x.data(), x_storage, sizeof(Vector) * num_particles,
-               cudaMemcpyDeviceToHost);
-    return host_x;
-  }
-
-  __host__ std::vector<real> fetch_grad_v() {
-    std::vector<real> host_grad_v(dim * num_particles);
-    cudaMemcpy(host_grad_v.data(), grad_v_storage,
-               sizeof(Vector) * num_particles, cudaMemcpyDeviceToHost);
-    return host_grad_v;
-  }
-
-  __host__ std::vector<real> fetch_grad_x() {
-    std::vector<real> host_grad_x(dim * num_particles);
-    cudaMemcpy(host_grad_x.data(), grad_x_storage,
-               sizeof(Vector) * num_particles, cudaMemcpyDeviceToHost);
-    return host_grad_x;
-  }
-
   void clear_gradients() {
     cudaMemset(grad_v_storage, 0, sizeof(real) * dim * num_particles);
     cudaMemset(grad_x_storage, 0, sizeof(real) * dim * num_particles);
@@ -269,6 +287,30 @@ struct TState : public TStateBase<dim_> {
     cudaMemset(grad_grid_storage, 0, num_cells * (dim + 1) * sizeof(real));
   }
 };
+
+template <int dim>
+__host__ std::vector<real> TStateBase<dim>::fetch_x() {
+  std::vector<real> host_x(dim * num_particles);
+  cudaMemcpy(host_x.data(), x_storage, sizeof(Vector) * num_particles,
+             cudaMemcpyDeviceToHost);
+  return host_x;
+}
+
+template <int dim>
+__host__ std::vector<real> TStateBase<dim>::fetch_grad_v() {
+  std::vector<real> host_grad_v(dim * num_particles);
+  cudaMemcpy(host_grad_v.data(), grad_v_storage, sizeof(Vector) * num_particles,
+             cudaMemcpyDeviceToHost);
+  return host_grad_v;
+}
+
+template <int dim>
+__host__ std::vector<real> TStateBase<dim>::fetch_grad_x() {
+  std::vector<real> host_grad_x(dim * num_particles);
+  cudaMemcpy(host_grad_x.data(), grad_x_storage, sizeof(Vector) * num_particles,
+             cudaMemcpyDeviceToHost);
+  return host_grad_x;
+}
 
 constexpr int spline_size = 3;
 
@@ -289,7 +331,8 @@ struct TransferCommon {
     for (int i = 0; i < dim; i++) {
       base_coord[i] = int(x[i] * inv_dx - 0.5);
       real f = (real)base_coord[i] - x[i] * inv_dx;
-      static_assert(std::is_same<std::decay_t<decltype(fx[i])>, real>::value, "");
+      static_assert(std::is_same<std::decay_t<decltype(fx[i])>, real>::value,
+                    "");
       fx[i] = f;
     }
 
@@ -309,7 +352,8 @@ struct TransferCommon {
         weights[1][i][0] = -inv_dx * (1.5f + fx[i]);
         weights[1][i][1] = inv_dx * (2 * fx[i] + 2);
         weights[1][i][2] = -inv_dx * (fx[i] + 0.5f);
-        // printf("%f\n", weights[1][i][0] + weights[1][i][1] + weights[1][i][2]);
+        // printf("%f\n", weights[1][i][0] + weights[1][i][1] +
+        // weights[1][i][2]);
       }
     }
   }
@@ -331,4 +375,3 @@ struct TransferCommon {
     return dx * (fx + Vector(i, j, k));
   }
 };
-
