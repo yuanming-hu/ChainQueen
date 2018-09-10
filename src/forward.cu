@@ -9,6 +9,19 @@
 
 // Do not consider sorting for now. Use atomics instead.
 
+template <int dim>
+__device__ constexpr int kernel_volume();
+
+template <>
+__device__ constexpr int kernel_volume<2>() {
+  return 9;
+}
+
+template <>
+__device__ constexpr int kernel_volume<3>() {
+  return 27;
+}
+
 // One particle per thread
 template <int dim>
 __global__ void P2G(State state) {
@@ -36,27 +49,24 @@ __global__ void P2G(State state) {
   auto affine =
       real(mpm_enalbe_force) * stress + real(mpm_enalbe_apic) * state.m_p * C;
 
-  for (int i = 0; i < dim; i++) {
-    for (int j = 0; j < dim; j++) {
-      for (int k = 0; k < dim; k++) {
-        Vector dpos = tc.dpos(i, j, k);
+  for (int i = 0; i < kernel_volume<dim>(); i++) {
+    Vector dpos = tc.dpos(i);
 
-        real contrib[dim + 1];
+    real contrib[dim + 1];
 
-        auto tmp = affine * dpos + state.m_p * v;
+    auto tmp = affine * dpos + state.m_p * v;
 
-        auto w = tc.w(i, j, k);
-        for (int d = 0; d < dim; d++) {
-          contrib[d] = tmp[d] * w;
-        }
-        contrib[dim] = state.m_p * w;
+    auto w = tc.w(i);
+    for (int d = 0; d < dim; d++) {
+      contrib[d] = tmp[d] * w;
+    }
+    contrib[dim] = state.m_p * w;
 
-        auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
-                                    tc.base_coord[2] + k);
-        for (int p = 0; p < dim + 1; p++) {
-          atomicAdd(&node[p], contrib[p]);
-        }
-      }
+    auto node =
+        state.grid_node(tc.base_coord[0] + i / 9, tc.base_coord[1] + i / 3 % 3,
+                        tc.base_coord[2] + i % 3);
+    for (int p = 0; p < dim + 1; p++) {
+      atomicAdd(&node[p], contrib[p]);
     }
   }
   /*
@@ -106,9 +116,7 @@ __global__ void G2P(State state, State next_state) {
     return;
   }
 
-  auto inv_dx = state.inv_dx;
   real dt = state.dt;
-
   Vector x = state.get_x(part_id);
   Vector v;
   Matrix F = state.get_F(part_id);
@@ -126,7 +134,7 @@ __global__ void G2P(State state, State next_state) {
 
         auto w = tc.w(i, j, k);
         v = v + w * node_v;
-        C = C + Matrix::outer_product(w * node_v, 4 * inv_dx * inv_dx * dpos);
+        C = C + Matrix::outer_product(w * node_v, state.invD * dpos);
       }
     }
   }
@@ -203,4 +211,3 @@ void forward_mpm3d_state(void *state_, void *new_state_) {
   State *new_state = reinterpret_cast<State *>(new_state_);
   advance(*state, *new_state);
 }
-

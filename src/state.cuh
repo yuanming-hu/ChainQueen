@@ -337,6 +337,11 @@ struct TransferCommon {
     return weights[0][0][i] * weights[0][1][j] * weights[0][2][k];
   }
 
+  TC_FORCE_INLINE __device__ real w(int i) {
+    return weights[0][0][i / 9] * weights[0][1][i / 3 % 3] *
+           weights[0][2][i % 3];
+  }
+
   template <bool _with_grad = with_grad>
   TC_FORCE_INLINE __device__ std::enable_if_t<_with_grad, Vector> dw(int i,
                                                                      int j,
@@ -348,5 +353,9 @@ struct TransferCommon {
 
   TC_FORCE_INLINE __device__ Vector dpos(int i, int j, int k) {
     return dx * (fx + Vector(i, j, k));
+  }
+
+  TC_FORCE_INLINE __device__ Vector dpos(int i) {
+    return dx * (fx + Vector(i / 9, i / 3 % 3, i % 3));
   }
 };
