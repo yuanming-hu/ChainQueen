@@ -39,6 +39,8 @@ struct TState : public TStateBase<dim_> {
   using Base::C_storage;
   using Base::grad_C_storage;
 
+  using VectorI = TVector<int, 3>;
+
   TState() {
     num_cells = res[0] * res[1] * res[2];
   }
@@ -50,6 +52,12 @@ struct TState : public TStateBase<dim_> {
   TC_FORCE_INLINE __device__ int linearized_offset(int x, int y, int z) const {
     return res[2] * (res[1] * x + y) + z;
   }
+
+  /*
+  TC_FORCE_INLINE __device__ int linearized_offset(VectorI x) const {
+    return res[2] * (res[1] * x[0] + x[1]) + x[2];
+  }
+  */
 
   TC_FORCE_INLINE __device__ real *grid_node(int offset) const {
     return grid_storage + (dim + 1) * offset;
@@ -63,8 +71,16 @@ struct TState : public TStateBase<dim_> {
     return grid_node(linearized_offset(x, y, z));
   }
 
+  TC_FORCE_INLINE __device__ real *grid_node(VectorI x) const {
+    return grid_node(linearized_offset(x[0], x[1], x[2]));
+  }
+
   TC_FORCE_INLINE __device__ real *grad_grid_node(int x, int y, int z) const {
     return grad_grid_node(linearized_offset(x, y, z));
+  }
+
+  TC_FORCE_INLINE __device__ real *grad_grid_node(VectorI x) const {
+    return grad_grid_node(linearized_offset(x[0], x[1], x[2]));
   }
 
   template <int dim__ = dim_, typename _ = std::enable_if_t<dim_ == 3, void>>
@@ -294,7 +310,7 @@ using State = TState<3>;
 
 template <int dim = 3, bool with_grad = false>
 struct TransferCommon {
-  int base_coord[dim];
+  TVector<int, 3> base_coord;
   Vector fx;
   real dx, inv_dx;
   using BSplineWeights = real[dim][spline_size];

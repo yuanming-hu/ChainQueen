@@ -22,6 +22,14 @@ __device__ constexpr int kernel_volume<3>() {
   return 27;
 }
 
+template <int dim>
+__device__ TC_FORCE_INLINE TVector<int, dim> offset_from_scalar(int i);
+
+template <>
+__device__ TC_FORCE_INLINE TVector<int, 3> offset_from_scalar<3>(int i) {
+  return TVector<int, 3>(i / 9, i / 3 % 3, i % 3);
+};
+
 // One particle per thread
 template <int dim>
 __global__ void P2G(State state) {
@@ -49,6 +57,7 @@ __global__ void P2G(State state) {
   auto affine =
       real(mpm_enalbe_force) * stress + real(mpm_enalbe_apic) * state.m_p * C;
 
+#pragma unroll
   for (int i = 0; i < kernel_volume<dim>(); i++) {
     Vector dpos = tc.dpos(i);
 
@@ -62,9 +71,7 @@ __global__ void P2G(State state) {
     }
     contrib[dim] = state.m_p * w;
 
-    auto node =
-        state.grid_node(tc.base_coord[0] + i / 9, tc.base_coord[1] + i / 3 % 3,
-                        tc.base_coord[2] + i % 3);
+    auto node = state.grid_node(tc.base_coord + offset_from_scalar<dim>(i));
     for (int p = 0; p < dim + 1; p++) {
       atomicAdd(&node[p], contrib[p]);
     }
@@ -124,19 +131,13 @@ __global__ void G2P(State state, State next_state) {
 
   TransferCommon<dim> tc(state, x);
 
-  for (int i = 0; i < dim; i++) {
-    for (int j = 0; j < dim; j++) {
-      for (int k = 0; k < dim; k++) {
-        Vector dpos = tc.dpos(i, j, k);
-        auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
-                                    tc.base_coord[2] + k);
-        auto node_v = Vector(node[0], node[1], node[2]);
-
-        auto w = tc.w(i, j, k);
-        v = v + w * node_v;
-        C = C + Matrix::outer_product(w * node_v, state.invD * dpos);
-      }
-    }
+  for (int i = 0; i < kernel_volume<dim>(); i++) {
+    Vector dpos = tc.dpos(i);
+    auto node = state.grid_node(tc.base_coord + offset_from_scalar<dim>(i));
+    auto node_v = Vector(node);
+    auto w = tc.w(i);
+    v = v + w * node_v;
+    C = C + Matrix::outer_product(w * node_v, state.invD * dpos);
   }
   next_state.set_x(part_id, x + state.dt * v);
   next_state.set_v(part_id, v);
