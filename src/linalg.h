@@ -267,13 +267,13 @@ __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
                                                    TMatrix<real, dim> &dF_,
                                                    TMatrix<real, dim> &dP_);
 
-
 template <>
-inline __device__ void Times_Rotated_dP_dF_FixedCorotated<3>(const real mu,
-                                                      const real lambda,
-                                                      TMatrix<real, 3> &F_,
-                                                      TMatrix<real, 3> &dF_,
-                                                      TMatrix<real, 3> &dP_) {
+inline __device__ void Times_Rotated_dP_dF_FixedCorotated<3>(
+    const real mu,
+    const real lambda,
+    TMatrix<real, 3> &F_,
+    TMatrix<real, 3> &dF_,
+    TMatrix<real, 3> &dP_) {
   real *F = F_.data();
   real *dF = dF_.data();
   real *dP = dP_.data();
@@ -389,27 +389,46 @@ inline __device__ void Times_Rotated_dP_dF_FixedCorotated<3>(const real mu,
 };
 
 template <>
-inline __device__ void Times_Rotated_dP_dF_FixedCorotated<2>(const real mu,
-                                                      const real lambda,
-                                                      TMatrix<real, 2> &F_,
-                                                      TMatrix<real, 2> &dF_,
-                                                      TMatrix<real, 2> &dP_) {
+inline __device__ void Times_Rotated_dP_dF_FixedCorotated<2>(
+    const real mu,
+    const real lambda,
+    TMatrix<real, 2> &F_,
+    TMatrix<real, 2> &dF_,
+    TMatrix<real, 2> &dP_){
 
 };
 
+TC_FORCE_INLINE __device__ TMatrix<real, 2> inversed(
+    const TMatrix<real, 2> &mat) {
+  real det = determinant(mat);
+  return (1 / det) *
+         TMatrix<real, 2>(mat[1][1], -mat[0][1], -mat[1][0], mat[0][0]);
+}
+
+TC_FORCE_INLINE __device__ TMatrix<real, 3> inversed(
+    const TMatrix<real, 3> &mat) {
+  real det = determinant(mat);
+  return 1.0f / det *
+         TMatrix<real, 3>(mat[1][1] * mat[2][2] - mat[2][1] * mat[1][2],
+                          mat[2][1] * mat[0][2] - mat[0][1] * mat[2][2],
+                          mat[0][1] * mat[1][2] - mat[1][1] * mat[0][2],
+                          mat[2][0] * mat[1][2] - mat[1][0] * mat[2][2],
+                          mat[0][0] * mat[2][2] - mat[2][0] * mat[0][2],
+                          mat[1][0] * mat[0][2] - mat[0][0] * mat[1][2],
+                          mat[1][0] * mat[2][1] - mat[2][0] * mat[1][1],
+                          mat[2][0] * mat[0][1] - mat[0][0] * mat[2][1],
+                          mat[0][0] * mat[1][1] - mat[1][0] * mat[0][1]);
+}
 
 template <int dim>
 TC_FORCE_INLINE __device__ Matrix PK1(real mu,
                                       real lambda,
                                       TMatrix<real, dim> F) {
-  /*
   real J = determinant(F);
   TMatrix<real, dim> r, s;
   polar_decomp(F, r, s);
-  return (2 * mu * (F - r) + Matrix(lambda * (J - 1) * J)) *
-  inversed(transposed(F));
-  */
-  // TODO: inverse
+  return 2 * mu * (F - r) + Matrix(lambda * (J - 1) * J) *
+         transposed(inversed(F));
 }
 
 template <int dim>
@@ -419,7 +438,7 @@ TC_FORCE_INLINE __device__ Matrix kirchhoff_stress(real mu,
   real J = determinant(F);
   TMatrix<real, dim> r, s;
   polar_decomp(F, r, s);
-  return (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
+  return 2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J);
 }
 
 /*
