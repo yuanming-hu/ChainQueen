@@ -9,27 +9,6 @@
 
 // Do not consider sorting for now. Use atomics instead.
 
-template <int dim>
-__device__ constexpr int kernel_volume();
-
-template <>
-__device__ constexpr int kernel_volume<2>() {
-  return 9;
-}
-
-template <>
-__device__ constexpr int kernel_volume<3>() {
-  return 27;
-}
-
-template <int dim>
-__device__ TC_FORCE_INLINE TVector<int, dim> offset_from_scalar(int i);
-
-template <>
-__device__ TC_FORCE_INLINE TVector<int, 3> offset_from_scalar<3>(int i) {
-  return TVector<int, 3>(i / 9, i / 3 % 3, i % 3);
-};
-
 // One particle per thread
 template <int dim>
 __global__ void P2G(State state) {
@@ -145,8 +124,8 @@ __global__ void G2P(State state, State next_state) {
   next_state.set_C(part_id, C);
 }
 
-void advance(State &state, State &new_state) {
-  static constexpr int dim = 3;
+template <int dim>
+void advance(TState<dim> &state, TState<dim> &new_state) {
   cudaMemset(state.grid_storage, 0,
              state.num_cells * (state.dim + 1) * sizeof(real));
   int num_blocks =
@@ -189,7 +168,7 @@ void MPMKernelLauncher(int res[dim],
   // printf("E %f\n", instate->E);
   auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
                                   outv, outF, outC, nullptr, nullptr);
-  advance(*instate, *outstate);
+  advance<dim>(*instate, *outstate);
   // printf("MPM Kernel Finish~~\n");
 }
 
@@ -210,5 +189,5 @@ void initialize_mpm3d_state(int *res,
 void forward_mpm3d_state(void *state_, void *new_state_) {
   State *state = reinterpret_cast<State *>(state_);
   State *new_state = reinterpret_cast<State *>(new_state_);
-  advance(*state, *new_state);
+  advance<dim>(*state, *new_state);
 }

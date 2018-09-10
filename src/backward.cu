@@ -6,7 +6,6 @@
 
 // For deformation gradient update
 
-
 template <int dim>
 __global__ void P2G_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
@@ -45,28 +44,24 @@ __global__ void P2G_backward(State state, State next_state) {
 
   TransferCommon<dim, true> tc(state, x);
 
-  for (int i = 0; i < dim; i++) {
-    for (int j = 0; j < dim; j++) {
-      for (int k = 0; k < dim; k++) {
-        real N = tc.w(i, j, k);
-        Vector dpos = tc.dpos(i, j, k);
+  for (int i = 0; i < kernel_volume<dim>(); i++) {
+    real N = tc.w(i);
+    Vector dpos = tc.dpos(i);
 
-        // (C) v_i^n
-        real grad_v_i[dim];
-        for (int alpha = 0; alpha < dim; alpha++) {
-          grad_v_i[alpha] = grad_v_next[alpha] * N;
-          for (int beta = 0; beta < dim; beta++) {
-            grad_v_i[alpha] +=
-                state.invD * N * grad_C_next[alpha][beta] * dpos[beta];
-          }
-        }
-        auto grad_n = state.grad_grid_node(
-            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
-        for (int d = 0; d < dim; d++) {
-          // printf("grad_v_i %d %f\n", d, grad_v_i[d]);
-          atomicAdd(&grad_n[d], grad_v_i[d]);
-        }
+    // (C) v_i^n
+    real grad_v_i[dim];
+    for (int alpha = 0; alpha < dim; alpha++) {
+      grad_v_i[alpha] = grad_v_next[alpha] * N;
+      for (int beta = 0; beta < dim; beta++) {
+        grad_v_i[alpha] +=
+            state.invD * N * grad_C_next[alpha][beta] * dpos[beta];
       }
+    }
+    auto grad_n =
+        state.grad_grid_node(tc.base_coord + offset_from_scalar<dim>(i));
+    for (int d = 0; d < dim; d++) {
+      // printf("grad_v_i %d %f\n", d, grad_v_i[d]);
+      atomicAdd(&grad_n[d], grad_v_i[d]);
     }
   }
 }
@@ -87,7 +82,7 @@ __global__ void grid_backward(State state) {
       // grad_p = grad_v / m
       auto m = node[dim];
       real inv_m = 1.0f / m;  // TODO: guard?
-      auto grad_v_i = state.get_grad_grid_velocity(x, y, z);
+      auto grad_v_i = state.get_grad_grid_velocity(TVector<int, 3>(x, y, z));
       auto grad_p = inv_m * grad_v_i;
       auto v_i = Vector(node);
       for (int d = 0; d < dim; d++) {
@@ -153,33 +148,29 @@ __global__ void G2P_backward(State state, State next_state) {
   real grad_P_scale = state.dt * state.invD * state.V_p;
 
   // (G) Compute grad_P
-  for (int i = 0; i < dim; i++) {
-    for (int j = 0; j < dim; j++) {
-      for (int k = 0; k < dim; k++) {
-        real N = tc.w(i, j, k);
-        Vector dpos = tc.dpos(i, j, k);
-        auto grad_p = state.get_grad_grid_velocity(
-            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
-        auto grad_N = tc.dw(i, j, k);
-        for (int alpha = 0; alpha < dim; alpha++) {
-          for (int beta = 0; beta < dim; beta++) {
-            // (G) P_p^n
-            for (int gamma = 0; gamma < dim; gamma++) {
-              grad_P[alpha][beta] += -N * grad_P_scale * grad_p[alpha] *
-                                     F[gamma][beta] * dpos[gamma];
-            }
-            // (I) C_p^n
-            if (mpm_enalbe_apic)
-              grad_C[alpha][beta] += N * grad_p[alpha] * state.m_p * dpos[beta];
-          }
+  for (int i = 0; i < kernel_volume<dim>(); i++) {
+    real N = tc.w(i);
+    Vector dpos = tc.dpos(i);
+    auto grad_p =
+        state.get_grad_grid_velocity(tc.base_coord + offset_from_scalar<dim>(i));
+    auto grad_N = tc.dw(i);
+    for (int alpha = 0; alpha < dim; alpha++) {
+      for (int beta = 0; beta < dim; beta++) {
+        // (G) P_p^n
+        for (int gamma = 0; gamma < dim; gamma++) {
+          grad_P[alpha][beta] +=
+              -N * grad_P_scale * grad_p[alpha] * F[gamma][beta] * dpos[gamma];
         }
+        // (I) C_p^n
+        if (mpm_enalbe_apic)
+          grad_C[alpha][beta] += N * grad_p[alpha] * state.m_p * dpos[beta];
       }
     }
   }
 
   // (H) term 2
-  Times_Rotated_dP_dF_FixedCorotated(state.mu, state.lambda, F.data(), grad_P.data(),
-                                     grad_F.data());
+  Times_Rotated_dP_dF_FixedCorotated(state.mu, state.lambda, F.data(),
+                                     grad_P.data(), grad_F.data());
   /*
   Matrix grad_F2;
   for (int i = 0; i < 3; i++) {
@@ -220,60 +211,51 @@ __global__ void G2P_backward(State state, State next_state) {
     G = G + state.m_p * C;
   }
 
-  for (int i = 0; i < dim; i++) {
-    for (int j = 0; j < dim; j++) {
-      for (int k = 0; k < dim; k++) {
-        real N = tc.w(i, j, k);
-        Vector dpos = tc.dpos(i, j, k);
-        auto grad_p = state.get_grad_grid_velocity(
-            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
+  for (int i = 0; i < kernel_volume<dim>(); i++) {
+    real N = tc.w(i);
+    Vector dpos = tc.dpos(i);
+    auto grid_coord = tc.base_coord + offset_from_scalar<dim>(i);
+    auto grad_p = state.get_grad_grid_velocity(grid_coord);
 
-        for (int d = 0; d < dim; d++) {
-          // printf("grad p[%d] %.10f\n", d, grad_p[d]);
+    for (int d = 0; d < dim; d++) {
+      // printf("grad p[%d] %.10f\n", d, grad_p[d]);
+    }
+
+    auto grad_N = tc.dw(i);
+    auto n = state.grid_node(grid_coord);
+    auto mi = state.get_grid_mass(grid_coord);
+    // printf(" m m %f %f\n", mi, n[dim]);
+    auto vi = state.get_grid_velocity(grid_coord);
+    auto grad_mi = state.grad_grid_node(grid_coord)[dim];
+
+    // printf("%.10f\n", grad_p[0]);
+    // printf("%.10f\n", grad_p[1]);
+    // printf("%.10f\n", grad_p[2]);
+    // printf("\n");
+    for (int alpha = 0; alpha < dim; alpha++) {
+      // (F) v_p^n
+      grad_v[alpha] += N * state.m_p * grad_p[alpha];
+
+      // (J) term 5
+      grad_x[alpha] += grad_N[alpha] * grad_mi * state.m_p;
+
+      for (int beta = 0; beta < dim; beta++) {
+        for (int gamma = 0; gamma < dim; gamma++) {
+          // (H), term 3
+          grad_F[alpha][beta] +=
+              -N * grad_p[gamma] * grad_P_scale * P[gamma][beta] * dpos[alpha];
         }
 
-        auto grad_N = tc.dw(i, j, k);
-        auto n = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
-                                 tc.base_coord[2] + k);
-        auto mi = state.get_grid_mass(
-            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
-        // printf(" m m %f %f\n", mi, n[dim]);
-        auto vi = state.get_grid_velocity(
-            tc.base_coord[0] + i, tc.base_coord[1] + j, tc.base_coord[2] + k);
-        auto grad_mi =
-            state.grad_grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
-                                 tc.base_coord[2] + k)[dim];
-
-        // printf("%.10f\n", grad_p[0]);
-        // printf("%.10f\n", grad_p[1]);
-        // printf("%.10f\n", grad_p[2]);
-        // printf("\n");
-        for (int alpha = 0; alpha < dim; alpha++) {
-          // (F) v_p^n
-          grad_v[alpha] += N * state.m_p * grad_p[alpha];
-
-          // (J) term 5
-          grad_x[alpha] += grad_N[alpha] * grad_mi * state.m_p;
-
-          for (int beta = 0; beta < dim; beta++) {
-            for (int gamma = 0; gamma < dim; gamma++) {
-              // (H), term 3
-              grad_F[alpha][beta] += -N * grad_p[gamma] * grad_P_scale *
-                                     P[gamma][beta] * dpos[alpha];
-            }
-
-            // (J), term 2
-            grad_x[alpha] += grad_v_next[beta] * grad_N[alpha] * vi[beta];
-            // (J), term 3
-            auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
-            grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
-            // (J), term 4
-            grad_x[alpha] +=
-                grad_p[beta] *
-                (grad_N[alpha] * (state.m_p * v[beta] + (G * dpos)[beta]) -
-                 N * G[beta][alpha]);
-          }
-        }
+        // (J), term 2
+        grad_x[alpha] += grad_v_next[beta] * grad_N[alpha] * vi[beta];
+        // (J), term 3
+        auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
+        grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
+        // (J), term 4
+        grad_x[alpha] +=
+            grad_p[beta] *
+            (grad_N[alpha] * (state.m_p * v[beta] + (G * dpos)[beta]) -
+             N * G[beta][alpha]);
       }
     }
   }
@@ -284,7 +266,8 @@ __global__ void G2P_backward(State state, State next_state) {
   }
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
-      printf("m %d %d %f %f %f %f\n", i, j, grad_F[i][j], grad_C[i][j], F[i][j], grad_P[i][j]);
+      printf("m %d %d %f %f %f %f\n", i, j, grad_F[i][j], grad_C[i][j], F[i][j],
+  grad_P[i][j]);
     }
   }
   */
@@ -336,17 +319,17 @@ void MPMGradKernelLauncher(int res[dim],
                            const real *grad_outC,
                            const real *grad_outP,
                            const real *grad_outgrid) {
-  //printf("MPM_grad Kernel launch~~\n");
+  // printf("MPM_grad Kernel launch~~\n");
   auto current = new State(res, num_particles, dx, dt, gravity, (real *)inx,
                            (real *)inv, (real *)inF, (real *)inC, (real *)outP,
                            (real *)outgrid, grad_inx, grad_inv, grad_inF,
                            grad_inC, (real *)grad_outP, (real *)grad_outgrid);
   auto next = new State(res, num_particles, dx, dt, gravity, (real *)outx,
-                            (real *)outv, (real *)outF, (real *)outC, NULL,
-                            NULL, (real *)grad_outx, (real *)grad_outv,
-                            (real *)grad_outF, (real *)grad_outC, NULL, NULL);
+                        (real *)outv, (real *)outF, (real *)outC, NULL, NULL,
+                        (real *)grad_outx, (real *)grad_outv, (real *)grad_outF,
+                        (real *)grad_outC, NULL, NULL);
   backward<dim>(*current, *next);
-  //printf("MPM_grad Kernel Finish~~\n");
+  // printf("MPM_grad Kernel Finish~~\n");
 }
 
 void backward_mpm3d_state(void *state_, void *next_state_) {
@@ -366,4 +349,3 @@ void set_grad_loss(void *state_) {
   cudaMemcpy(state->grad_x_storage, grad_x_host.data(),
              sizeof(real) * dim * num_particles, cudaMemcpyHostToDevice);
 }
-

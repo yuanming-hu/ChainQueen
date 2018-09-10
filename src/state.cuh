@@ -114,23 +114,18 @@ struct TState : public TStateBase<dim_> {
     }
   }
 
-  TC_FORCE_INLINE __device__ Vector get_grid_velocity(int i, int j, int k) {
-    auto g = grid_node(i, j, k);
+  TC_FORCE_INLINE __device__ Vector get_grid_velocity(VectorI i) {
+    auto g = grid_node(i);
     return Vector(g);
   }
 
-  TC_FORCE_INLINE __device__ Vector get_grad_grid_velocity(int i,
-                                                           int j,
-                                                           int k) {
-    auto g = grad_grid_node(i, j, k);
+  TC_FORCE_INLINE __device__ Vector get_grad_grid_velocity(VectorI i) {
+    auto g = grad_grid_node(i);
     return Vector(g);
   }
 
-  TC_FORCE_INLINE __device__ void set_grid_velocity(int i,
-                                                    int j,
-                                                    int k,
-                                                    Vector v) {
-    auto g = grid_node(i, j, k);
+  TC_FORCE_INLINE __device__ void set_grid_velocity(VectorI i, Vector v) {
+    auto g = grid_node(i);
     for (int d = 0; d < dim; d++) {
       g[d] = v[d];
     }
@@ -146,8 +141,8 @@ struct TState : public TStateBase<dim_> {
     }
   }
 
-  TC_FORCE_INLINE __device__ real get_grid_mass(int i, int j, int k) {
-    auto g = grid_node(i, j, k);
+  TC_FORCE_INLINE __device__ real get_grid_mass(VectorI i) {
+    auto g = grid_node(i);
     return g[dim];
   }
 
@@ -359,9 +354,9 @@ struct TransferCommon {
   }
 
   template <bool _with_grad = with_grad>
-  TC_FORCE_INLINE __device__ std::enable_if_t<_with_grad, Vector> dw(int i,
-                                                                     int j,
-                                                                     int k) {
+  TC_FORCE_INLINE __device__ std::enable_if_t<_with_grad, Vector> dw(int i) {
+    int j = i / 3 % 3, k = i % 3;
+    i = i / 9;
     return Vector(weights[1][0][i] * weights[0][1][j] * weights[0][2][k],
                   weights[0][0][i] * weights[1][1][j] * weights[0][2][k],
                   weights[0][0][i] * weights[0][1][j] * weights[1][2][k]);
@@ -374,4 +369,25 @@ struct TransferCommon {
   TC_FORCE_INLINE __device__ Vector dpos(int i) {
     return dx * (fx + Vector(i / 9, i / 3 % 3, i % 3));
   }
+};
+
+template <int dim>
+__device__ constexpr int kernel_volume();
+
+template <>
+__device__ constexpr int kernel_volume<2>() {
+  return 9;
+}
+
+template <>
+__device__ constexpr int kernel_volume<3>() {
+  return 27;
+}
+
+template <int dim>
+__device__ TC_FORCE_INLINE TVector<int, dim> offset_from_scalar(int i);
+
+template <>
+__device__ TC_FORCE_INLINE TVector<int, 3> offset_from_scalar<3>(int i) {
+  return TVector<int, 3>(i / 9, i / 3 % 3, i % 3);
 };
