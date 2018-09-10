@@ -4,8 +4,6 @@
 #include <cstdio>
 #include <vector>
 
-// For deformation gradient update
-
 template <int dim>
 __global__ void P2G_backward(State state, State next_state) {
   // Scatter particle gradients to grid nodes
@@ -151,8 +149,8 @@ __global__ void G2P_backward(State state, State next_state) {
   for (int i = 0; i < kernel_volume<dim>(); i++) {
     real N = tc.w(i);
     Vector dpos = tc.dpos(i);
-    auto grad_p =
-        state.get_grad_grid_velocity(tc.base_coord + offset_from_scalar<dim>(i));
+    auto grad_p = state.get_grad_grid_velocity(tc.base_coord +
+                                               offset_from_scalar<dim>(i));
     auto grad_N = tc.dw(i);
     for (int alpha = 0; alpha < dim; alpha++) {
       for (int beta = 0; beta < dim; beta++) {
@@ -325,9 +323,9 @@ void MPMGradKernelLauncher(int res[dim],
                            (real *)outgrid, grad_inx, grad_inv, grad_inF,
                            grad_inC, (real *)grad_outP, (real *)grad_outgrid);
   auto next = new State(res, num_particles, dx, dt, gravity, (real *)outx,
-                        (real *)outv, (real *)outF, (real *)outC, NULL, NULL,
-                        (real *)grad_outx, (real *)grad_outv, (real *)grad_outF,
-                        (real *)grad_outC, NULL, NULL);
+                        (real *)outv, (real *)outF, (real *)outC, nullptr,
+                        nullptr, (real *)grad_outx, (real *)grad_outv,
+                        (real *)grad_outF, (real *)grad_outC, nullptr, nullptr);
   backward<dim>(*current, *next);
   // printf("MPM_grad Kernel Finish~~\n");
 }

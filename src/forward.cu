@@ -144,7 +144,6 @@ void advance(TState<dim> &state, TState<dim> &new_state) {
 }
 
 // compability
-
 constexpr int dim = 3;
 void MPMKernelLauncher(int res[dim],
                        int num_particles,
