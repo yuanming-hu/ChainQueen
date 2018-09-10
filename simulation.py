@@ -25,7 +25,19 @@ def get_bounding_box_bc(res, boundary_thickness=3):
     bc_normal[:, :, :boundary_thickness] = (0, 1)
     bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1)
   else:
-    assert False
+    assert len(res) == 3
+    bc_parameter = np.zeros(
+      shape=(1,) + res + (1,), dtype=np.float32)
+    bc_parameter += 0.5  # Coefficient of friction
+    bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np.float32)
+    bc_normal[:, :boundary_thickness] = (1, 0, 0)
+    bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0, 0)
+    bc_normal[:, :, :boundary_thickness] = (0, 1, 0)
+    bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1, 0)
+    bc_normal[:, :, :boundary_thickness] = (0, 1, 0)
+    bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1, 0)
+    bc_normal[:, :, :, :boundary_thickness] = (0, 0, 1)
+    bc_normal[:, :, :, res[2] - boundary_thickness - 1:] = (0, 0, -1)
   return bc_parameter, bc_normal
 
 class Simulation:
