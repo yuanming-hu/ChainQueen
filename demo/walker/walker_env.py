@@ -15,13 +15,13 @@ class WalkerEnv(gym.Env):
     init_state is the initial state of the entire robot
     '''
     max_act = np.ones(4) * 1.0
-    max_obs = np.ones(2) * 2.0
+    max_obs = np.ones(42) * 2.0
     goal_input = np.expand_dims(w_s.goal_pos, axis=0)
     
     
     
     self.action_space = spaces.Box(-max_act, max_act)
-    self.observation_space = spaces.Box(np.array([0.0, 0.0]), max_obs)
+    self.observation_space = spaces.Box(np.zeros(42), max_obs)
     self.seed()
     
     
