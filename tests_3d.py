@@ -181,7 +181,7 @@ class TestSimulator3D(unittest.TestCase):
     
         g = (v1 - v2) / (2 * delta)
         print(g)
-        self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-3, relative_tol=1e-3)
+        self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=1e-2)
 
 if __name__ == '__main__':
   unittest.main()

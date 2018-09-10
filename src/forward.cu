@@ -157,7 +157,7 @@ void advance(State &state, State &new_state) {
 
 // compability
 
-template <int dim>
+constexpr int dim = 3;
 void MPMKernelLauncher(int res[dim],
                        int num_particles,
                        real dx,

@@ -288,34 +288,9 @@ struct TState : public TStateBase<dim_> {
   }
 };
 
-template <int dim>
-__host__ std::vector<real> TStateBase<dim>::fetch_x() {
-  std::vector<real> host_x(dim * num_particles);
-  cudaMemcpy(host_x.data(), x_storage, sizeof(Vector) * num_particles,
-             cudaMemcpyDeviceToHost);
-  return host_x;
-}
-
-template <int dim>
-__host__ std::vector<real> TStateBase<dim>::fetch_grad_v() {
-  std::vector<real> host_grad_v(dim * num_particles);
-  cudaMemcpy(host_grad_v.data(), grad_v_storage, sizeof(Vector) * num_particles,
-             cudaMemcpyDeviceToHost);
-  return host_grad_v;
-}
-
-template <int dim>
-__host__ std::vector<real> TStateBase<dim>::fetch_grad_x() {
-  std::vector<real> host_grad_x(dim * num_particles);
-  cudaMemcpy(host_grad_x.data(), grad_x_storage, sizeof(Vector) * num_particles,
-             cudaMemcpyDeviceToHost);
-  return host_grad_x;
-}
-
 constexpr int spline_size = 3;
 
 using State = TState<3>;
-
 
 template <int dim = 3, bool with_grad = false>
 struct TransferCommon {

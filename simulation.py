@@ -81,7 +81,8 @@ class Simulation:
     if bc is None and self.dim == 2:
       bc = get_bounding_box_bc(grid_res)
       
-    self.bc_parameter, self.bc_normal = bc
+    if bc is not None:
+      self.bc_parameter, self.bc_normal = bc
     self.initial_state = self.InitialSimulationState(self, controller)
     self.grad_state = self.InitialSimulationState(self, controller)
     self.updated_states = []
