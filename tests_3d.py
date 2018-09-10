@@ -18,6 +18,31 @@ class TestSimulator3D(unittest.TestCase):
     if abs(a - b) > relative_tol * max(max(abs(a), abs(b)), clip):
       self.assertEqual(a, b)
 
+  def test_p2g(self):
+    # print('\n==============\ntest_forward start')
+    x = tf.placeholder(tf.float32, shape=(1, 3, 1))
+    v = tf.placeholder(tf.float32, shape=(1, 3, 1))
+    C = tf.constant(np.zeros([1, 3, 3, 1]).astype(np.float32))
+    f = np.zeros([1, 3, 3, 1]).astype(np.float32)
+    f[0, 0, 0, 0] = 1
+    f[0, 1, 1, 0] = 1
+    f[0, 2, 2, 0] = 1
+    F = tf.constant(f)
+    step = mpm3d.p2g(x, v, C, F)
+    feed_dict = {
+        x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
+        v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)
+    }
+    o = sess.run(step, feed_dict=feed_dict)
+    print(o)
+    PP, GG = o
+    for i in range(GG.shape[0]):
+      for j in range(GG.shape[1]):
+        for k in range(GG.shape[2]):
+          for l in range(GG.shape[3]):
+            if(np.abs(GG[i, j, k, l]) > 1e-5):
+              print('F', i, j, k, l, GG[i, j, k, l])
+
   def test_forward(self):
     # print('\n==============\ntest_forward start')
     x = tf.placeholder(tf.float32, shape=(1, 3, 1))
