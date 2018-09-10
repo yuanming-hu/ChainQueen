@@ -14,12 +14,12 @@ N = 10
 group_particles = N * N * 2
 num_particles = group_particles * 2
 steps = 100
-dt = 1e-2
+dt = 5e-3
 goal_range = 0.15
-res = (30, 30)
+res = (100, 100)
 bc = get_bounding_box_bc(res)
 
-lr = 1e-2
+lr = 2e-2
 
 def main(sess):
   
@@ -34,7 +34,7 @@ def main(sess):
       sess=sess)
   position = np.zeros(shape=(batch_size, 2, num_particles))
 
-  velocity_ph = tf.Variable([0.3, 0.05], trainable = True)
+  velocity_ph = tf.Variable([0.4, 0.05], trainable = True)
   velocity_1 = velocity_ph[None, :, None] + tf.zeros(
       shape=[batch_size, 2, group_particles], dtype=tf.float32)
   velocity_2 = tf.zeros(shape=[batch_size, 2, group_particles], dtype=tf.float32)
@@ -58,7 +58,7 @@ def main(sess):
   sess.run(tf.global_variables_initializer())
 
   initial_state = sim.get_initial_state(
-      position=position, velocity=velocity)
+      position=position, velocity=velocity, youngs_modulus=1)
 
   final_position = sim.initial_state.center_of_mass(group_particles, None)
   loss = tf.reduce_sum((final_position - goal) ** 2) ** 0.5
