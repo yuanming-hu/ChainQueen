@@ -18,7 +18,7 @@ dt = 1e-2
 res = (100, 100, 100)
 bc = get_bounding_box_bc(res)
 
-lr = 2e-2
+lr = 2e-3
 
 def main(sess):
   
