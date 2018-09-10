@@ -63,12 +63,14 @@ sess_config.gpu_options.per_process_gpu_memory_fraction = 0.4
 
 sess = tf.Session(config=sess_config)
 
+goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
+actuation = tf.placeholder(dtype=tf.float32, shape=[1, len(actuations)], name='act')
 
 def generate_sim():
   #utility function for ppo
   t = time.time()
 
-  goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
+  
 
   # Define your controller here
   
@@ -90,7 +92,7 @@ def generate_sim():
     assert controller_inputs.shape == (batch_size, 6 * num_groups, 1)
     # Batch, 6 * num_groups, 1
       #IPython.embed()
-    actuation = tf.placeholder(dtype=tf.float32, shape=[1, len(actuations)], name='act')
+    
     debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation}
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
@@ -162,6 +164,7 @@ def generate_sim():
   
   sim.add_point_visualization(pos=goal, color=(0, 1, 0), radius=3)
   sim.add_vector_visualization(pos=final_position, vector=final_velocity, color=(0, 0, 1), scale=50)
+  
   
   return initial_state, sim, loss, loss_x, loss_y
     
