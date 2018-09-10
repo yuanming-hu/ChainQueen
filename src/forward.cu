@@ -227,6 +227,7 @@ void MPMKernelLauncher(
   //printf("MPM Kernel Launch~~\n");
   auto instate = new State(res, num_particles, dx, dt, gravity, 
       (real *)inx, (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+  // printf("E %f\n", instate->E);
   auto outstate = new State(res, num_particles, dx, dt, gravity, 
       outx, outv, outF, outC, NULL, NULL);
   advance(*instate, *outstate);

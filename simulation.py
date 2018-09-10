@@ -48,6 +48,7 @@ class Simulation:
       self.InitialSimulationState = InitialSimulationState3D
       self.UpdatedSimulationState = UpdatedSimulationState3D
       self.identity_matrix = identity_matrix_3d
+      assert batch_size == 1, "In 3D only batch_size = 1 is supported."
 
     self.sess = sess
     self.num_particles = num_particles
@@ -357,7 +358,7 @@ class Simulation:
     affine = self.identity_matrix * 0 + \
                            np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
     batch_size = self.batch_size
-    num_particles = len(position[0][0])
+    num_particles = self.num_particles
 
     if particle_mass is None:
       particle_mass = np.ones(shape=(batch_size, 1, num_particles))
