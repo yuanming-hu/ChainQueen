@@ -8,8 +8,37 @@ static constexpr int particle_block_dim = 128;
 static constexpr int grid_block_dim = 128;
 
 template <int dim_>
-struct TState : public StateBase {
+struct TState : public TStateBase<dim_> {
   static constexpr int dim = dim_;
+  using Base = TStateBase<dim>;
+
+  using Base::num_particles;
+  using Base::num_cells;
+  using Base::V_p;
+  using Base::m_p;
+  using Base::E;
+  using Base::nu;
+  using Base::mu;
+  using Base::lambda;
+  using Base::dt;
+  using Base::invD;
+  using Base::dx;
+  using Base::res;
+  using Base::gravity;
+  using Base::inv_dx;
+  using Base::grid_storage;
+  using Base::grad_grid_storage;
+  using Base::x_storage;
+  using Base::grad_x_storage;
+  using Base::v_storage;
+  using Base::grad_v_storage;
+  using Base::F_storage;
+  using Base::grad_F_storage;
+  using Base::P_storage;
+  using Base::grad_P_storage;
+  using Base::C_storage;
+  using Base::grad_C_storage;
+
   TState() {
     num_cells = res[0] * res[1] * res[2];
   }
@@ -143,7 +172,7 @@ struct TState : public StateBase {
 
   TState(int res[dim], int num_particles, real dx, real dt, real gravity[dim],
       real *x_storage, real *v_storage, real *F_storage, real *C_storage,
-      real *P_storage, real *grid_storage): StateBase() {
+      real *P_storage, real *grid_storage): Base() {
     this->num_cells = 1;
     for (int i = 0; i < dim; i++) {
       this->res[i] = res[i];

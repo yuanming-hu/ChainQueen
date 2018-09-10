@@ -1,11 +1,12 @@
 #pragma once
 
-struct StateBase {
+template <int dim_>
+struct TStateBase {
   using real = float;
 
-  static constexpr int dim = 3;
+  static constexpr int dim = dim_;
   int num_particles;
-  int res[3];
+  int res[dim];
 
   real V_p = 10;   // TODO: variable vol
   real m_p = 100;  // TODO: variable m_p
@@ -13,7 +14,7 @@ struct StateBase {
   real nu = 0.3;   // TODO: variable nu
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
 
-  StateBase() {
+  TStateBase() {
     set(10, 100, 5, 0.3);
   }
 
@@ -42,9 +43,10 @@ struct StateBase {
 
   int num_cells;
 
-  real gravity[3];
+  real gravity[dim];
   real dx, inv_dx, invD;
   real dt;
 };
 
-void advance(StateBase &state);
+template<int dim>
+void advance(TStateBase<dim> &state);

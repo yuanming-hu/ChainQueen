@@ -10,25 +10,6 @@
 
 TC_NAMESPACE_BEGIN
 
-class DMPMSimulator3D {
- public:
-  StateBase state;
-
-  DMPMSimulator3D() {
-    // TODO: initialize the state
-  }
-
-  void advance() {
-    ::advance(state);
-  }
-
-  void backward(const StateBase &initial_state, const StateBase &new_state) {
-  }
-
-  void test() {
-  }
-};
-
 void write_partio(std::vector<Vector3> positions,
                   const std::string &file_name) {
   Partio::ParticlesDataMutable *parts = Partio::create();
@@ -278,10 +259,10 @@ auto gpu_mpm3d_falling_cube = []() {
   real dt = 1.0_f / 60 / substep;
   initialize_mpm3d_state(&res[0], num_particles, &gravity[0], state, dx, dt,
                          initial_positions.data());
-  reinterpret_cast<StateBase *>(state)->set(10, 100, 5000, 0.3);
+  reinterpret_cast<TStateBase<3> *>(state)->set(10, 100, 5000, 0.3);
   initialize_mpm3d_state(&res[0], num_particles, &gravity[0], state2, dx, dt,
                          initial_positions.data());
-  reinterpret_cast<StateBase *>(state2)->set(10, 100, 5000, 0.3);
+  reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 5000, 0.3);
   set_initial_velocities(state, initial_velocities.data());
 
   for (int i = 0; i < num_frames; i++) {
