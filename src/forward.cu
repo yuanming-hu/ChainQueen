@@ -170,6 +170,24 @@ void MPMKernelLauncher(int res[dim],
   advance<dim>(*instate, *outstate);
   // printf("MPM Kernel Finish~~\n");
 }
+void P2GKernelLauncher(int res[dim],
+                       int num_particles,
+                       real dx,
+                       real dt,
+                       real gravity[dim],
+                       const real *inx,
+                       const real *inv,
+                       const real *inF,
+                       const real *inC,
+                       real *outP,
+                       real *outgrid) {
+  auto state =
+      new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
+                      (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+  int num_blocks =
+      (num_particles + particle_block_dim - 1) / particle_block_dim;
+  P2G<dim><<<num_blocks, particle_block_dim>>>(*state);
+}
 
 void initialize_mpm3d_state(int *res,
                             int num_particles,

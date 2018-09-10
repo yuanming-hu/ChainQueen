@@ -5,21 +5,11 @@
 
 using namespace tensorflow;
 
-/*
-    Register MPM operation
-*/
-
-    
-
-REGISTER_OP("Mpm")
+REGISTER_OP("P2g")
   .Input("position: float")         //(batch_size, dim, particles)
   .Input("velocity: float")         //(batch_size, dim, particles)
   .Input("affine: float")           //(batch_size, dim, dim, particles)
   .Input("deformation: float")      //(batch_size, dim, dim, particles)
-  .Output("position_out: float")    
-  .Output("velocity_out: float")    
-  .Output("affine_out: float")      
-  .Output("deformation_out: float") 
   .Output("poly_out: float")        //(batch_size, dim, dim, particles)
   .Output("grid_out: float")        //(batch_size, dim + 1, num_cells)
   .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
@@ -66,23 +56,18 @@ REGISTER_OP("Mpm")
     return Status::OK();
   });
 
-/*
-    MPM Operation GPU
-*/
 
-void MPMKernelLauncher(
+void P2GKernelLauncher(
     int res[3], int num_particles, float dx, float dt, float gravity[3],
     const float *inx, const float *inv, const float *inF, const float *inC,
-    float *outx, float *outv, float *outF, float *outC, float *outP,
-    float *outgrid);
+    float *outP, float *outgrid);
 
-class MPMOpGPU : public OpKernel {
+class P2GOpGPU : public OpKernel {
 public:
-  explicit MPMOpGPU(OpKernelConstruction* context) : OpKernel(context) {
+  explicit P2GOpGPU(OpKernelConstruction* context) : OpKernel(context) {
   }
   
   void Compute(OpKernelContext* context) override {
-
     int res[3] = {100, 100, 100};
     float gravity[3] = {0, -0, 0};
     float dx = 1.0f / res[0];
@@ -142,46 +127,30 @@ public:
     DCHECK_EQ(particles, C_shape.dim_size(3));
             
     // create output tensor
-    Tensor* outx = NULL;
-    Tensor* outv = NULL;
-    Tensor* outF = NULL;
-    Tensor* outC = NULL;
     Tensor* outP = NULL;
     Tensor* outgrid = NULL;
-    OP_REQUIRES_OK(context, context->allocate_output(0, x_shape, &outx));
-    OP_REQUIRES_OK(context, context->allocate_output(1, v_shape, &outv));
-    OP_REQUIRES_OK(context, context->allocate_output(2, F_shape, &outF));
-    OP_REQUIRES_OK(context, context->allocate_output(3, C_shape, &outC));
-    OP_REQUIRES_OK(context, context->allocate_output(4, C_shape, &outP));
+    OP_REQUIRES_OK(context, context->allocate_output(0, C_shape, &outP));
     grid_shape.set_dim(3, num_cells);
-    OP_REQUIRES_OK(context, context->allocate_output(5, grid_shape, &outgrid));
+    OP_REQUIRES_OK(context, context->allocate_output(1, grid_shape, &outgrid));
     
     auto f_inx = inx.flat<float>();
     auto f_inv = inv.flat<float>();
     auto f_inF = inF.flat<float>();
     auto f_inC = inC.flat<float>();
-    auto f_outx = outx->template flat<float>();
-    auto f_outv = outv->template flat<float>();
-    auto f_outF = outF->template flat<float>();
-    auto f_outC = outC->template flat<float>();
     auto f_outP = outP->template flat<float>();
     auto f_outgrid = outgrid->template flat<float>();
     
 
-    MPMKernelLauncher(
+    P2GKernelLauncher(
         res, particles, dx, dt, gravity,
         f_inx.data(),
         f_inv.data(),
         f_inF.data(),
         f_inC.data(),
-        f_outx.data(),
-        f_outv.data(),
-        f_outF.data(),
-        f_outC.data(),
         f_outP.data(),
         f_outgrid.data());
   }
 };
 
-REGISTER_KERNEL_BUILDER(Name("Mpm").Device(DEVICE_GPU), MPMOpGPU);
+REGISTER_KERNEL_BUILDER(Name("P2g").Device(DEVICE_GPU), P2GOpGPU);
 
