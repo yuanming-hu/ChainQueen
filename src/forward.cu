@@ -156,8 +156,8 @@ void advance(State &state, State &new_state) {
 }
 
 // compability
-static constexpr int dim = 3;
 
+template <int dim>
 void MPMKernelLauncher(int res[dim],
                        int num_particles,
                        real dx,
@@ -175,11 +175,11 @@ void MPMKernelLauncher(int res[dim],
                        real *outgrid) {
   // printf("MPM Kernel Launch~~\n");
   auto instate =
-      new State(res, num_particles, dx, dt, gravity, (real *)inx, (real *)inv,
-                (real *)inF, (real *)inC, outP, outgrid);
+      new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
+                      (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
   // printf("E %f\n", instate->E);
-  auto outstate = new State(res, num_particles, dx, dt, gravity, outx, outv,
-                            outF, outC, NULL, NULL);
+  auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
+                                  outv, outF, outC, nullptr, nullptr);
   advance(*instate, *outstate);
   // printf("MPM Kernel Finish~~\n");
 }
@@ -204,17 +204,20 @@ void forward_mpm3d_state(void *state_, void *new_state_) {
   advance(*state, *new_state);
 }
 
+template <int dim>
 std::vector<float> fetch_mpm3d_particles(void *state_) {
-  State *state = reinterpret_cast<State *>(state_);
+  State *state = reinterpret_cast<TState<dim> *>(state_);
   return state->fetch_x();
 }
 
+template <int dim>
 void set_initial_velocities(void *state_, float *v) {
   State *state = reinterpret_cast<State *>(state_);
   cudaMemcpy(state->v_storage, v, sizeof(real) * dim * state->num_particles,
              cudaMemcpyHostToDevice);
 }
 
+template <int dim>
 void set_initial_F(void *state_, float *F) {
   State *state = reinterpret_cast<State *>(state_);
   cudaMemcpy(state->F_storage, F,

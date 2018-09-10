@@ -112,6 +112,7 @@ auto gpu_mpm3d = []() {
 */
 
 auto gpu_mpm3d = []() {
+  constexpr int dim = 3;
   int n = 16;
   int num_particles = n * n * n;
   std::vector<real> initial_positions;
@@ -153,23 +154,24 @@ auto gpu_mpm3d = []() {
   }
   TC_P(initial_F.size());
   int num_steps = 80;
-  std::vector<void *> states((uint32)num_steps + 1, nullptr);
+  std::vector<TStateBase<dim> *> states((uint32)num_steps + 1, nullptr);
   Vector3i res(20);
   // Differentiate gravity is not supported
   Vector3 gravity(0, 0, 0);
   for (int i = 0; i < num_steps + 1; i++) {
-    initialize_mpm3d_state(&res[0], num_particles, &gravity[0], states[i],
-                           1.0_f / res[0], 5e-3_f, initial_positions.data());
+    initialize_mpm3d_state(&res[0], num_particles, &gravity[0],
+                           (void *&)states[i], 1.0_f / res[0], 5e-3_f,
+                           initial_positions.data());
     std::fill(initial_positions.begin(), initial_positions.end(), 0);
     if (i == 0) {
-      set_initial_velocities(states[i], initial_velocities.data());
-      set_initial_F(states[i], initial_F.data());
+      states[i]->set_initial_velocities(initial_velocities.data());
+      states[i]->set_initial_F(initial_F.data());
     }
   }
 
   for (int i = 0; i < num_steps; i++) {
     TC_INFO("forward step {}", i);
-    auto x = fetch_mpm3d_particles(states[i]);
+    auto x = states[i]->fetch_x();
     OptiXScene scene;
     for (int p = 0; p < (int)initial_positions.size() / 3; p++) {
       OptiXParticle particle;
@@ -192,8 +194,8 @@ auto gpu_mpm3d = []() {
   for (int i = num_steps - 1; i >= 0; i--) {
     TC_INFO("backward step {}", i);
     backward_mpm3d_state(states[i], states[i + 1]);
-    auto grad_x = fetch_mpm3d_grad_x(states[i]);
-    auto grad_v = fetch_mpm3d_grad_v(states[i]);
+    auto grad_x = states[i]->fetch_grad_x();
+    auto grad_v = states[i]->fetch_grad_v();
     Vector3f vgrad_v, vgrad_x;
     for (int j = 0; j < num_particles; j++) {
       for (int k = 0; k < 3; k++) {
@@ -209,6 +211,7 @@ auto gpu_mpm3d = []() {
 TC_REGISTER_TASK(gpu_mpm3d);
 
 auto gpu_mpm3d_falling_cube = []() {
+  constexpr int dim = 3;
   // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
   int n = 80;
   real dx = 0.2;
@@ -253,21 +256,21 @@ auto gpu_mpm3d_falling_cube = []() {
   int num_frames = 300;
   Vector3i res(100, 120, 100);
   Vector3 gravity(0, -10, 0);
-  void * state;
-  void * state2;
+  TStateBase<dim> *state;
+  TStateBase<dim> *state2;
   int substep = 3;
   real dt = 1.0_f / 60 / substep;
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], state, dx, dt,
+  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state, dx, dt,
                          initial_positions.data());
   reinterpret_cast<TStateBase<3> *>(state)->set(10, 100, 5000, 0.3);
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], state2, dx, dt,
+  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state2, dx, dt,
                          initial_positions.data());
   reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 5000, 0.3);
-  set_initial_velocities(state, initial_velocities.data());
+  state->set_initial_velocities(initial_velocities.data());
 
   for (int i = 0; i < num_frames; i++) {
     TC_INFO("forward step {}", i);
-    auto x = fetch_mpm3d_particles(state);
+    auto x = state->fetch_x();
     auto fn = fmt::format("{:04d}.bgeo", i);
     TC_INFO(fn);
     std::vector<Vector3> parts;
@@ -390,4 +393,3 @@ auto write_partio_c = [](const std::vector<std::string> &parameters) {
 TC_REGISTER_TASK(write_partio_c);
 
 TC_NAMESPACE_END
-

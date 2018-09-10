@@ -7,8 +7,3 @@ void initialize_mpm3d_state(int *, int, float *, void *&, float dx, float dt, fl
 void forward_mpm3d_state(void *, void *);
 void backward_mpm3d_state(void *, void *);
 void set_grad_loss(void *);
-void set_initial_velocities(void *, float *);
-void set_initial_F(void *state_, float *F);
-std::vector<float> fetch_mpm3d_particles(void *);
-std::vector<float> fetch_mpm3d_grad_v(void *);
-std::vector<float> fetch_mpm3d_grad_x(void *);
