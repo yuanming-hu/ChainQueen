@@ -96,7 +96,7 @@ class TestSimulator3D(unittest.TestCase):
     dx = 0.03
     N = 10
     num_particles = N ** 3
-    steps = 10
+    steps = 1
     dt = 1e-2
     sim = Simulation(
       grid_res=(30, 30, 30),
@@ -139,7 +139,7 @@ class TestSimulator3D(unittest.TestCase):
     dx = 0.03
     N = 3
     num_particles = N ** 3
-    steps = 3
+    steps = 1
     dt = 1e-2
     sim = Simulation(
       grid_res=(30, 30, 30),
@@ -155,7 +155,12 @@ class TestSimulator3D(unittest.TestCase):
     
     position_val = np.zeros(shape=(batch_size, 3, num_particles))
     velocity_val = np.zeros(shape=(batch_size, 3, num_particles))
-    
+
+    F_val = np.zeros(shape=(batch_size, 3, 3, num_particles))
+    F_val[:, 0, 0, :] = 0.5
+    F_val[:, 1, 1, :] = 1
+    F_val[:, 2, 2, :] = 1
+
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):
@@ -164,7 +169,7 @@ class TestSimulator3D(unittest.TestCase):
               (((i + b * 3) * 0.5 + 12.75) * dx, (j * 0.5 + 12.75) * dx,
                (k * 0.5 + 12.75) * dx)
             
-    input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph)
+    input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph, deformation_gradient=F_val)
   
     loss = sim.initial_state.position[:, 0, 0]
   
@@ -192,7 +197,7 @@ class TestSimulator3D(unittest.TestCase):
         position_val[0, i, j] += delta
         
         g = (v1 - v2) / (2 * delta)
-        self.assertAlmostEqualFloat32(g, grad[0][0, i, j], clip=0, relative_tol=1e-3)
+        self.assertAlmostEqualFloat32(g, grad[0][0, i, j], clip=1e-3, relative_tol=1e-3)
         
     for i in range(dim):
       for j in range(num_particles):

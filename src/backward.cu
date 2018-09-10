@@ -199,7 +199,7 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   // (J) term 1
   auto grad_x = next_state.get_grad_x(part_id);
   // printf("grad_x %f\n", grad_x[0]);
-  auto G = -state.invD * state.dt * P * transposed(F);
+  auto G = -state.invD * state.dt * state.V_p * P * transposed(F);
   if (mpm_enalbe_apic) {
     G = G + state.m_p * C;
   }
