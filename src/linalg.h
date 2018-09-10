@@ -1,7 +1,6 @@
 #pragma once
 
 #include "svd.cuh"
-#include "../../../../../../../usr/lib/gcc/x86_64-pc-linux-gnu/6.4.1/include/c++/type_traits"
 
 #define TC_FORCE_INLINE __forceinline__
 using real = float;
