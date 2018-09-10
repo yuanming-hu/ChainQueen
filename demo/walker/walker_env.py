@@ -24,7 +24,7 @@ class WalkerEnv(gym.Env):
     self.observation_space = spaces.Box(np.zeros(42), max_obs)
     self.seed()
     
-    
+    self.iter_ = 0
     
     self.state = None
     self.goal_input = goal_input
@@ -48,6 +48,7 @@ class WalkerEnv(gym.Env):
         iteration_feed_dict={w_s.goal: self.goal_input, w_s.actuation: zero_act},
         loss=self.obs)
           
+      print('reset')
       return memo_obs.loss
       
   def step(self, action):        
@@ -77,12 +78,25 @@ class WalkerEnv(gym.Env):
     reward = -memo.loss
     
     #TODO: 4. return if we're exactly at the goal and give a bonus to reward if we are
-    done = np.linalg.norm(obs[18:20] - self.goal_input) < goal_ball #TODO: unhardcode
-    if done:
+    success = np.linalg.norm(obs[18:20] - self.goal_input) < goal_ball #TODO: unhardcode
+    if self.iter_ == 800:
+      self.iter_ = 0
+      fail = True
+    else:
+      fail = False
+    
+    if success:
       reward += 1
+    if fail:
+      reward -= 1
+      
+    self.iter_ += 1
+      
+    done = fail or success
     
     self.memo = memo
             
+    #print(reward)
     return obs, reward, done, {}
       
   def render(self):
