@@ -10,7 +10,7 @@ from IPython import embed
 
 batch_size = 1
 gravity = (0, 0)
-N = 5
+N = 15
 group_particles = N * N * N * 2
 num_particles = group_particles * 2
 steps = 100

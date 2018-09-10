@@ -6,9 +6,8 @@ from time_integration_3d import InitialSimulationState3D, UpdatedSimulationState
 from memo import Memo
 
 try:
-  #import taichi as tc
-  #from taichi import Task
-  pass
+  import taichi as tc
+  from taichi import Task
 except:
   print("Warning: cannot import taichi or CUDA solver.")
 
@@ -158,12 +157,10 @@ class Simulation:
         continue
       pos = s[0][batch]
       pos = np.transpose(pos).copy()
-      print(np.mean(pos, axis=(0)))
-      '''
+      #print(np.mean(pos, axis=(0)))
       task = Task('write_partio_c')
       task.run(self.num_particles,
                str(pos.ctypes.data_as(ctypes.POINTER(ctypes.c_float))), '{:04d}.bgeo'.format(i))
-      '''
 
   def visualize(self, memo, interval=1, batch=0, export=None, show=False):
     if self.dim == 2:

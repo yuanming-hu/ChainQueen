@@ -5,7 +5,7 @@ from tensorflow.python.ops import sparse_ops
 import os
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
-MPM_module = tf.load_op_library(os.path.join(file_dir, '../../build/libtaichi_differentiable_mpm.so'))
+MPM_module = tf.load_op_library(os.path.join(file_dir, '../../build/libtaichi_tf_differentiable_mpm.so'))
 
 mpm = MPM_module.mpm
 
