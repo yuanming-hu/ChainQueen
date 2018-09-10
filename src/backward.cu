@@ -163,27 +163,32 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   }
 
   // (H) term 2
-  Times_Rotated_dP_dF_FixedCorotated(state.mu, state.lambda, F, grad_P, grad_F);
-  /*
-  Matrix grad_F2;
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      Matrix inc = F, dec = F;
-      real delta = 1e-2f;
-      inc[i][j] += delta;
-      dec[i][j] -= delta;
-      auto diff = (1 / (2 * delta)) * (PK1(inc) - kirchhoff_stress(dec));
-      grad_F2 = grad_F2 + grad_P[i][j] * diff;
+  if (mpm_enalbe_force) {
+    Times_Rotated_dP_dF_FixedCorotated(state.mu, state.lambda, F, grad_P,
+                                       grad_F);
+    /*
+    TMatrix<real, dim> grad_F2;
+    for (int i = 0; i < dim; i++) {
+      for (int j = 0; j < dim; j++) {
+        auto inc = F, dec = F;
+        real delta = 1e-3f;
+        inc[i][j] += delta;
+        dec[i][j] -= delta;
+        auto diff = (1 / (2 * delta)) * (PK1(state.mu, state.lambda, inc) -
+                                         PK1(state.mu, state.lambda, dec));
+        grad_F2 = grad_F2 + grad_P[i][j] * diff;
+      }
     }
-  }
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      printf("%d %d:  %f %f\n", i, j, grad_F2[i][j] * 1e8, grad_F[i][j] * 1e8);
+    for (int i = 0; i < dim; i++) {
+      for (int j = 0; j < dim; j++) {
+        printf("%d %d:  %f %f\n", i, j, grad_F2[i][j] * 1e8,
+               grad_F[i][j] * 1e8);
+      }
     }
-  }
 
-  grad_F = grad_F2;
-  */
+    grad_F = grad_F2;
+    */
+  }
 
   for (int alpha = 0; alpha < dim; alpha++) {
     for (int beta = 0; beta < dim; beta++) {
@@ -199,7 +204,8 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   // (J) term 1
   auto grad_x = next_state.get_grad_x(part_id);
   // printf("grad_x %f\n", grad_x[0]);
-  auto G = -state.invD * state.dt * state.V_p * P * transposed(F);
+  auto G = (mpm_enalbe_force) * -state.invD * state.dt * state.V_p * P *
+           transposed(F);
   if (mpm_enalbe_apic) {
     G = G + state.m_p * C;
   }
@@ -265,7 +271,8 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   }
   */
   state.set_grad_v(part_id, grad_v);
-  state.set_grad_F(part_id, grad_F);
+  if (mpm_enalbe_force)
+    state.set_grad_F(part_id, grad_F);
   state.set_grad_C(part_id, grad_C);
 }
 

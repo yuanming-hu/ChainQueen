@@ -137,7 +137,7 @@ class TestSimulator3D(unittest.TestCase):
     gravity = (0, -10, 0)
     batch_size = 1
     dx = 0.03
-    N = 3
+    N = 2
     num_particles = N ** 3
     steps = 1
     dt = 1e-2
@@ -158,8 +158,12 @@ class TestSimulator3D(unittest.TestCase):
 
     F_val = np.zeros(shape=(batch_size, 3, 3, num_particles))
     F_val[:, 0, 0, :] = 0.5
+    F_val[:, 0, 1, :] = 0
     F_val[:, 1, 1, :] = 1
+    F_val[:, 1, 0, :] = 0
     F_val[:, 2, 2, :] = 1
+    F_val[:, 2, 1, :] = 0
+    F_val[:, 1, 2, :] = 0
 
     for b in range(batch_size):
       for i in range(N):
@@ -197,6 +201,7 @@ class TestSimulator3D(unittest.TestCase):
         position_val[0, i, j] += delta
         
         g = (v1 - v2) / (2 * delta)
+        print(g, grad[0][0, i, j])
         self.assertAlmostEqualFloat32(g, grad[0][0, i, j], clip=1e-3, relative_tol=1e-3)
         
     for i in range(dim):
@@ -210,8 +215,8 @@ class TestSimulator3D(unittest.TestCase):
         velocity_val[0, i, j] += delta
     
         g = (v1 - v2) / (2 * delta)
-        print(g)
-        self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-3, relative_tol=2e-2)
+        print(g, grad[1][0, i, j])
+        self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=1e-2)
 
 if __name__ == '__main__':
   unittest.main()

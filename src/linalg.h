@@ -1,6 +1,7 @@
 #pragma once
 
 #include "svd.cuh"
+#include <cstdio>
 
 #define TC_FORCE_INLINE __forceinline__
 using real = float;
@@ -246,8 +247,16 @@ TC_FORCE_INLINE __device__ void svd(Matrix &A,
   // clang-format on
 }
 
-TC_FORCE_INLINE __device__ void polar_decomp(Matrix &A, Matrix &R, Matrix &S) {
-  Matrix U, sig, V;
+TC_FORCE_INLINE __device__ void polar_decomp(TMatrix<real, 2> &A,
+                                             TMatrix<real, 2> &R,
+                                             TMatrix<real, 2> &S) {
+  printf("not implemented");
+}
+
+TC_FORCE_INLINE __device__ void polar_decomp(TMatrix<real, 3> &A,
+                                             TMatrix<real, 3> &R,
+                                             TMatrix<real, 3> &S) {
+  TMatrix<real, 3> U, sig, V;
   svd(A, U, sig, V);
   R = U * transposed(V);
   S = V * sig * transposed(V);
@@ -421,20 +430,19 @@ TC_FORCE_INLINE __device__ TMatrix<real, 3> inversed(
 }
 
 template <int dim>
-TC_FORCE_INLINE __device__ Matrix PK1(real mu,
-                                      real lambda,
-                                      TMatrix<real, dim> F) {
+TC_FORCE_INLINE __device__ TMatrix<real, dim> PK1(real mu,
+                                                  real lambda,
+                                                  TMatrix<real, dim> F) {
   real J = determinant(F);
   TMatrix<real, dim> r, s;
   polar_decomp(F, r, s);
-  return 2 * mu * (F - r) + Matrix(lambda * (J - 1) * J) *
-         transposed(inversed(F));
+  return 2 * mu * (F - r) +
+         TMatrix<real, dim>(lambda * (J - 1) * J) * transposed(inversed(F));
 }
 
 template <int dim>
-TC_FORCE_INLINE __device__ Matrix kirchhoff_stress(real mu,
-                                                   real lambda,
-                                                   TMatrix<real, dim> F) {
+TC_FORCE_INLINE __device__ TMatrix<real, dim>
+kirchhoff_stress(real mu, real lambda, TMatrix<real, dim> F) {
   real J = determinant(F);
   TMatrix<real, dim> r, s;
   polar_decomp(F, r, s);
