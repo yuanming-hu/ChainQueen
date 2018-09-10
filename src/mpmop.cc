@@ -10,10 +10,10 @@ using namespace tensorflow;
 */
 
     
-int res[3] = {20, 20, 20};
+int res[3] = {100, 100, 100};
 float gravity[3] = {0, -0, 0};
-float dx = 1.0 / res[0];
-float dt = 1e-2;
+float dx = 1.0f / res[0];
+float dt = 1e-2f;
 int num_cells = res[0] * res[1] * res[2];
 
 REGISTER_OP("Mpm")

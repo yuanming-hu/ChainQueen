@@ -10,16 +10,15 @@ from IPython import embed
 
 batch_size = 1
 gravity = (0, 0)
-N = 15
+N = 10
 group_particles = N * N * N * 2
 num_particles = group_particles * 2
-steps = 100
-dt = 5e-3
-goal_range = 0.15
+steps = 70
+dt = 1e-2
 res = (100, 100, 100)
 bc = get_bounding_box_bc(res)
 
-lr = 2e-3
+lr = 2e-2
 
 def main(sess):
   
@@ -34,7 +33,7 @@ def main(sess):
       sess=sess)
   position = np.zeros(shape=(batch_size, 3, num_particles))
 
-  velocity_ph = tf.Variable([0.4, 0.05, 0.0], trainable = True)
+  velocity_ph = tf.Variable([0.4, 0.00, 0.0], trainable = True)
   velocity_1 = velocity_ph[None, :, None] + tf.zeros(
       shape=[batch_size, 3, group_particles], dtype=tf.float32)
   velocity_2 = tf.zeros(shape=[batch_size, 3, group_particles], dtype=tf.float32)
@@ -68,9 +67,7 @@ def main(sess):
 
   sym = sim.gradients_sym(loss, variables = trainables)
 
-  goal_input = np.array(
-          [[0.7, 0.4, 0.4]],
-    dtype=np.float32)
+  goal_input = np.array([[0.7, 0.4, 0.4]], dtype=np.float32)
 
   for i in range(1000000):
     t = time.time()
@@ -83,6 +80,7 @@ def main(sess):
     gradient_descent = [
         v.assign(v - lr * g) for v, g in zip(trainables, grad)
     ]
+    print(sess.run(velocity_ph))
     sess.run(gradient_descent)
     print('iter {:5d} time {:.3f} loss {:.4f}'.format(
         i, time.time() - t, memo.loss))
