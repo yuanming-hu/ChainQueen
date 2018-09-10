@@ -29,7 +29,7 @@ class WalkerEnv(gym.Env):
     self.state = None
     self.goal_input = goal_input
     
-    self.init_state, self.sim, self.loss, self.x, self.y = w_s.generate_sim()
+    self.init_state, self.sim, self.loss, self.obs = w_s.generate_sim()
     self.sim.set_initial_state(initial_state=self.init_state)
     
   def seed(self, seed=None):
@@ -42,19 +42,13 @@ class WalkerEnv(gym.Env):
       zero_act = np.expand_dims(np.zeros(self.action_space.shape), axis=0)
       #We need to step forward and get the observation
       #IPython.embed()
-      memo_x = self.sim.run(
+      memo_obs = self.sim.run(
         initial_state=self.state,
         num_steps=1,
         iteration_feed_dict={w_s.goal: self.goal_input, w_s.actuation: zero_act},
-        loss=self.x)
+        loss=self.obs)
           
-      memo_y = self.sim.run(
-        initial_state=self.state,
-        num_steps=1,
-        iteration_feed_dict={w_s.goal: self.goal_input, w_s.actuation: zero_act},
-        loss=self.y)
-          
-      return np.array([memo_x.loss, memo_y.loss])
+      return memo_obs.loss
       
   def step(self, action):        
     action_ = np.expand_dims(action, axis=0)
@@ -65,31 +59,25 @@ class WalkerEnv(gym.Env):
         iteration_feed_dict={w_s.goal: self.goal_input, w_s.actuation: action_},
         loss=self.loss)
         
-    memo_x = self.sim.run(
+    memo_obs = self.sim.run(
         initial_state=self.state,
         num_steps=1,
         iteration_feed_dict={w_s.goal: self.goal_input, w_s.actuation: action_},
-        loss=self.x)
+        loss=self.obs)
     
-    memo_y = self.sim.run(
-        initial_state=self.state,
-        num_steps=1,
-        iteration_feed_dict={w_s.goal: self.goal_input, w_s.actuation: action_},
-        loss=self.y)
-        
         
     #2. update state
     #TODO: update state
     self.state = memo.steps[-1]
     
-    obs = np.array([memo_x.loss, memo_y.loss])     
+    obs = memo_obs.loss.flatten()
     
     
     #3. calculate reward as velocity toward the goal
     reward = -memo.loss
     
     #TODO: 4. return if we're exactly at the goal and give a bonus to reward if we are
-    done = np.linalg.norm(obs - self.goal_input) < goal_ball
+    done = np.linalg.norm(obs[18:20] - self.goal_input) < goal_ball #TODO: unhardcode
     if done:
       reward += 1
     

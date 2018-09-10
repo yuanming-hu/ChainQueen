@@ -137,6 +137,8 @@ def generate_sim():
   loss_x = tf.reduce_mean(tf.reduce_sum(final_position[0, 0]))
   loss_y = tf.reduce_mean(tf.reduce_sum(final_position[0, 1]))
   
+  
+  loss_obs = final_state
   loss_fwd = -tf.reduce_mean(tf.reduce_sum(final_state[:, s + 2:s + 3], axis=1))
 
   loss = loss_fwd #really, the reward forward
@@ -166,7 +168,7 @@ def generate_sim():
   sim.add_vector_visualization(pos=final_position, vector=final_velocity, color=(0, 0, 1), scale=50)
   
   
-  return initial_state, sim, loss, loss_x, loss_y
+  return initial_state, sim, loss, loss_obs
     
 #if __name__ == '__main__':
   
