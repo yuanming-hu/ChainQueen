@@ -177,8 +177,10 @@ struct TState : public StateBase {
     this->grad_v_storage = grad_v_storage;
     this->grad_F_storage = grad_F_storage;
     this->grad_C_storage = grad_C_storage;
-    this->grad_P_storage = grad_P_storage;
-    this->grad_grid_storage = grad_grid_storage;
+    //this->grad_P_storage = grad_P_storage;
+    //this->grad_grid_storage = grad_grid_storage;
+    cudaMalloc(&this->grad_P_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&this->grad_grid_storage, sizeof(real) * (dim + 1) * res[0] * res[1] * res[2]);
   }
 
   TState(int res[dim], int num_particles, real dx, real dt, real gravity[dim]) :

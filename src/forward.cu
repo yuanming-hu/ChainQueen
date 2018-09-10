@@ -84,6 +84,13 @@ __global__ void P2G(State state) {
       }
     }
   }
+  /*
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      printf("forward m %d %d %f\n", i, j, F[i][j]);
+    }
+  }
+  */
 }
 
 template <int dim>
@@ -217,13 +224,13 @@ void MPMKernelLauncher(
     const real *inx, const real *inv, const real *inF, const real *inC,
     real *outx, real *outv, real *outF, real *outC,
     real *outP, real *outgrid) {
-  printf("MPM Kernel Launch~~\n");
+  //printf("MPM Kernel Launch~~\n");
   auto instate = new State(res, num_particles, dx, dt, gravity, 
       (real *)inx, (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
   auto outstate = new State(res, num_particles, dx, dt, gravity, 
       outx, outv, outF, outC, NULL, NULL);
   advance(*instate, *outstate);
-  printf("MPM Kernel Finish~~\n");
+  //printf("MPM Kernel Finish~~\n");
 }
 
 void initialize_mpm3d_state(int *res,

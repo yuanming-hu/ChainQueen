@@ -129,6 +129,6 @@ class UpdatedSimulationState3D(SimulationState3D):
         shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
                dim))
     
-    self.position, self.velocity, self.affine, self.deformation_gradient, _, _ =\
+    self.position, self.velocity, self.deformation_gradient, self.affine, _, _ =\
       mpm3d.mpm(previous_state.position, previous_state.velocity,
-                previous_state.affine, previous_state.deformation_gradient)
+                previous_state.deformation_gradient, previous_state.affine)

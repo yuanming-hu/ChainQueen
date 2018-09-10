@@ -47,7 +47,7 @@ public:
   }
   
   void Compute(OpKernelContext* context) override {
-    printf("MPMOpGPU\n");
+    //printf("MPMOpGPU\n");
 
     int res[3] = {20, 20, 20};
     float gravity[3] = {0, -0, 0};

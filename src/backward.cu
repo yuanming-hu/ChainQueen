@@ -177,12 +177,6 @@ __global__ void G2P_backward(State state, State next_state) {
     }
   }
 
-  for (int i = 0; i < dim; i++) {
-    for (int j = 0; j < dim; j++) {
-      // printf("%d %d %f\n", i, j, grad_C[i][j]);
-    }
-  }
-
   // (H) term 2
   Times_Rotated_dP_dF_FixedCorotated(state.mu, state.lambda, F.data(), grad_P.data(),
                                      grad_F.data());
@@ -284,6 +278,16 @@ __global__ void G2P_backward(State state, State next_state) {
     }
   }
   state.set_grad_x(part_id, grad_x);
+  /*
+  for (int i = 0; i < dim; i++) {
+    printf("v %d %f %f\n", i, grad_v[i], grad_x[i]);
+  }
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      printf("m %d %d %f %f %f %f\n", i, j, grad_F[i][j], grad_C[i][j], F[i][j], grad_P[i][j]);
+    }
+  }
+  */
   state.set_grad_v(part_id, grad_v);
   state.set_grad_F(part_id, grad_F);
   state.set_grad_C(part_id, grad_C);
@@ -332,17 +336,17 @@ void MPMGradKernelLauncher(int res[dim],
                            const real *grad_outC,
                            const real *grad_outP,
                            const real *grad_outgrid) {
-  printf("MPM_grad Kernel launch~~\n");
-  auto instate = new State(res, num_particles, dx, dt, gravity, (real *)inx,
+  //printf("MPM_grad Kernel launch~~\n");
+  auto current = new State(res, num_particles, dx, dt, gravity, (real *)inx,
                            (real *)inv, (real *)inF, (real *)inC, (real *)outP,
                            (real *)outgrid, grad_inx, grad_inv, grad_inF,
                            grad_inC, (real *)grad_outP, (real *)grad_outgrid);
-  auto outstate = new State(res, num_particles, dx, dt, gravity, (real *)outx,
+  auto next = new State(res, num_particles, dx, dt, gravity, (real *)outx,
                             (real *)outv, (real *)outF, (real *)outC, NULL,
                             NULL, (real *)grad_outx, (real *)grad_outv,
                             (real *)grad_outF, (real *)grad_outC, NULL, NULL);
-  backward<dim>(*instate, *outstate);
-  printf("MPM_grad Kernel Finish~~\n");
+  backward<dim>(*current, *next);
+  //printf("MPM_grad Kernel Finish~~\n");
 }
 
 void backward_mpm3d_state(void *state_, void *next_state_) {

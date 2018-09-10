@@ -14,6 +14,10 @@ sess = tf.Session()
 
 class TestSimulator3D(unittest.TestCase):
 
+  def assertAlmostEqualFloat32(self, a, b):
+    if abs(a - b) > 1e-5 * max(max(a, b), 1e-3):
+      self.assertEqual(a, b)
+
   def test_forward(self):
     # print('\n==============\ntest_forward start')
     x = tf.placeholder(tf.float32, shape=(1, 3, 1))
@@ -33,7 +37,7 @@ class TestSimulator3D(unittest.TestCase):
     o = sess.run(step, feed_dict=feed_dict)
     a, b, c, d, e, f = o
     print(o)
-    print(f.max())
+    print(d.max())
 
   def test_backward(self):
     # print('\n==============\ntest_backward start')
@@ -65,10 +69,10 @@ class TestSimulator3D(unittest.TestCase):
     gravity = (0, -10, 0)
     batch_size = 1
     dx = 0.03
-    N = 10
+    N = 1
     num_particles = N ** 3
-    steps = 3
-    dt = 1e-3
+    steps = 4
+    dt = 1e-2
     sim = Simulation(
       grid_res=(30, 30, 30),
       dx=dx,
@@ -100,8 +104,9 @@ class TestSimulator3D(unittest.TestCase):
     sim.visualize(memo)
     grad = sim.eval_gradients(sym, memo)
     print(grad)
-    #self.assertAlmostEqualFloat32(grad[0][0], steps * dt)
-    #self.assertAlmostEqualFloat32(grad[0][1], 0)
+    self.assertAlmostEqualFloat32(grad[0][0], steps * dt)
+    self.assertAlmostEqualFloat32(grad[0][1], 0)
+    self.assertAlmostEqualFloat32(grad[0][2], 0)
 
 
 if __name__ == '__main__':
