@@ -393,4 +393,20 @@ auto test_partio = []() {
 
 TC_REGISTER_TASK(test_partio);
 
+auto write_partio_c = [](const std::vector<std::string> &parameters) {
+  TC_P(parameters);
+  auto n = (int)std::atoi(parameters[0].c_str());
+  float *pos_ = reinterpret_cast<float *>(std::atol(parameters[1].c_str()));
+  auto fn = parameters[2];
+  using namespace taichi;
+  std::vector<Vector3> pos;
+  for (int i = 0; i < n; i++) {
+    pos.push_back(Vector3(pos_[i], pos_[i + n], pos_[i + 2 * n]));
+  }
+  taichi::write_partio(pos, fn);
+};
+
+TC_REGISTER_TASK(write_partio_c);
+
 TC_NAMESPACE_END
+

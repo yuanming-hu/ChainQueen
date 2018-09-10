@@ -4,6 +4,7 @@ import numpy as np
 # (b, X, Y, p)
 
 identity_matrix = np.array([[1, 0], [0, 1]])[None, :, :, None]
+identity_matrix_3d = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])[None, :, :, None]
 
 
 def make_matrix2d_from_scalar(m00, m01, m10, m11):
