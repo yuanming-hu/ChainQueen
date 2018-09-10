@@ -4,7 +4,7 @@ sys.path.append('..')
 import random
 import time
 from simulation import Simulation, get_bounding_box_bc
-from time_integration import UpdatedSimulationState
+from time_integration import UpdatedSimulationState2D
 import tensorflow as tf
 import numpy as np
 from IPython import embed

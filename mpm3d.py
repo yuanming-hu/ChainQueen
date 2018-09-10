@@ -2,8 +2,10 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import sparse_ops
+import os
 
-MPM_module = tf.load_op_library('../../build/libtaichi_differentiable_mpm.so')
+file_dir = os.path.dirname(os.path.realpath(__file__))
+MPM_module = tf.load_op_library(os.path.join(file_dir, '../../build/libtaichi_differentiable_mpm.so'))
 
 mpm = MPM_module.mpm
 

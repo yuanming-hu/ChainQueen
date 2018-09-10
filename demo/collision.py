@@ -4,7 +4,6 @@ sys.path.append('..')
 import random
 import time
 from simulation import Simulation, get_bounding_box_bc
-from time_integration import UpdatedSimulationState
 import tensorflow as tf
 import numpy as np
 from IPython import embed
@@ -33,28 +32,27 @@ def main(sess):
       bc=bc,
       gravity=gravity,
       sess=sess)
-  position = np.zeros(shape=(batch_size, num_particles, 2))
-  youngs_modulus = np.zeros(shape=(batch_size, num_particles, 1))
+  position = np.zeros(shape=(batch_size, 2, num_particles))
 
   velocity_ph = tf.Variable([0.3, 0.05], trainable = True)
-  velocity_1 = velocity_ph[None, None, :] + tf.zeros(
-      shape=[batch_size, group_particles, 2], dtype=tf.float32)
-  velocity_2 = tf.zeros(shape=[batch_size, group_particles, 2], dtype=tf.float32)
-  velocity = tf.concat([velocity_1, velocity_2], axis = 1)
+  velocity_1 = velocity_ph[None, :, None] + tf.zeros(
+      shape=[batch_size, 2, group_particles], dtype=tf.float32)
+  velocity_2 = tf.zeros(shape=[batch_size, 2, group_particles], dtype=tf.float32)
+  velocity = tf.concat([velocity_1, velocity_2], axis = 2)
 
   for b in range(batch_size):
     for i in range(group_particles):
       x, y = 0, 0
       while (x - 0.5) ** 2 + (y - 0.5) ** 2 > 0.25:
         x, y = random.random(), random.random()
-      position[b, i] = ((x * 2 + 3) / 30,
+      position[b, :, i] = ((x * 2 + 3) / 30,
                         (y * 2 + 12.75) / 30)
 
     for i in range(group_particles):
       x, y = 0, 0
       while (x - 0.5) ** 2 + (y - 0.5) ** 2 > 0.25:
         x, y = random.random(), random.random()
-      position[b, i + group_particles] = ((x * 2 + 10) / 30,
+      position[b, :, i + group_particles] = ((x * 2 + 10) / 30,
                                           (y * 2 + 12.75) / 30)
 
   sess.run(tf.global_variables_initializer())

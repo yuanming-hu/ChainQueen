@@ -12,9 +12,8 @@ try:
 except:
   print("Warning: cannot import taichi or CUDA solver.")
 
-
-class Simulation:
-  def get_bounding_box_bc(self, res, boundary_thickness=3):
+def get_bounding_box_bc(res, boundary_thickness=3):
+  if len(res) == 2:
     bc_parameter = np.zeros(
       shape=(1,) + res + (1,), dtype=np.float32)
     bc_parameter += 0.5  # Coefficient of friction
@@ -25,7 +24,11 @@ class Simulation:
     bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1)
     bc_normal[:, :, :boundary_thickness] = (0, 1)
     bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1)
-    return bc_parameter, bc_normal
+  else:
+    assert False
+  return bc_parameter, bc_normal
+
+class Simulation:
 
   def __init__(self,
                sess,
@@ -65,8 +68,6 @@ class Simulation:
 
     if bc is None and self.dim == 2:
       bc = get_bounding_box_bc(grid_res)
-    else:
-      bc = None, None
       
     self.bc_parameter, self.bc_normal = bc
     self.initial_state = self.InitialSimulationState(self, controller)
