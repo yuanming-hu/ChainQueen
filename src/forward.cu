@@ -30,7 +30,7 @@ __global__ void P2G(State state) {
   TransferCommon<dim> tc(state, x);
 
   // Fixed corotated
-  auto P = PK1(state.mu, state.lambda, F);
+  auto P = kirchhoff_stress(state.mu, state.lambda, F);
   state.set_P(part_id, P);
   auto stress = -state.invD * dt * state.V_p * P;
 

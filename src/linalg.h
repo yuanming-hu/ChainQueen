@@ -210,7 +210,8 @@ TC_FORCE_INLINE __device__ T determinant(const TMatrix<T, 3> &mat) {
 }
 
 template <typename T, int dim>
-TC_FORCE_INLINE __device__ TMatrix<T, dim> operator*(T alpha, const TMatrix<T, dim> &o) {
+TC_FORCE_INLINE __device__ TMatrix<T, dim> operator*(T alpha,
+                                                     const TMatrix<T, dim> &o) {
   TMatrix<T, dim> ret;
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
@@ -259,11 +260,23 @@ TC_FORCE_INLINE __device__ real Clamp_Small_Magnitude(const real input) {
   return output * sign;
 }
 
-inline __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
-                                                          const real lambda,
-                                                          const real *F,
-                                                          const real *dF,
-                                                          real *dP) {
+template <int dim>
+__device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
+                                                   const real lambda,
+                                                   TMatrix<real, dim> &F_,
+                                                   TMatrix<real, dim> &dF_,
+                                                   TMatrix<real, dim> &dP_);
+
+
+template <>
+inline __device__ void Times_Rotated_dP_dF_FixedCorotated<3>(const real mu,
+                                                      const real lambda,
+                                                      TMatrix<real, 3> &F_,
+                                                      TMatrix<real, 3> &dF_,
+                                                      TMatrix<real, 3> &dP_) {
+  real *F = F_.data();
+  real *dF = dF_.data();
+  real *dP = dP_.data();
   real U[9];
   real S[3];
   real V[9];
@@ -375,9 +388,36 @@ inline __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
           (dP_hat[6] * U[2] + dP_hat[7] * U[5] + dP_hat[8] * U[8]) * V[8];
 };
 
-TC_FORCE_INLINE __device__ Matrix PK1(real mu, real lambda, Matrix F) {
+template <>
+inline __device__ void Times_Rotated_dP_dF_FixedCorotated<2>(const real mu,
+                                                      const real lambda,
+                                                      TMatrix<real, 2> &F_,
+                                                      TMatrix<real, 2> &dF_,
+                                                      TMatrix<real, 2> &dP_) {
+
+};
+
+
+template <int dim>
+TC_FORCE_INLINE __device__ Matrix PK1(real mu,
+                                      real lambda,
+                                      TMatrix<real, dim> F) {
+  /*
   real J = determinant(F);
-  Matrix r, s;
+  TMatrix<real, dim> r, s;
+  polar_decomp(F, r, s);
+  return (2 * mu * (F - r) + Matrix(lambda * (J - 1) * J)) *
+  inversed(transposed(F));
+  */
+  // TODO: inverse
+}
+
+template <int dim>
+TC_FORCE_INLINE __device__ Matrix kirchhoff_stress(real mu,
+                                                   real lambda,
+                                                   TMatrix<real, dim> F) {
+  real J = determinant(F);
+  TMatrix<real, dim> r, s;
   polar_decomp(F, r, s);
   return (2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J));
 }

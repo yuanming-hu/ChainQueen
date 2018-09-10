@@ -163,8 +163,7 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   }
 
   // (H) term 2
-  Times_Rotated_dP_dF_FixedCorotated(state.mu, state.lambda, F.data(),
-                                     grad_P.data(), grad_F.data());
+  Times_Rotated_dP_dF_FixedCorotated(state.mu, state.lambda, F, grad_P, grad_F);
   /*
   Matrix grad_F2;
   for (int i = 0; i < 3; i++) {
@@ -173,7 +172,7 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
       real delta = 1e-2f;
       inc[i][j] += delta;
       dec[i][j] -= delta;
-      auto diff = (1 / (2 * delta)) * (PK1(inc) - PK1(dec));
+      auto diff = (1 / (2 * delta)) * (PK1(inc) - kirchhoff_stress(dec));
       grad_F2 = grad_F2 + grad_P[i][j] * diff;
     }
   }

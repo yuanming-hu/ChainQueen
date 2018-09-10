@@ -46,7 +46,7 @@ You can get the (symbolic) simulation from `sim.states` to define the loss.
         debug = {'actuation': act}
         zeros = tf.zeros(shape=(1, num_particles))
         act = act[None, None]
-        # PK1 stress
+        # kirchhoff_stress stress
         act = E * make_matrix2d(zeros, zeros, zeros, act)
         # Convert to Kirchhoff stress
         actuation = matmatmul(
