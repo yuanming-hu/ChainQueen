@@ -73,16 +73,14 @@ __global__ void grid_backward(TState<dim> state) {
     auto node = state.grid_node(id);
     auto grad_node = state.grad_grid_node(id);
     if (node[dim] > 0) {
-      int x = id / (state.res[1] * state.res[2]),
-          y = id / state.res[2] % state.res[1], z = id % state.res[2];
       // (D)
       // Convert grad_v to grad_p
       // grad_p = grad_v / m
       auto m = node[dim];
       real inv_m = 1.0f / m;  // TODO: guard?
-      auto grad_v_i = state.get_grad_grid_velocity(TVector<int, dim>(x, y, z));
+      auto grad_v_i = TVector<real, dim>(state.grad_grid_node(id));
       auto grad_p = inv_m * grad_v_i;
-      auto v_i = Vector(node);
+      auto v_i = TVector<real, dim>(node);
       for (int d = 0; d < dim; d++) {
         // printf("g v %f\n", v_i[d]);
       }
@@ -146,7 +144,7 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   // (G) Compute grad_P
   for (int i = 0; i < kernel_volume<dim>(); i++) {
     real N = tc.w(i);
-    Vector dpos = tc.dpos(i);
+    auto dpos = tc.dpos(i);
     auto grad_p = state.get_grad_grid_velocity(tc.base_coord +
                                                offset_from_scalar<dim>(i));
     auto grad_N = tc.dw(i);

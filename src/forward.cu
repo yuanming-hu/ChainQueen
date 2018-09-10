@@ -104,17 +104,17 @@ __global__ void G2P(State state, State next_state) {
   }
 
   real dt = state.dt;
-  Vector x = state.get_x(part_id);
-  Vector v;
+  auto x = state.get_x(part_id);
+  State::Vector v;
   Matrix F = state.get_F(part_id);
   Matrix C;
 
   TransferCommon<dim> tc(state, x);
 
   for (int i = 0; i < kernel_volume<dim>(); i++) {
-    Vector dpos = tc.dpos(i);
+    auto dpos = tc.dpos(i);
     auto node = state.grid_node(tc.base_coord + offset_from_scalar<dim>(i));
-    auto node_v = Vector(node);
+    auto node_v = State::Vector(node);
     auto w = tc.w(i);
     v = v + w * node_v;
     C = C + Matrix::outer_product(w * node_v, state.invD * dpos);
@@ -183,7 +183,7 @@ void initialize_mpm3d_state(int *res,
   auto state = new State(res, num_particles, dx, dt, gravity);
   state_ = state;
   cudaMemcpy(state->x_storage, initial_positions,
-             sizeof(Vector) * num_particles, cudaMemcpyHostToDevice);
+             sizeof(TVector<real, dim>) * num_particles, cudaMemcpyHostToDevice);
 }
 
 template<int dim>

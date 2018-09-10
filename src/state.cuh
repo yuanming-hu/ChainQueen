@@ -90,15 +90,15 @@ struct TState : public TStateBase<dim_> {
     return num_cells;
   }
 
-  TC_FORCE_INLINE __device__ int linearized_offset(int x, int y, int z) const {
-    return res[2] * (res[1] * x + y) + z;
-  }
-
-  /*
   TC_FORCE_INLINE __device__ int linearized_offset(VectorI x) const {
-    return res[2] * (res[1] * x[0] + x[1]) + x[2];
+    int ret = x[0];
+#pragma unroll
+    for (int i = 1; i < dim; i++) {
+      ret *= res[i];
+      ret += x[i];
+    }
+    return ret;
   }
-  */
 
   TC_FORCE_INLINE __device__ real *grid_node(int offset) const {
     return grid_storage + (dim + 1) * offset;
@@ -109,15 +109,11 @@ struct TState : public TStateBase<dim_> {
   }
 
   TC_FORCE_INLINE __device__ real *grid_node(VectorI x) const {
-    return grid_node(linearized_offset(x[0], x[1], x[2]));
-  }
-
-  TC_FORCE_INLINE __device__ real *grad_grid_node(int x, int y, int z) const {
-    return grad_grid_node(linearized_offset(x, y, z));
+    return grid_node(linearized_offset(x));
   }
 
   TC_FORCE_INLINE __device__ real *grad_grid_node(VectorI x) const {
-    return grad_grid_node(linearized_offset(x[0], x[1], x[2]));
+    return grad_grid_node(linearized_offset(x));
   }
 
   template <int dim__ = dim_, std::enable_if_t<dim__ == 2, int> = 0>
@@ -388,7 +384,6 @@ struct TransferCommon {
 
     if (with_grad) {
       // N(x_i - x_p)
-      // TODO: test
       for (int i = 0; i < dim; ++i) {
         weights[1][i][0] = -inv_dx * (1.5f + fx[i]);
         weights[1][i][1] = inv_dx * (2 * fx[i] + 2);
@@ -399,13 +394,29 @@ struct TransferCommon {
     }
   }
 
-  TC_FORCE_INLINE __device__ real w(int i) {
+  template <int dim__ = dim>
+  TC_FORCE_INLINE __device__ std::enable_if_t<dim__ == 2, real> w(int i) {
+    return weights[0][0][i / 3] * weights[0][1][i % 3];
+  }
+
+  template <int dim__ = dim>
+  TC_FORCE_INLINE __device__ std::enable_if_t<dim__ == 3, real> w(int i) {
     return weights[0][0][i / 9] * weights[0][1][i / 3 % 3] *
            weights[0][2][i % 3];
   }
 
   template <bool _with_grad = with_grad>
-  TC_FORCE_INLINE __device__ std::enable_if_t<_with_grad, Vector> dw(int i) {
+  TC_FORCE_INLINE __device__ std::enable_if_t<_with_grad && (dim == 2), Vector>
+  dw(int i) {
+    int j = i % 3;
+    i = i / 3;
+    return Vector(weights[1][0][i] * weights[0][1][j],
+                  weights[0][0][i] * weights[1][1][j]);
+  }
+
+  template <bool _with_grad = with_grad>
+  TC_FORCE_INLINE __device__ std::enable_if_t<_with_grad && (dim == 3), Vector>
+  dw(int i) {
     int j = i / 3 % 3, k = i % 3;
     i = i / 9;
     return Vector(weights[1][0][i] * weights[0][1][j] * weights[0][2][k],
@@ -417,4 +428,3 @@ struct TransferCommon {
     return dx * (fx + offset_from_scalar_f<dim>(i));
   }
 };
-

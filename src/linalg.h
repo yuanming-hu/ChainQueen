@@ -68,8 +68,6 @@ class TVector {
   }
 };
 
-using Vector = TVector<real, 3>;
-
 template <typename T, int dim>
 TC_FORCE_INLINE __device__ TVector<T, dim> operator*(real alpha,
                                                      const TVector<T, dim> &o) {
@@ -84,6 +82,7 @@ template <typename T, int dim_>
 class TMatrix {
  public:
   static constexpr int dim = dim_;
+  using Vector = TVector<T, dim>;
 
   real d[dim][dim];
 
@@ -210,9 +209,9 @@ TC_FORCE_INLINE __device__ T determinant(const TMatrix<T, 3> &mat) {
          mat[2][0] * (mat[0][1] * mat[1][2] - mat[1][1] * mat[0][2]);
 }
 
-TC_FORCE_INLINE __device__ Matrix operator*(real alpha, const Matrix &o) {
-  Matrix ret;
-  constexpr int dim = Matrix::dim;
+template <typename T, int dim>
+TC_FORCE_INLINE __device__ TMatrix<T, dim> operator*(T alpha, const TMatrix<T, dim> &o) {
+  TMatrix<T, dim> ret;
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
       ret[i][j] = alpha * o[i][j];
