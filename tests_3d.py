@@ -67,18 +67,19 @@ class TestSimulator3D(unittest.TestCase):
     dx = 0.03
     N = 10
     num_particles = N ** 3
+    steps = 3
+    dt = 1e-3
     sim = Simulation(
       grid_res=(30, 30, 30),
       dx=dx,
       num_particles=num_particles,
       gravity=gravity,
-      dt=1e-3,
+      dt=dt,
       batch_size=batch_size,
       sess=sess)
     position = np.zeros(shape=(batch_size, 3, num_particles))
     initial_velocity = tf.placeholder(shape=(3,), dtype=tf.float32)
-    velocity = tf.broadcast_to(
-      initial_velocity[None, :, None], shape=(batch_size, 3, num_particles))
+    velocity = initial_velocity[None, :, None] + tf.zeros(shape=(batch_size, 3, num_particles))
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):
@@ -90,11 +91,17 @@ class TestSimulator3D(unittest.TestCase):
       position=position,
       velocity=velocity)
 
-    memo = sim.run(
-      num_steps=10,
-      initial_state=input_state,
-      initial_feed_dict={initial_velocity: [1, 0, 0]})
+    loss = tf.reduce_mean(sim.initial_state.center_of_mass()[:, 0])
+    memo = sim.run(steps, input_state, initial_feed_dict={initial_velocity: [1, 0, 2]})
+
+    sim.set_initial_state(input_state)
+    sym = sim.gradients_sym(loss=loss, variables=[initial_velocity])
+
     sim.visualize(memo)
+    grad = sim.eval_gradients(sym, memo)
+    print(grad)
+    #self.assertAlmostEqualFloat32(grad[0][0], steps * dt)
+    #self.assertAlmostEqualFloat32(grad[0][1], 0)
 
 
 if __name__ == '__main__':
