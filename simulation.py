@@ -1,18 +1,43 @@
 import tensorflow as tf
 from vector_math import *
 import numpy as np
-from time_integration import InitialSimulationState, UpdatedSimulationState
+from time_integration_2d import InitialSimulationState2D, UpdatedSimulationState2D
+from time_integration_3d import InitialSimulationState3D, UpdatedSimulationState3D
 from memo import Memo
 
+try:
+  import taichi as tc
+  from taichi import Task
+  import ctypes
+except:
+  print("Warning: cannot import taichi or CUDA solver.")
+
 def get_bounding_box_bc(res, boundary_thickness=3):
-  bc_parameter = np.zeros(
-    shape=(1,) + res + (1,), dtype=np.float32)
-  bc_parameter += 0.5  # Coefficient of friction
-  bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np.float32)
-  bc_normal[:, :boundary_thickness] = (1, 0)
-  bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0)
-  bc_normal[:, :, :boundary_thickness] = (0, 1)
-  bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1)
+  if len(res) == 2:
+    bc_parameter = np.zeros(
+      shape=(1,) + res + (1,), dtype=np.float32)
+    bc_parameter += 0.5  # Coefficient of friction
+    bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np.float32)
+    bc_normal[:, :boundary_thickness] = (1, 0)
+    bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0)
+    bc_normal[:, :, :boundary_thickness] = (0, 1)
+    bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1)
+    bc_normal[:, :, :boundary_thickness] = (0, 1)
+    bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1)
+  else:
+    assert len(res) == 3
+    bc_parameter = np.zeros(
+      shape=(1,) + res + (1,), dtype=np.float32)
+    bc_parameter += 0.5  # Coefficient of friction
+    bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np.float32)
+    bc_normal[:, :boundary_thickness] = (1, 0, 0)
+    bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0, 0)
+    bc_normal[:, :, :boundary_thickness] = (0, 1, 0)
+    bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1, 0)
+    bc_normal[:, :, :boundary_thickness] = (0, 1, 0)
+    bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1, 0)
+    bc_normal[:, :, :, :boundary_thickness] = (0, 0, 1)
+    bc_normal[:, :, :, res[2] - boundary_thickness - 1:] = (0, 0, -1)
   return bc_parameter, bc_normal
 
 class Simulation:
@@ -29,6 +54,17 @@ class Simulation:
                bc=None,
                batch_size=1,
                scale=None):
+    self.dim = len(grid_res)
+    if self.dim == 2:
+      self.InitialSimulationState = InitialSimulationState2D
+      self.UpdatedSimulationState = UpdatedSimulationState2D
+      self.identity_matrix = identity_matrix
+    else:
+      self.InitialSimulationState = InitialSimulationState3D
+      self.UpdatedSimulationState = UpdatedSimulationState3D
+      self.identity_matrix = identity_matrix_3d
+      assert batch_size == 1, "In 3D only batch_size = 1 is supported."
+
     self.sess = sess
     self.num_particles = num_particles
     if scale is None:
@@ -42,24 +78,25 @@ class Simulation:
     self.batch_size = batch_size
     self.damping = damping
 
-    if bc is None:
+    if bc is None and self.dim == 2:
       bc = get_bounding_box_bc(grid_res)
       
-    self.bc_parameter, self.bc_normal = bc
-    self.initial_state = InitialSimulationState(self, controller)
-    self.grad_state = InitialSimulationState(self, controller)
+    if bc is not None:
+      self.bc_parameter, self.bc_normal = bc
+    self.initial_state = self.InitialSimulationState(self, controller)
+    self.grad_state = self.InitialSimulationState(self, controller)
     self.updated_states = []
     self.gravity = gravity
     self.dt = dt
     self.dx = dx
     self.inv_dx = 1.0 / dx
-    self.updated_state = UpdatedSimulationState(self, self.initial_state)
+    self.updated_state = self.UpdatedSimulationState(self, self.initial_state)
     self.controller = controller
     self.parameterized_initial_state = None
     self.point_visualization = []
     self.vector_visualization = []
-    
-  def visualize(self, memo, interval=1, batch = 0, export=None, show=False):
+
+  def visualize_2d(self, memo, interval=1, batch=0, export=None, show=False):
     import math
     import cv2
     import numpy as np
@@ -69,7 +106,7 @@ class Simulation:
     b = batch
     # Pure-white background
     background = np.ones(
-        (self.grid_res[0], self.grid_res[1], 3), dtype=np.float)
+      (self.grid_res[0], self.grid_res[1], 3), dtype=np.float)
 
     for i in range(self.grid_res[0]):
       for j in range(self.grid_res[1]):
@@ -79,11 +116,13 @@ class Simulation:
         if np.linalg.norm(normal) != 0:
           background[i][j] *= 0.7
     background = cv2.resize(
-        background, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+      background, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+
     for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0:
         continue
       pos = s[0][b] * self.inv_dx + 0.5
+      pos = np.transpose(pos)
 
       scale = self.scale
 
@@ -103,7 +142,7 @@ class Simulation:
         pos = (pos * self.inv_dx + 0.5) * scale
         vec = vec * gamma + pos
         cv2.line(img, (pos[b][1], pos[b][0]), (vec[b][1], vec[b][0]), color = color, thickness = 1)
-    
+
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
       if export is None or show:
         cv2.imshow('Differentiable MPM Simulator', img)
@@ -114,6 +153,24 @@ class Simulation:
     if export is not None:
       export.wait()
 
+  def visualize_3d(self, memo, interval=1, batch=0, export=None, show=False):
+    for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
+      if i % interval != 0:
+        continue
+      pos = s[0][batch].copy()
+      #print(np.mean(pos, axis=(0)))
+      task = Task('write_partio_c')
+      ptr = pos.ctypes.data_as(ctypes.c_void_p).value
+      task.run(str(self.num_particles),
+               str(ptr), '{:04d}.bgeo'.format(i))
+
+  def visualize(self, memo, interval=1, batch=0, export=None, show=False):
+    if self.dim == 2:
+      self.visualize_2d(memo, interval, batch, export, show)
+    else:
+      self.visualize_3d(memo, interval, batch, export, show)
+
+
   def initial_state_place_holder(self):
     return self.initial_state.to_tuple()
 
@@ -123,7 +180,7 @@ class Simulation:
     pos_tensors = [p[0] for p in self.point_visualization]
     feed_dict = {self.initial_state.to_tuple(): state}
     feed_dict.update(extra)
-    
+
     pos = self.sess.run(pos_tensors, feed_dict=feed_dict)
     return [(p,) + tuple(list(r)[1:])
             for p, r in zip(pos, self.point_visualization)]
@@ -307,26 +364,25 @@ class Simulation:
       initial_velocity = velocity
     else:
       initial_velocity = np.zeros(
-          shape=[self.batch_size, self.num_particles, 2])
-    deformation_gradient = identity_matrix +\
-                           np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
-    affine = identity_matrix * 0 + \
-                           np.zeros(shape=(self.batch_size, self.num_particles, 1, 1)),
+          shape=[self.batch_size, self.dim, self.num_particles])
+    deformation_gradient = self.identity_matrix +\
+                           np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
+    affine = self.identity_matrix * 0 + \
+                           np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
     batch_size = self.batch_size
-    num_particles = len(position[0])
+    num_particles = self.num_particles
 
     if particle_mass is None:
-      particle_mass = np.ones(shape=(batch_size, num_particles, 1))
+      particle_mass = np.ones(shape=(batch_size, 1, num_particles))
     if particle_volume is None:
-      particle_volume = np.ones(shape=(batch_size, num_particles, 1))
+      particle_volume = np.ones(shape=(batch_size, 1, num_particles))
     if youngs_modulus is None:
-      youngs_modulus = np.ones(shape=(batch_size, num_particles, 1)) * 10
+      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * 10
     if type(youngs_modulus) in [int, float]:
-      youngs_modulus = np.ones(shape=(batch_size, num_particles,
-                                      1)) * youngs_modulus
+      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * youngs_modulus
 
     if poissons_ratio is None:
-      poissons_ratio = np.ones(shape=(batch_size, num_particles, 1)) * 0.3
+      poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.3
 
     return (position, initial_velocity, deformation_gradient, affine,
             particle_mass, particle_volume, youngs_modulus, poissons_ratio, 0)

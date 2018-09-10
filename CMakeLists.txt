@@ -1,6 +1,7 @@
 set(TAICHI_PROJECT_NAME "differentiable_mpm")
 
-file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.h" "src/*/*.h" "src/*/*.cpp" "src/*.cuh" "src/*.cc")
+file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.h" "src/*/*.h" "src/*/*.cpp" "src/*.cuh")
+file(GLOB_RECURSE PROJECT_OP_SOURCES "src/*.cc")
 file(GLOB_RECURSE PROJECT_SOURCES_CUDA "src/*.cu")
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -41,8 +42,11 @@ endif()
 
 add_subdirectory(external/partio)
 
+add_library(taichi_tf_${TAICHI_PROJECT_NAME} SHARED ${PROJECT_OP_SOURCES})
 add_library(taichi_${TAICHI_PROJECT_NAME} SHARED ${PROJECT_SOURCES})
-target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CORE_LIBRARY_NAME} ${SHARED_LIBS} cudmpm ${TF_LIBRARY_DIR}/libtensorflow_framework.so partio)
+
+target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${CORE_LIBRARY_NAME} ${SHARED_LIBS} cudmpm partio)
+target_link_libraries(taichi_tf_${TAICHI_PROJECT_NAME} taichi_${TAICHI_PROJECT_NAME} ${TF_LIBRARY_DIR}/libtensorflow_framework.so)
 find_package(ZLIB)
 if (ZLIB_FOUND)
     target_link_libraries(taichi_${TAICHI_PROJECT_NAME} z)

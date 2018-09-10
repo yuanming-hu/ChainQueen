@@ -10,10 +10,10 @@ using namespace tensorflow;
 */
 
     
-int res[3] = {20, 20, 20};
+int res[3] = {100, 100, 100};
 float gravity[3] = {0, -0, 0};
-float dx = 1.0 / res[0];
-float dt = 1e-2;
+float dx = 1.0f / res[0];
+float dt = 1e-2f;
 int num_cells = res[0] * res[1] * res[2];
 
 REGISTER_OP("Mpm")
@@ -101,7 +101,7 @@ public:
   }
   
   void Compute(OpKernelContext* context) override {
-    printf("MPMOpGPU\n");
+    //printf("MPMOpGPU\n");
 
     // get the x
     const Tensor& inx = context->input(0);
@@ -127,15 +127,15 @@ public:
     DCHECK_EQ(v_shape.dims(), 3);
     DCHECK_EQ(F_shape.dims(), 4);
     DCHECK_EQ(C_shape.dims(), 4);
-    
+
     const int batch_size = x_shape.dim_size(0);
-    printf("batch_size %d\n", batch_size);
+    //printf("batch_size %d\n", batch_size);
 
     const int dim = x_shape.dim_size(1);
-    printf("dim %d\n", dim);
+    //printf("dim %d\n", dim);
 
     const int particles = x_shape.dim_size(2);
-    printf("particles %d\n", particles);
+    //printf("particles %d\n", particles);
 
     //Check input batch_size
     DCHECK_EQ(batch_size, v_shape.dim_size(0));

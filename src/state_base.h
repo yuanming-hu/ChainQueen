@@ -1,19 +1,20 @@
 #pragma once
 
-struct StateBase {
+template <int dim_>
+struct TStateBase {
   using real = float;
 
-  static constexpr int dim = 3;
+  static constexpr int dim = dim_;
   int num_particles;
-  int res[3];
+  int res[dim];
 
   real V_p = 10;   // TODO: variable vol
   real m_p = 100;  // TODO: variable m_p
-  real E = 5;      // TODO: variable E
+  real E = 500;      // TODO: variable E
   real nu = 0.3;   // TODO: variable nu
   real mu = E / (2 * (1 + nu)), lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
 
-  StateBase() {
+  TStateBase() {
     set(10, 100, 5, 0.3);
   }
 
@@ -42,9 +43,16 @@ struct StateBase {
 
   int num_cells;
 
-  real gravity[3];
+  real gravity[dim];
   real dx, inv_dx, invD;
   real dt;
+
+  std::vector<float> fetch_x();
+  std::vector<float> fetch_grad_v();
+  std::vector<float> fetch_grad_x();
+  void set_initial_v(float *);
+  void set_initial_F(float *F);
 };
 
-void advance(StateBase &state);
+template<int dim>
+void advance(TStateBase<dim> &state);

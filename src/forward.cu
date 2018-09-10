@@ -4,30 +4,6 @@
 #include <cstdio>
 #include <vector>
 
-__global__ void saxpy(int n, real a, real *x, real *y) {
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < n) {
-    y[i] = a * x[i] + y[i];
-  }
-}
-
-void saxpy_cuda(int N, real alpha, real *x, real *y) {
-  real *d_x, *d_y;
-
-  cudaMalloc(&d_x, N * sizeof(real));
-  cudaMalloc(&d_y, N * sizeof(real));
-
-  cudaMemcpy(d_x, x, N * sizeof(real), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_y, y, N * sizeof(real), cudaMemcpyHostToDevice);
-
-  saxpy<<<(N + 255) / 256, 256>>>(N, alpha, d_x, d_y);
-
-  cudaMemcpy(y, d_y, N * sizeof(real), cudaMemcpyDeviceToHost);
-
-  cudaFree(d_x);
-  cudaFree(d_y);
-}
-
 // Gather data from SOA
 // Ensure coalesced global memory access
 
@@ -44,7 +20,6 @@ __global__ void P2G(State state) {
     return;
   }
 
-  auto inv_dx = state.inv_dx;
   real dt = state.dt;
 
   Vector x = state.get_x(part_id), v = state.get_v(part_id);
@@ -56,108 +31,37 @@ __global__ void P2G(State state) {
   // Fixed corotated
   auto P = PK1(state.mu, state.lambda, F);
   state.set_P(part_id, P);
-  Matrix stress = -4 * inv_dx * inv_dx * dt * state.V_p * P;
+  Matrix stress = -state.invD * dt * state.V_p * P;
 
   auto affine =
       real(mpm_enalbe_force) * stress + real(mpm_enalbe_apic) * state.m_p * C;
 
+#pragma unroll
+  for (int i = 0; i < kernel_volume<dim>(); i++) {
+    Vector dpos = tc.dpos(i);
+
+    real contrib[dim + 1];
+
+    auto tmp = affine * dpos + state.m_p * v;
+
+    auto w = tc.w(i);
+    for (int d = 0; d < dim; d++) {
+      contrib[d] = tmp[d] * w;
+    }
+    contrib[dim] = state.m_p * w;
+
+    auto node = state.grid_node(tc.base_coord + offset_from_scalar<dim>(i));
+    for (int p = 0; p < dim + 1; p++) {
+      atomicAdd(&node[p], contrib[p]);
+    }
+  }
+  /*
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
-      for (int k = 0; k < dim; k++) {
-        Vector dpos = tc.dpos(i, j, k);
-
-        real contrib[dim + 1];
-
-        auto tmp = affine * dpos + state.m_p * v;
-
-        auto w = tc.w(i, j, k);
-        contrib[0] = tmp[0] * w;
-        contrib[1] = tmp[1] * w;
-        contrib[2] = tmp[2] * w;
-        contrib[3] = state.m_p * w;
-
-        auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
-                                    tc.base_coord[2] + k);
-        for (int p = 0; p < dim + 1; p++) {
-          atomicAdd(&node[p], contrib[p]);
-        }
-      }
+      printf("forward m %d %d %f\n", i, j, F[i][j]);
     }
   }
-}
-
-template <int dim>
-__global__ void G2P(State state, State next_state) {
-  int part_id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (part_id >= state.num_particles) {
-    return;
-  }
-
-  auto inv_dx = state.inv_dx;
-  real dt = state.dt;
-
-  Vector x = state.get_x(part_id);
-  Vector v;
-  Matrix F = state.get_F(part_id);
-  Matrix C;
-
-  TransferCommon<dim> tc(state, x);
-
-  for (int i = 0; i < dim; i++) {
-    for (int j = 0; j < dim; j++) {
-      for (int k = 0; k < dim; k++) {
-        Vector dpos = tc.dpos(i, j, k);
-        auto node = state.grid_node(tc.base_coord[0] + i, tc.base_coord[1] + j,
-                                    tc.base_coord[2] + k);
-        auto node_v = Vector(node[0], node[1], node[2]);
-
-        auto w = tc.w(i, j, k);
-        v = v + w * node_v;
-        C = C + Matrix::outer_product(w * node_v, 4 * inv_dx * inv_dx * dpos);
-      }
-    }
-  }
-  next_state.set_x(part_id, x + state.dt * v);
-  next_state.set_v(part_id, v);
-  next_state.set_F(part_id, (Matrix(1) + dt * C) * F);
-  next_state.set_C(part_id, C);
-}
-
-__global__ void test_svd(int n, Matrix *A, Matrix *U, Matrix *sig, Matrix *V) {
-  int id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id < n) {
-    svd(A[id], U[id], sig[id], V[id]);
-  }
-}
-
-// 3D only..
-void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
-  Matrix *d_A, *d_U, *d_sig, *d_V;
-
-  cudaMalloc(&d_A, sizeof(Matrix) * (unsigned int)(n));
-  cudaMemcpy(d_A, A, sizeof(Matrix) * n, cudaMemcpyHostToDevice);
-
-  cudaMalloc(&d_U, sizeof(Matrix) * (unsigned int)(n));
-  cudaMalloc(&d_sig, sizeof(Matrix) * (unsigned int)(n));
-  cudaMalloc(&d_V, sizeof(Matrix) * (unsigned int)(n));
-
-  test_svd<<<(n + 127) / 128, 128>>>(n, d_A, d_U, d_sig, d_V);
-
-  std::vector<Matrix> h_U(n), h_sig(n), h_V(n);
-  cudaMemcpy(h_U.data(), d_U, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
-  cudaMemcpy(h_sig.data(), d_sig, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
-  cudaMemcpy(h_V.data(), d_V, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
-
-  // Taichi uses column-first storage
-  for (int p = 0; p < n; p++) {
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        U[p * 12 + 4 * i + j] = h_U[p][j][i];
-        sig[p * 12 + 4 * i + j] = h_sig[p][j][i];
-        V[p * 12 + 4 * i + j] = h_V[p][j][i];
-      }
-    }
-  }
+  */
 }
 
 template <int dim>
@@ -191,8 +95,37 @@ __global__ void normalize_grid(State state) {
   }
 }
 
-void advance(State &state, State &new_state) {
-  static constexpr int dim = 3;
+template <int dim>
+__global__ void G2P(State state, State next_state) {
+  int part_id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (part_id >= state.num_particles) {
+    return;
+  }
+
+  real dt = state.dt;
+  Vector x = state.get_x(part_id);
+  Vector v;
+  Matrix F = state.get_F(part_id);
+  Matrix C;
+
+  TransferCommon<dim> tc(state, x);
+
+  for (int i = 0; i < kernel_volume<dim>(); i++) {
+    Vector dpos = tc.dpos(i);
+    auto node = state.grid_node(tc.base_coord + offset_from_scalar<dim>(i));
+    auto node_v = Vector(node);
+    auto w = tc.w(i);
+    v = v + w * node_v;
+    C = C + Matrix::outer_product(w * node_v, state.invD * dpos);
+  }
+  next_state.set_x(part_id, x + state.dt * v);
+  next_state.set_v(part_id, v);
+  next_state.set_F(part_id, (Matrix(1) + dt * C) * F);
+  next_state.set_C(part_id, C);
+}
+
+template <int dim>
+void advance(TState<dim> &state, TState<dim> &new_state) {
   cudaMemset(state.grid_storage, 0,
              state.num_cells * (state.dim + 1) * sizeof(real));
   int num_blocks =
@@ -204,26 +137,38 @@ void advance(State &state, State &new_state) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  normalize_grid<dim><<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
-                   grid_block_dim>>>(state);
+  normalize_grid<dim>
+      <<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
+         grid_block_dim>>>(state);
   G2P<dim><<<num_blocks, particle_block_dim>>>(state, new_state);
 }
 
 // compability
-static constexpr int dim = 3;
-
-void MPMKernelLauncher(
-    int res[dim], int num_particles, real dx, real dt, real gravity[dim],
-    const real *inx, const real *inv, const real *inF, const real *inC,
-    real *outx, real *outv, real *outF, real *outC,
-    real *outP, real *outgrid) {
-  printf("MPM Kernel Launch~~\n");
-  auto instate = new State(res, num_particles, dx, dt, gravity, 
-      (real *)inx, (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
-  auto outstate = new State(res, num_particles, dx, dt, gravity, 
-      outx, outv, outF, outC, NULL, NULL);
-  advance(*instate, *outstate);
-  printf("MPM Kernel Finish~~\n");
+constexpr int dim = 3;
+void MPMKernelLauncher(int res[dim],
+                       int num_particles,
+                       real dx,
+                       real dt,
+                       real gravity[dim],
+                       const real *inx,
+                       const real *inv,
+                       const real *inF,
+                       const real *inC,
+                       real *outx,
+                       real *outv,
+                       real *outF,
+                       real *outC,
+                       real *outP,
+                       real *outgrid) {
+  // printf("MPM Kernel Launch~~\n");
+  auto instate =
+      new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
+                      (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+  // printf("E %f\n", instate->E);
+  auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
+                                  outv, outF, outC, nullptr, nullptr);
+  advance<dim>(*instate, *outstate);
+  // printf("MPM Kernel Finish~~\n");
 }
 
 void initialize_mpm3d_state(int *res,
@@ -243,23 +188,5 @@ void initialize_mpm3d_state(int *res,
 void forward_mpm3d_state(void *state_, void *new_state_) {
   State *state = reinterpret_cast<State *>(state_);
   State *new_state = reinterpret_cast<State *>(new_state_);
-  advance(*state, *new_state);
-}
-
-std::vector<float> fetch_mpm3d_particles(void *state_) {
-  State *state = reinterpret_cast<State *>(state_);
-  return state->fetch_x();
-}
-
-void set_initial_velocities(void *state_, float *v) {
-  State *state = reinterpret_cast<State *>(state_);
-  cudaMemcpy(state->v_storage, v, sizeof(real) * dim * state->num_particles,
-             cudaMemcpyHostToDevice);
-}
-
-void set_initial_F(void *state_, float *F) {
-  State *state = reinterpret_cast<State *>(state_);
-  cudaMemcpy(state->F_storage, F,
-             sizeof(real) * dim * dim * state->num_particles,
-             cudaMemcpyHostToDevice);
+  advance<dim>(*state, *new_state);
 }
