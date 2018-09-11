@@ -203,7 +203,7 @@ class TMatrix {
   }
 };
 
-using Matrix = TMatrix<real, 3>;
+using Matrix3 = TMatrix<real, 3>;
 
 template <typename T>
 TC_FORCE_INLINE __device__ TMatrix<T, 2> transposed(const TMatrix<T, 2> &A) {
@@ -244,10 +244,10 @@ TC_FORCE_INLINE __device__ real sqr(real x) {
   return x * x;
 }
 
-TC_FORCE_INLINE __device__ void svd(Matrix &A,
-                                    Matrix &U,
-                                    Matrix &sig,
-                                    Matrix &V) {
+TC_FORCE_INLINE __device__ void svd(Matrix3 &A,
+                                    Matrix3 &U,
+                                    Matrix3 &sig,
+                                    Matrix3 &V) {
   // clang-format off
   sig[0][1] = sig[0][2] = sig[1][0] = sig[1][2] = sig[2][0] = sig[2][1] = 0;
   svd(
@@ -265,10 +265,16 @@ TC_FORCE_INLINE __device__ void svd(Matrix &A,
   // clang-format on
 }
 
-TC_FORCE_INLINE __device__ void polar_decomp(TMatrix<real, 2> &A,
+TC_FORCE_INLINE void __device__ polar_decomp(TMatrix<real, 2> &m,
                                              TMatrix<real, 2> &R,
                                              TMatrix<real, 2> &S) {
-  printf("not implemented");
+  auto x = m(0, 0) + m(1, 1);
+  auto y = m(1, 0) - m(0, 1);
+  auto scale = 1.0f / sqrtf(x * x + y * y);
+  auto c = x * scale;
+  auto s = y * scale;
+  R = TMatrix<real, 2>(c, -s, s, c);
+  S = transposed(R) * m;
 }
 
 TC_FORCE_INLINE __device__ void polar_decomp(TMatrix<real, 3> &A,
@@ -312,18 +318,6 @@ TC_FORCE_INLINE __device__ TMatrix<real, 2> dR_from_dF(TMatrix<real, 2> &F,
   real x = lhs(0, 1) / (S(0, 0) + S(1, 1));
   Matrix W = Matrix(0, x, -x, 0);
   return R * W;
-}
-
-TC_FORCE_INLINE void __device__ polar_decomp(const TMatrix<real, 2> &m,
-                                             TMatrix<real, 2> &R,
-                                             TMatrix<real, 2> &S) {
-  auto x = m(0, 0) + m(1, 1);
-  auto y = m(1, 0) - m(0, 1);
-  auto scale = 1.0f / sqrtf(x * x + y * y);
-  auto c = x * scale;
-  auto s = y * scale;
-  R = TMatrix<real, 2>(c, -s, s, c);
-  S = transposed(R) * m;
 }
 
 template <>
@@ -506,7 +500,8 @@ kirchhoff_stress(real mu, real lambda, TMatrix<real, dim> F) {
   real J = determinant(F);
   TMatrix<real, dim> r, s;
   polar_decomp(F, r, s);
-  return 2 * mu * (F - r) * transposed(F) + Matrix(lambda * (J - 1) * J);
+  return 2 * mu * (F - r) * transposed(F) +
+         TMatrix<real, dim>(lambda * (J - 1) * J);
 }
 
 /*

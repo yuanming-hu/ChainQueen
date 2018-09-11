@@ -28,7 +28,7 @@ void saxpy_cuda(int N, real alpha, real *x, real *y) {
   cudaFree(d_y);
 }
 
-__global__ void test_svd(int n, Matrix *A, Matrix *U, Matrix *sig, Matrix *V) {
+__global__ void test_svd(int n, Matrix3 *A, Matrix3 *U, Matrix3 *sig, Matrix3 *V) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < n) {
     svd(A[id], U[id], sig[id], V[id]);
@@ -37,21 +37,21 @@ __global__ void test_svd(int n, Matrix *A, Matrix *U, Matrix *sig, Matrix *V) {
 
 // 3D only..
 void test_svd_cuda(int n, real *A, real *U, real *sig, real *V) {
-  Matrix *d_A, *d_U, *d_sig, *d_V;
+  Matrix3 *d_A, *d_U, *d_sig, *d_V;
 
-  cudaMalloc(&d_A, sizeof(Matrix) * (unsigned int)(n));
-  cudaMemcpy(d_A, A, sizeof(Matrix) * n, cudaMemcpyHostToDevice);
+  cudaMalloc(&d_A, sizeof(Matrix3) * (unsigned int)(n));
+  cudaMemcpy(d_A, A, sizeof(Matrix3) * n, cudaMemcpyHostToDevice);
 
-  cudaMalloc(&d_U, sizeof(Matrix) * (unsigned int)(n));
-  cudaMalloc(&d_sig, sizeof(Matrix) * (unsigned int)(n));
-  cudaMalloc(&d_V, sizeof(Matrix) * (unsigned int)(n));
+  cudaMalloc(&d_U, sizeof(Matrix3) * (unsigned int)(n));
+  cudaMalloc(&d_sig, sizeof(Matrix3) * (unsigned int)(n));
+  cudaMalloc(&d_V, sizeof(Matrix3) * (unsigned int)(n));
 
   test_svd<<<(n + 127) / 128, 128>>>(n, d_A, d_U, d_sig, d_V);
 
-  std::vector<Matrix> h_U(n), h_sig(n), h_V(n);
-  cudaMemcpy(h_U.data(), d_U, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
-  cudaMemcpy(h_sig.data(), d_sig, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
-  cudaMemcpy(h_V.data(), d_V, sizeof(Matrix) * n, cudaMemcpyDeviceToHost);
+  std::vector<Matrix3> h_U(n), h_sig(n), h_V(n);
+  cudaMemcpy(h_U.data(), d_U, sizeof(Matrix3) * n, cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_sig.data(), d_sig, sizeof(Matrix3) * n, cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_V.data(), d_V, sizeof(Matrix3) * n, cudaMemcpyDeviceToHost);
 
   // Taichi uses column-first storage
   for (int p = 0; p < n; p++) {
@@ -104,9 +104,14 @@ void TStateBase<dim>::set_initial_F(float *F) {
              cudaMemcpyHostToDevice);
 }
 
+template std::vector<float> TStateBase<2>::fetch_x();
 template std::vector<float> TStateBase<3>::fetch_x();
+template std::vector<float> TStateBase<2>::fetch_grad_x();
 template std::vector<float> TStateBase<3>::fetch_grad_x();
+template std::vector<float> TStateBase<2>::fetch_grad_v();
 template std::vector<float> TStateBase<3>::fetch_grad_v();
+template void TStateBase<2>::set_initial_F(float *);
 template void TStateBase<3>::set_initial_F(float *);
+template void TStateBase<2>::set_initial_v(float *);
 template void TStateBase<3>::set_initial_v(float *);
 

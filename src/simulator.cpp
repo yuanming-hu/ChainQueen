@@ -249,6 +249,78 @@ auto gpu_mpm3d_falling_cube = []() {
 
 TC_REGISTER_TASK(gpu_mpm3d_falling_cube);
 
+auto gpu_mpm2d_falling_cube = []() {
+  constexpr int dim = 2;
+  // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
+  int n = 80;
+  real dx = 0.2;
+  real sample_density = 0.1;
+  Vector2 corner(2, 5 + 2 * dx);
+  int num_particles = n * n;
+  std::vector<real> initial_positions;
+  std::vector<real> initial_velocities;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
+        // initial_positions.push_back(i * 0.025_f + 0.2123_f);
+        initial_positions.push_back(i * sample_density + corner[0]);
+        initial_velocities.push_back(0);
+      }
+    }
+  }
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
+        initial_positions.push_back(j * sample_density + corner[1]);
+        initial_velocities.push_back(0);
+      }
+    }
+  }
+  std::vector<real> initial_F;
+  int num_frames = 300;
+  Vector2i res(100, 120);
+  Vector2 gravity(0, -10);
+  TStateBase<dim> *state;
+  TStateBase<dim> *state2;
+  int substep = 3;
+  real dt = 1.0_f / 60 / substep;
+  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state,
+                         dx, dt, initial_positions.data());
+  reinterpret_cast<TStateBase<dim> *>(state)->set(10, 100, 5000, 0.3);
+  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state2,
+                         dx, dt, initial_positions.data());
+  reinterpret_cast<TStateBase<dim> *>(state2)->set(10, 100, 5000, 0.3);
+  state->set_initial_v(initial_velocities.data());
+
+  for (int i = 0; i < num_frames; i++) {
+    TC_INFO("forward step {}", i);
+    auto x = state->fetch_x();
+    auto fn = fmt::format("{:04d}.bgeo", i);
+    TC_INFO(fn);
+    std::vector<Vector3> parts;
+    for (int p = 0; p < (int)initial_positions.size() / dim; p++) {
+      auto pos = Vector3(x[p], x[p + num_particles], 0);
+      parts.push_back(pos);
+    }
+    write_partio(parts, fn);
+
+    {
+      TC_PROFILER("simulate one frame");
+      for (int j = 0; j < substep; j++)
+        forward_mpm_state<dim>(state, state);
+    }
+    taichi::print_profile_info();
+  }
+  while (true) {
+    TC_PROFILER("backward");
+    for (int j = 0; j < substep; j++)
+      backward_mpm_state<dim>(state2, state);
+    taichi::print_profile_info();
+  }
+};
+
+TC_REGISTER_TASK(gpu_mpm2d_falling_cube);
+
 auto test_cuda = []() {
   int N = 10;
   std::vector<real> a(N), b(N);
