@@ -261,19 +261,14 @@ auto gpu_mpm2d_falling_cube = []() {
   std::vector<real> initial_velocities;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
-      for (int k = 0; k < n; k++) {
-        // initial_positions.push_back(i * 0.025_f + 0.2123_f);
-        initial_positions.push_back(i * sample_density + corner[0]);
-        initial_velocities.push_back(0);
-      }
+      initial_positions.push_back(i * sample_density + corner[0]);
+      initial_velocities.push_back(0);
     }
   }
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < n; j++) {
-      for (int k = 0; k < n; k++) {
-        initial_positions.push_back(j * sample_density + corner[1]);
-        initial_velocities.push_back(0);
-      }
+      initial_positions.push_back(j * sample_density + corner[1]);
+      initial_velocities.push_back(0);
     }
   }
   std::vector<real> initial_F;
@@ -286,10 +281,10 @@ auto gpu_mpm2d_falling_cube = []() {
   real dt = 1.0_f / 60 / substep;
   initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state,
                          dx, dt, initial_positions.data());
-  reinterpret_cast<TStateBase<dim> *>(state)->set(10, 100, 5000, 0.3);
+  reinterpret_cast<TStateBase<dim> *>(state)->set(10, 100, 000, 0.3);
   initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state2,
                          dx, dt, initial_positions.data());
-  reinterpret_cast<TStateBase<dim> *>(state2)->set(10, 100, 5000, 0.3);
+  reinterpret_cast<TStateBase<dim> *>(state2)->set(10, 100, 000, 0.3);
   state->set_initial_v(initial_velocities.data());
 
   for (int i = 0; i < num_frames; i++) {
@@ -419,8 +414,6 @@ TC_REGISTER_TASK(write_partio_c);
 TC_FORCE_INLINE void polar_decomp_simple(const TMatrix<real, 2> &m,
                                          TMatrix<real, 2> &R,
                                          TMatrix<real, 2> &S) {
-
-
   /*
   x = m[:, 0, 0, :] + m[:, 1, 1, :]
   y = m[:, 1, 0, :] - m[:, 0, 1, :]

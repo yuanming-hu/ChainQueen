@@ -205,7 +205,7 @@ void initialize_mpm3d_state(int *res,
                             float dt,
                             float *initial_positions) {
   // State(int res[dim], int num_particles, real dx, real dt, real
-  auto state = new State(res, num_particles, dx, dt, gravity);
+  auto state = new TState<3>(res, num_particles, dx, dt, gravity);
   state_ = state;
   cudaMemcpy(state->x_storage, initial_positions,
              sizeof(TVector<real, dim>) * num_particles,

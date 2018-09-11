@@ -320,11 +320,11 @@ void MPMGradKernelLauncher(int res[dim],
                            const real *grad_outP,
                            const real *grad_outgrid) {
   // printf("MPM_grad Kernel launch~~\n");
-  auto current = new State(res, num_particles, dx, dt, gravity, (real *)inx,
+  auto current = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
                            (real *)inv, (real *)inF, (real *)inC, (real *)outP,
                            (real *)outgrid, grad_inx, grad_inv, grad_inF,
                            grad_inC, (real *)grad_outP, (real *)grad_outgrid);
-  auto next = new State(res, num_particles, dx, dt, gravity, (real *)outx,
+  auto next = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)outx,
                         (real *)outv, (real *)outF, (real *)outC, nullptr,
                         nullptr, (real *)grad_outx, (real *)grad_outv,
                         (real *)grad_outF, (real *)grad_outC, nullptr, nullptr);
@@ -343,7 +343,7 @@ template void backward_mpm_state<2>(void *state_, void *next_state_);
 template void backward_mpm_state<3>(void *state_, void *next_state_);
 
 void set_grad_loss(void *state_) {
-  State *state = reinterpret_cast<State *>(state_);
+  TState<3> *state = reinterpret_cast<TState<3> *>(state_);
   state->clear_gradients();
   int num_particles = state->num_particles;
   std::vector<float> grad_x_host(num_particles * dim);
