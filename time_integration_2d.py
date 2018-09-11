@@ -7,6 +7,7 @@ linear = False
 kernel_size = 3
 
 dim = 2
+use_cuda = False
 
 class SimulationState2D:
 
@@ -64,7 +65,7 @@ class SimulationState2D:
         'youngs_modulus': self.youngs_modulus,
         'poissons_ratio': self.poissons_ratio,
         'step_count': self.step_count,
-        'debug': self.debug
+        'debug': self.debug,
     }
     ret_filtered = {}
     for k, v in ret.items():
@@ -161,7 +162,9 @@ class UpdatedSimulationState2D(SimulationState2D):
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
-    return self.cuda(sim, previous_state, controller=controller)
+    if use_cuda:
+      self.cuda(sim, previous_state, controller=controller)
+      return
     self.particle_mass = tf.identity(previous_state.particle_mass)
     self.particle_volume = tf.identity(previous_state.particle_volume)
     self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
