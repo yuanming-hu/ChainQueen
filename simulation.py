@@ -1,8 +1,7 @@
 import tensorflow as tf
 from vector_math import *
 import numpy as np
-from time_integration_2d import InitialSimulationState2D, UpdatedSimulationState2D
-from time_integration_3d import InitialSimulationState3D, UpdatedSimulationState3D
+from time_integration import InitialSimulationState, UpdatedSimulationState
 from memo import Memo
 
 try:
@@ -55,13 +54,11 @@ class Simulation:
                batch_size=1,
                scale=None):
     self.dim = len(grid_res)
+    self.InitialSimulationState = InitialSimulationState
+    self.UpdatedSimulationState = UpdatedSimulationState
     if self.dim == 2:
-      self.InitialSimulationState = InitialSimulationState2D
-      self.UpdatedSimulationState = UpdatedSimulationState2D
       self.identity_matrix = identity_matrix
     else:
-      self.InitialSimulationState = InitialSimulationState3D
-      self.UpdatedSimulationState = UpdatedSimulationState3D
       self.identity_matrix = identity_matrix_3d
       assert batch_size == 1, "In 3D only batch_size = 1 is supported."
 

@@ -7,12 +7,13 @@ use_cuda = False
 
 kernel_size = 3
 
-class SimulationState2D:
+class SimulationState:
 
   def __init__(self, sim):
     self.sim = sim
     self.dim = sim.dim
     dim = self.dim
+    self.grid_shape = (self.sim.batch_size,) + self.sim.grid_res + (1,)
     self.affine = tf.zeros(shape=(self.sim.batch_size, dim, dim, sim.num_particles), dtype=tf_precision)
     self.acceleration = tf.zeros(shape=(self.sim.batch_size, dim, sim.num_particles), dtype=tf_precision)
     self.position = None
@@ -100,7 +101,7 @@ class SimulationState2D:
     return y
 
 
-class InitialSimulationState2D(SimulationState2D):
+class InitialSimulationState(SimulationState):
 
   def __init__(self, sim, controller=None):
     super().__init__(sim)
@@ -126,13 +127,11 @@ class InitialSimulationState2D(SimulationState2D):
     self.poissons_ratio = tf.placeholder(
         tf_precision, [self.sim.batch_size, 1, num_particles],
         name='poissons_ratio')
-    self.grid_mass = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
-                                     self.sim.grid_res[1], 1), dtype=tf_precision)
-    self.grid_velocity = tf.zeros(
-        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
-               dim), dtype=tf_precision)
-    self.kernels = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
-                                   self.sim.grid_res[1], kernel_size, kernel_size), dtype=tf_precision)
+    self.grid_mass = tf.zeros(shape=self.grid_shape, dtype=tf_precision)
+    self.grid_velocity = tf.zeros(shape=self.grid_shape, dtype=tf_precision)
+    if self.dim == 2:
+      self.kernels = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
+                                     self.sim.grid_res[1], kernel_size, kernel_size), dtype=tf_precision)
     self.step_count = tf.zeros(shape=(), dtype=np.int32)
 
     self.controller = controller
@@ -140,7 +139,7 @@ class InitialSimulationState2D(SimulationState2D):
       self.actuation, self.debug = controller(self)
 
 
-class UpdatedSimulationState2D(SimulationState2D):
+class UpdatedSimulationState(SimulationState):
   def cuda(self, sim, previous_state, controller):
     self.particle_mass = tf.identity(previous_state.particle_mass)
     self.particle_volume = tf.identity(previous_state.particle_volume)
@@ -151,18 +150,15 @@ class UpdatedSimulationState2D(SimulationState2D):
 
     self.t = previous_state.t + self.sim.dt
 
-    self.grid_velocity = tf.zeros(
-      shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
-             dim))
-
     self.position, self.velocity, self.deformation_gradient, self.affine, _, _ = \
       mpm3d.mpm(previous_state.position, previous_state.velocity,
                 previous_state.deformation_gradient, previous_state.affine)
 
+
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
     dim = self.dim
-    if use_cuda:
+    if dim == 3 or use_cuda:
       self.cuda(sim, previous_state, controller=controller)
       return
     self.particle_mass = tf.identity(previous_state.particle_mass)
