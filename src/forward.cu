@@ -151,11 +151,13 @@ void advance(TState<dim> &state, TState<dim> &new_state) {
 
 // compability
 constexpr int dim = 3;
-void MPMKernelLauncher(int res[dim],
+void MPMKernelLauncher(
+                       int dim_,
+                       int *res,
                        int num_particles,
                        real dx,
                        real dt,
-                       real gravity[dim],
+                       real *gravity,
                        const real *inx,
                        const real *inv,
                        const real *inF,
@@ -166,16 +168,25 @@ void MPMKernelLauncher(int res[dim],
                        real *outC,
                        real *outP,
                        real *outgrid) {
-  // printf("MPM Kernel Launch~~\n");
-  auto instate =
-      new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                      (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
-  // printf("E %f\n", instate->E);
-  auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
-                                  outv, outF, outC, nullptr, nullptr);
-  advance<dim>(*instate, *outstate);
-  // printf("MPM Kernel Finish~~\n");
+  if (dim_ == 3) {
+    constexpr int dim = 3;
+    auto instate =
+        new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
+                        (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+    auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
+                                    outv, outF, outC, nullptr, nullptr);
+    advance<dim>(*instate, *outstate);
+  } else {
+    constexpr int dim = 2;
+    auto instate =
+        new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
+                        (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+    auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
+                                    outv, outF, outC, nullptr, nullptr);
+    advance<dim>(*instate, *outstate);
+  }
 }
+
 void P2GKernelLauncher(int res[dim],
                        int num_particles,
                        real dx,

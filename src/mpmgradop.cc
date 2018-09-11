@@ -5,9 +5,6 @@
 
 using namespace tensorflow;
 
-
-    
-
 REGISTER_OP("MpmGrad")
   .Input("position: float")               //(batch_size, dim, particles)
   .Input("velocity: float")               //(batch_size, dim, particles)
@@ -32,7 +29,7 @@ REGISTER_OP("MpmGrad")
 
 
 void MPMGradKernelLauncher(
-    int res[3], int num_particles, float dx, float dt, float gravity[3],
+    int dim, int *res, int num_particles, float dx, float dt, float *gravity,
     const float *inx, const float *inv, const float *inF, const float *inC,
     const float *outx, const float *outv, const float *outF, const float *outC,
     const float *outP, const float *outgrid,
@@ -48,11 +45,6 @@ public:
   
   void Compute(OpKernelContext* context) override {
     //printf("MPMOpGPU\n");
-
-    int res[3] = {100, 100, 100};
-    float gravity[3] = {0, -0, 0};
-    float dx = 1.0f / res[0];
-    float dt = 1e-2f;
 
     // get the x
     const Tensor& inx = context->input(0);
@@ -78,6 +70,18 @@ public:
     const TensorShape& C_shape = inC.shape();
 
     const int particles = x_shape.dim_size(2);
+
+    const int dim = x_shape.dim_size(1);
+    int res[dim];
+    float gravity[dim];
+    int num_cells = 1;
+    for (int i = 0; i < dim; i++) {
+      res[i] = 100;
+      num_cells *= res[i];
+      gravity[i] = 0;
+    }
+    float dx = 1.0f / res[0];
+    float dt = 1e-2f;
 
     // create output tensor
     Tensor* grad_inx= NULL;
@@ -111,7 +115,7 @@ public:
     auto f_grad_inC = grad_inC->template flat<float>();
     
 
-    MPMGradKernelLauncher(res, particles, dx, dt, gravity,
+    MPMGradKernelLauncher(dim, res, particles, dx, dt, gravity,
         f_inx.data(), f_inv.data(), f_inF.data(), f_inC.data(),
         f_outx.data(), f_outv.data(), f_outF.data(), f_outC.data(),
         f_outP.data(), f_outgrid.data(),

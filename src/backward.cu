@@ -293,12 +293,12 @@ void backward(TState<dim> &state, TState<dim> &next) {
   G2P_backward<dim><<<num_blocks, particle_block_dim>>>(state, next);
 }
 
-static constexpr int dim = 3;
-void MPMGradKernelLauncher(int res[dim],
+void MPMGradKernelLauncher(int dim,
+                           int *res,
                            int num_particles,
                            real dx,
                            real dt,
-                           real gravity[dim],
+                           real *gravity,
                            const real *inx,
                            const real *inv,
                            const real *inF,
@@ -319,17 +319,29 @@ void MPMGradKernelLauncher(int res[dim],
                            const real *grad_outC,
                            const real *grad_outP,
                            const real *grad_outgrid) {
-  // printf("MPM_grad Kernel launch~~\n");
-  auto current = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                           (real *)inv, (real *)inF, (real *)inC, (real *)outP,
-                           (real *)outgrid, grad_inx, grad_inv, grad_inF,
-                           grad_inC, (real *)grad_outP, (real *)grad_outgrid);
-  auto next = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)outx,
-                        (real *)outv, (real *)outF, (real *)outC, nullptr,
-                        nullptr, (real *)grad_outx, (real *)grad_outv,
-                        (real *)grad_outF, (real *)grad_outC, nullptr, nullptr);
-  backward<dim>(*current, *next);
-  // printf("MPM_grad Kernel Finish~~\n");
+  if (dim == 2) {
+    constexpr int dim = 2;
+    auto current = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
+                                   (real *)inv, (real *)inF, (real *)inC, (real *)outP,
+                                   (real *)outgrid, grad_inx, grad_inv, grad_inF,
+                                   grad_inC, (real *)grad_outP, (real *)grad_outgrid);
+    auto next = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)outx,
+                                (real *)outv, (real *)outF, (real *)outC, nullptr,
+                                nullptr, (real *)grad_outx, (real *)grad_outv,
+                                (real *)grad_outF, (real *)grad_outC, nullptr, nullptr);
+    backward<dim>(*current, *next);
+  } else {
+    constexpr int dim = 3;
+    auto current = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
+                                   (real *)inv, (real *)inF, (real *)inC, (real *)outP,
+                                   (real *)outgrid, grad_inx, grad_inv, grad_inF,
+                                   grad_inC, (real *)grad_outP, (real *)grad_outgrid);
+    auto next = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)outx,
+                                (real *)outv, (real *)outF, (real *)outC, nullptr,
+                                nullptr, (real *)grad_outx, (real *)grad_outv,
+                                (real *)grad_outF, (real *)grad_outC, nullptr, nullptr);
+    backward<dim>(*current, *next);
+  }
 }
 
 template <int dim>
@@ -343,6 +355,7 @@ template void backward_mpm_state<2>(void *state_, void *next_state_);
 template void backward_mpm_state<3>(void *state_, void *next_state_);
 
 void set_grad_loss(void *state_) {
+  constexpr int dim = 3;
   TState<3> *state = reinterpret_cast<TState<3> *>(state_);
   state->clear_gradients();
   int num_particles = state->num_particles;
