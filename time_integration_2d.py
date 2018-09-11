@@ -13,6 +13,7 @@ class SimulationState2D:
     self.sim = sim
     self.dim = sim.dim
     self.affine = tf.zeros(shape=(self.sim.batch_size, dim, dim, sim.num_particles), dtype=tf_precision)
+    self.acceleration = tf.zeros(shape=(self.sim.batch_size, dim, sim.num_particles), dtype=tf_precision)
     self.position = None
     self.particle_mass = None
     self.particle_volume = None
@@ -34,7 +35,7 @@ class SimulationState2D:
   def get_state_names(self):
     return [
         'position', 'velocity', 'deformation_gradient', 'affine',
-        'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio', 'step_count'
+        'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio', 'step_count', 'acceleration'
     ]
 
   def get_evaluated(self):
@@ -52,6 +53,7 @@ class SimulationState2D:
         'position': self.position,
         'velocity': self.velocity,
         'deformation_gradient': self.deformation_gradient,
+        'acceleration': self.acceleration,
         'controller_states': self.controller_states,
         'grid_mass': self.grid_mass,
         'grid_velocity': self.grid_velocity,
@@ -326,3 +328,4 @@ class UpdatedSimulationState2D(SimulationState2D):
     self.position = position + self.velocity * self.sim.dt
     assert self.position.shape == previous_state.position.shape
     assert self.velocity.shape == previous_state.velocity.shape
+    self.acceleration = (self.velocity - previous_state.velocity) * (1 / self.sim.dt)

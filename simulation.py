@@ -361,6 +361,8 @@ class Simulation:
                         youngs_modulus=None,
                         poissons_ratio=None,
                         deformation_gradient=None):
+    acceleration = np.zeros(
+      shape=[self.batch_size, self.dim, self.num_particles])
     if velocity is not None:
       initial_velocity = velocity
     else:
@@ -387,7 +389,7 @@ class Simulation:
       poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.3
 
     return (position, initial_velocity, deformation_gradient, affine,
-            particle_mass, particle_volume, youngs_modulus, poissons_ratio, 0)
+            particle_mass, particle_volume, youngs_modulus, poissons_ratio, 0, acceleration)
 
   def add_point_visualization(self, pos, color=(1, 0, 0), radius=3):
     self.point_visualization.append((pos, color, radius))
