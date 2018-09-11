@@ -21,20 +21,19 @@ group_num_particles = sample_density**2
 goal_pos = np.array([1.4, 0.4])
 goal_range = np.array([0.0, 0.00])
 batch_size = 1
-actuation_strength = 4
 
 config = 'B'
 
 exp = export.Export('walker_video')
 
 # Robot B
-num_groups = 7
-group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
-group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
-actuations = [0, 1, 5, 6]
+num_groups = 1
+group_offsets = [(1, 1)]
+group_sizes = [(0.5, 1)]
+actuations = [0]
 fixed_groups = []
-head = 3
-gravity = (0, -2)
+head = 0
+gravity = (0, 0)
 
 num_particles = group_num_particles * num_groups
 
@@ -62,7 +61,7 @@ def main(sess):
 
   # Define your controller here
   def controller(state):
-    actuation = np.ones(shape=(batch_size, num_groups)) * tf.sin(0.1 * tf.cast(state.get_evaluated()['step_count'], tf.float32))
+    actuation = 2 * np.ones(shape=(batch_size, num_groups)) * tf.sin(0.1 * tf.cast(state.get_evaluated()['step_count'], tf.float32))
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
     for i, group in enumerate(actuations):
@@ -73,8 +72,8 @@ def main(sess):
       # First PK stress here
       act = make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
-      total_actuation = total_actuation + matmatmul(
-        act, transpose(state['deformation_gradient']))
+      F = state['deformation_gradient']
+      total_actuation = total_actuation + matmatmul(F, matmatmul(act, transpose(F)))
     return total_actuation, 1
   
   res = (80, 40)
@@ -96,8 +95,11 @@ def main(sess):
   s = head * 6
   
   initial_positions = [[] for _ in range(batch_size)]
+  initial_velocity = np.zeros(shape=(batch_size, 2, num_particles))
   for b in range(batch_size):
+    c = 0
     for i, offset in enumerate(group_offsets):
+      c += 1
       for x in range(sample_density):
         for y in range(sample_density):
           scale = 0.2
@@ -106,15 +108,15 @@ def main(sess):
           v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
               ) * scale + 0.1
           initial_positions[b].append([u, v])
+          initial_velocity[0, :, c] = (2 * (y - sample_density / 2), -2 * (x - sample_density / 2))
   assert len(initial_positions[0]) == num_particles
   initial_positions = np.array(initial_positions).swapaxes(1, 2)
 
   sess.run(tf.global_variables_initializer())
 
   initial_state = sim.get_initial_state(
-      position=np.array(initial_positions), youngs_modulus=10)
+      position=np.array(initial_positions), youngs_modulus=10, velocity=initial_velocity)
 
-  trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
   
   gx, gy = goal_range
@@ -137,7 +139,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=200,
+          num_steps=400,
           iteration_feed_dict={goal: goal_input},
           )
       print('forward', time.time() - tt)
