@@ -131,6 +131,7 @@ class TestSimulator2D(unittest.TestCase):
     sim.visualize(memo, interval=5)
     
   def test_bouncing_cube_benchmark(self):
+    return
     gravity = (0, -10)
     batch_size = 1
     dx = 0.2
