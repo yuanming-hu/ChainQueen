@@ -79,25 +79,23 @@ __global__ void normalize_grid(TState<dim> state) {
       for (int i = 0; i < dim; i++) {
         node[i] += state.gravity[i] * state.dt;
       }
+      /*
+      int x = id / (state.res[1] * state.res[2]),
+          y = id / state.res[2] % state.res[1], z = id % state.res[2];
+      if (x < boundary || y < boundary || y < boundary ||
+          x + boundary >= state.res[0] || y + boundary >= state.res[1] ||
+          z + boundary >= state.res[2]) {
+        node[1] = max(0.0f, node[1]);
+      }
+      */
+      int y;
       if (dim == 3) {
-        /*
-        int x = id / (state.res[1] * state.res[2]),
-            y = id / state.res[2] % state.res[1], z = id % state.res[2];
-        if (x < boundary || y < boundary || y < boundary ||
-            x + boundary >= state.res[0] || y + boundary >= state.res[1] ||
-            z + boundary >= state.res[2]) {
-          node[1] = max(0.0f, node[1]);
-        }
-        */
-        int y;
-        if (dim == 3) {
-          y = id / state.res[2] % state.res[1];
-        } else {
-          y = id % state.res[1];
-        }
-        if (y < boundary) {
-          node[1] = max(0.0f, node[1]);
-        }
+        y = id / state.res[2] % state.res[1];
+      } else {
+        y = id % state.res[1];
+      }
+      if (y < boundary) {
+        node[1] = max(0.0f, node[1]);
       }
     }
   }
@@ -197,15 +195,16 @@ void P2GKernelLauncher(int res[dim],
   P2G<dim><<<num_blocks, particle_block_dim>>>(*state);
 }
 
-void initialize_mpm3d_state(int *res,
-                            int num_particles,
-                            float *gravity,
-                            void *&state_,
-                            float dx,
-                            float dt,
-                            float *initial_positions) {
+template <int dim>
+void initialize_mpm_state(int *res,
+                          int num_particles,
+                          float *gravity,
+                          void *&state_,
+                          float dx,
+                          float dt,
+                          float *initial_positions) {
   // State(int res[dim], int num_particles, real dx, real dt, real
-  auto state = new TState<3>(res, num_particles, dx, dt, gravity);
+  auto state = new TState<dim>(res, num_particles, dx, dt, gravity);
   state_ = state;
   cudaMemcpy(state->x_storage, initial_positions,
              sizeof(TVector<real, dim>) * num_particles,
@@ -219,5 +218,19 @@ void forward_mpm_state(void *state_, void *new_state_) {
   advance<dim>(*state, *new_state);
 }
 
+template void initialize_mpm_state<2>(int *res,
+                                      int num_particles,
+                                      float *gravity,
+                                      void *&state_,
+                                      float dx,
+                                      float dt,
+                                      float *initial_positions);
+template void initialize_mpm_state<3>(int *res,
+                                      int num_particles,
+                                      float *gravity,
+                                      void *&state_,
+                                      float dx,
+                                      float dt,
+                                      float *initial_positions);
 template void forward_mpm_state<2>(void *, void *);
 template void forward_mpm_state<3>(void *, void *);

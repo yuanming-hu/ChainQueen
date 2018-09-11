@@ -111,7 +111,7 @@ auto gpu_mpm3d = []() {
   // Differentiate gravity is not supported
   Vector3 gravity(0, 0, 0);
   for (int i = 0; i < num_steps + 1; i++) {
-    initialize_mpm3d_state(&res[0], num_particles, &gravity[0],
+    initialize_mpm_state<3>(&res[0], num_particles, &gravity[0],
                            (void *&)states[i], 1.0_f / res[0], 5e-3_f,
                            initial_positions.data());
     std::fill(initial_positions.begin(), initial_positions.end(), 0);
@@ -212,10 +212,10 @@ auto gpu_mpm3d_falling_cube = []() {
   TStateBase<dim> *state2;
   int substep = 3;
   real dt = 1.0_f / 60 / substep;
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state,
+  initialize_mpm_state<3>(&res[0], num_particles, &gravity[0], (void *&)state,
                          dx, dt, initial_positions.data());
   reinterpret_cast<TStateBase<3> *>(state)->set(10, 100, 5000, 0.3);
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state2,
+  initialize_mpm_state<3>(&res[0], num_particles, &gravity[0], (void *&)state2,
                          dx, dt, initial_positions.data());
   reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 5000, 0.3);
   state->set_initial_v(initial_velocities.data());
@@ -279,12 +279,12 @@ auto gpu_mpm2d_falling_cube = []() {
   TStateBase<dim> *state2;
   int substep = 3;
   real dt = 1.0_f / 60 / substep;
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state,
+  initialize_mpm_state<2>(&res[0], num_particles, &gravity[0], (void *&)state,
                          dx, dt, initial_positions.data());
-  reinterpret_cast<TStateBase<dim> *>(state)->set(10, 100, 000, 0.3);
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state2,
+  reinterpret_cast<TStateBase<dim> *>(state)->set(10, 100, 5000, 0.3);
+  initialize_mpm_state<2>(&res[0], num_particles, &gravity[0], (void *&)state2,
                          dx, dt, initial_positions.data());
-  reinterpret_cast<TStateBase<dim> *>(state2)->set(10, 100, 000, 0.3);
+  reinterpret_cast<TStateBase<dim> *>(state2)->set(10, 100, 5000, 0.3);
   state->set_initial_v(initial_velocities.data());
 
   for (int i = 0; i < num_frames; i++) {
