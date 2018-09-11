@@ -3,17 +3,16 @@ import tensorflow as tf
 from vector_math import *
 import mpm3d
 
-linear = False
-kernel_size = 3
-
-dim = 2
 use_cuda = False
+
+kernel_size = 3
 
 class SimulationState2D:
 
   def __init__(self, sim):
     self.sim = sim
     self.dim = sim.dim
+    dim = self.dim
     self.affine = tf.zeros(shape=(self.sim.batch_size, dim, dim, sim.num_particles), dtype=tf_precision)
     self.acceleration = tf.zeros(shape=(self.sim.batch_size, dim, sim.num_particles), dtype=tf_precision)
     self.position = None
@@ -80,13 +79,12 @@ class SimulationState2D:
   def __getitem__(self, item):
     return self.get_evaluated()[item]
 
-  @staticmethod
-  def compute_kernels(positions):
+  def compute_kernels(self, positions):
     # (x, y, dim)
     grid_node_coord = [[(i, j) for j in range(3)] for i in range(3)]
     grid_node_coord = np.array(grid_node_coord)[None, :, :, :, None]
     frac = (positions - tf.floor(positions - 0.5))[:, None, None, :, :]
-    assert frac.shape[3] == dim
+    assert frac.shape[3] == self.dim
     #print('frac', frac.shape)
     #print('grid_node_coord', grid_node_coord.shape)
 
@@ -106,6 +104,7 @@ class InitialSimulationState2D(SimulationState2D):
 
   def __init__(self, sim, controller=None):
     super().__init__(sim)
+    dim = self.dim
     self.t = 0
     num_particles = sim.num_particles
     self.position = tf.placeholder(
@@ -162,6 +161,7 @@ class UpdatedSimulationState2D(SimulationState2D):
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
+    dim = self.dim
     if use_cuda:
       self.cuda(sim, previous_state, controller=controller)
       return
@@ -215,27 +215,20 @@ class UpdatedSimulationState2D(SimulationState2D):
     # (b, 1, p) -> (b, 1, 1, p)
     mu = mu[:, :, None, :]
     lam = lam[:, :, None, :]
-    if linear:
-      self.stress_tensor1 = mu * (
-          transpose(self.deformation_gradient) + self.deformation_gradient -
-          2 * identity_matrix)
-      self.stress_tensor2 = lam * identity_matrix * (
-          trace(self.deformation_gradient)[:, None, None, :] - dim)
-    else:
-      # Corotated elasticity
-      # P(F) = dPhi/dF(F) = 2 mu (F-R) + lambda (J-1)JF^-T
+    # Corotated elasticity
+    # P(F) = dPhi/dF(F) = 2 mu (F-R) + lambda (J-1)JF^-T
 
-      r, s = polar_decomposition(self.deformation_gradient)
-      j = determinant(self.deformation_gradient)[:, None, None, :]
+    r, s = polar_decomposition(self.deformation_gradient)
+    j = determinant(self.deformation_gradient)[:, None, None, :]
 
-      # Note: stress_tensor here is right-multiplied by F^T
-      self.stress_tensor1 = 2 * mu * matmatmul(
-          self.deformation_gradient - r, transpose(self.deformation_gradient))
+    # Note: stress_tensor here is right-multiplied by F^T
+    self.stress_tensor1 = 2 * mu * matmatmul(
+        self.deformation_gradient - r, transpose(self.deformation_gradient))
 
-      if previous_state.controller:
-        self.stress_tensor1 += previous_state.actuation
+    if previous_state.controller:
+      self.stress_tensor1 += previous_state.actuation
 
-      self.stress_tensor2 = lam * (j - 1) * j * identity_matrix
+    self.stress_tensor2 = lam * (j - 1) * j * identity_matrix
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
 
