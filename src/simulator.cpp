@@ -4,6 +4,7 @@
 #include <taichi/io/optix.h>
 #include <Partio.h>
 #include <taichi/system/profiler.h>
+#include <taichi/math/svd.h>
 #include "config.h"
 #include "kernels.h"
 #include "state_base.h"
@@ -211,11 +212,11 @@ auto gpu_mpm3d_falling_cube = []() {
   TStateBase<dim> *state2;
   int substep = 3;
   real dt = 1.0_f / 60 / substep;
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state, dx, dt,
-                         initial_positions.data());
+  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state,
+                         dx, dt, initial_positions.data());
   reinterpret_cast<TStateBase<3> *>(state)->set(10, 100, 5000, 0.3);
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state2, dx, dt,
-                         initial_positions.data());
+  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state2,
+                         dx, dt, initial_positions.data());
   reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 5000, 0.3);
   state->set_initial_v(initial_velocities.data());
 
@@ -342,5 +343,84 @@ auto write_partio_c = [](const std::vector<std::string> &parameters) {
 };
 
 TC_REGISTER_TASK(write_partio_c);
+
+TC_FORCE_INLINE MatrixND<2, real> dR_from_dF(const MatrixND<2, real> &F,
+                                             const MatrixND<2, real> &R,
+                                             const MatrixND<2, real> &S,
+                                             const MatrixND<2, real> &dF) {
+  using Matrix = MatrixND<2, real>;
+  using Vector = VectorND<2, real>;
+  // set W = R^T dR = [  0    x  ]
+  //                  [  -x   0  ]
+  //
+  // R^T dF - dF^T R = WS + SW
+  //
+  // WS + SW = [ x(s21 - s12)   x(s11 + s22) ]
+  //           [ -x[s11 + s22]  x(s21 - s12) ]
+  // ----------------------------------------------------
+  Matrix lhs = transposed(R) * dF - transposed(dF) * R;
+  real x = lhs[1][0] / (S[0][0] + S[1][1]);
+  Matrix W = Matrix(Vector(0, -x), Vector(x, 0));
+  return R * W;
+};
+
+void Times_Rotated_dP_dF_FixedCorotated(real mu,
+                                        real lambda,
+                                        const Matrix2 &F,
+                                        const TMatrix<real, 2> &dF,
+                                        TMatrix<real, 2> &dP) {
+  using Matrix = TMatrix<real, 2>;
+  using Vector = TVector<real, 2>;
+
+  const auto j = determinant(F);
+  Matrix r, s;
+  polar_decomp(F, r, s);
+  Matrix dR = dR_from_dF(F, r, s, dF);
+  Matrix JFmT = Matrix(Vector(F[1][1], -F[1][0]), Vector(-F[0][1], F[0][0]));
+  Matrix dJFmT =
+      Matrix(Vector(dF[1][1], -dF[1][0]), Vector(-dF[0][1], dF[0][0]));
+  dP = 2.0_f * mu * (dF - dR) +
+       lambda * JFmT * (JFmT.elementwise_product(dF)).sum() +
+       lambda * (j - 1) * dJFmT;
+}
+
+Matrix2 stress(real mu, real lambda, const Matrix2 &F) {
+  Matrix2 r, s;
+  polar_decomp(F, r, s);
+  auto j = determinant(F);
+  return 2.0_f * mu * (F - r) + lambda * j * (j - 1) * inverse(transposed(F));
+}
+
+auto test_2d_differential = []() {
+  using Matrix = TMatrix<real, 2>;
+  real mu = 13, lambda = 32;
+  for (int r = 0; r < 1000; r++) {
+    TC_INFO("{}", r);
+    Matrix F = Matrix::rand();
+    if (abs(determinant(F)) < 0.1_f) {
+      continue;
+    }
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 2; j++) {
+        Matrix dF, dP;
+        dF(i, j) = 1;
+        real s_delta = 1e-3;
+        Matrix delta;
+        delta(i, j) = s_delta;
+        Times_Rotated_dP_dF_FixedCorotated(mu, lambda, F, dF, dP);
+        auto dP_numerical =
+            1.0_f / (s_delta * 2) *
+            (stress(mu, lambda, F + delta) - stress(mu, lambda, F - delta));
+        auto ratio = (dP - dP_numerical).frobenius_norm() / dP.frobenius_norm();
+        TC_P(determinant(F));
+        TC_P(dP);
+        TC_P(dP_numerical);
+        TC_ASSERT(ratio < 1e-3);
+      }
+    }
+  }
+};
+
+TC_REGISTER_TASK(test_2d_differential);
 
 TC_NAMESPACE_END
