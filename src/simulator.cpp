@@ -344,12 +344,36 @@ auto write_partio_c = [](const std::vector<std::string> &parameters) {
 
 TC_REGISTER_TASK(write_partio_c);
 
-TC_FORCE_INLINE MatrixND<2, real> dR_from_dF(const MatrixND<2, real> &F,
-                                             const MatrixND<2, real> &R,
-                                             const MatrixND<2, real> &S,
-                                             const MatrixND<2, real> &dF) {
-  using Matrix = MatrixND<2, real>;
-  using Vector = VectorND<2, real>;
+TC_FORCE_INLINE void polar_decomp_simple(const TMatrix<real, 2> &m,
+                                         TMatrix<real, 2> &R,
+                                         TMatrix<real, 2> &S) {
+
+
+  /*
+  x = m[:, 0, 0, :] + m[:, 1, 1, :]
+  y = m[:, 1, 0, :] - m[:, 0, 1, :]
+  scale = 1.0 / tf.sqrt(x**2 + y**2)
+  c = x * scale
+  s = y * scale
+  r = make_matrix2d(c, -s, s, c)
+  return r, matmatmul(transpose(r), m)
+  */
+
+  auto x = m(0, 0) + m(1, 1);
+  auto y = m(1, 0) - m(0, 1);
+  auto scale = 1.0_f / std::sqrt(x * x + y * y);
+  auto c = x * scale;
+  auto s = y * scale;
+  R = Matrix2(Vector2(c, s), Vector2(-s, c));
+  S = transposed(R) * m;
+}
+
+TC_FORCE_INLINE TMatrix<real, 2> dR_from_dF(const TMatrix<real, 2> &F,
+                                            const TMatrix<real, 2> &R,
+                                            const TMatrix<real, 2> &S,
+                                            const TMatrix<real, 2> &dF) {
+  using Matrix = TMatrix<real, 2>;
+  using Vector = TVector<real, 2>;
   // set W = R^T dR = [  0    x  ]
   //                  [  -x   0  ]
   //
@@ -359,7 +383,7 @@ TC_FORCE_INLINE MatrixND<2, real> dR_from_dF(const MatrixND<2, real> &F,
   //           [ -x[s11 + s22]  x(s21 - s12) ]
   // ----------------------------------------------------
   Matrix lhs = transposed(R) * dF - transposed(dF) * R;
-  real x = lhs[1][0] / (S[0][0] + S[1][1]);
+  real x = lhs(0, 1) / (S(0, 0) + S(1, 1));
   Matrix W = Matrix(Vector(0, -x), Vector(x, 0));
   return R * W;
 };
@@ -374,11 +398,11 @@ void Times_Rotated_dP_dF_FixedCorotated(real mu,
 
   const auto j = determinant(F);
   Matrix r, s;
-  polar_decomp(F, r, s);
+  polar_decomp_simple(F, r, s);
   Matrix dR = dR_from_dF(F, r, s, dF);
-  Matrix JFmT = Matrix(Vector(F[1][1], -F[1][0]), Vector(-F[0][1], F[0][0]));
+  Matrix JFmT = Matrix(Vector(F(1, 1), -F(0, 1)), Vector(-F(1, 0), F(0, 0)));
   Matrix dJFmT =
-      Matrix(Vector(dF[1][1], -dF[1][0]), Vector(-dF[0][1], dF[0][0]));
+      Matrix(Vector(dF(1, 1), -dF(0, 1)), Vector(-dF(1, 0), dF(0, 0)));
   dP = 2.0_f * mu * (dF - dR) +
        lambda * JFmT * (JFmT.elementwise_product(dF)).sum() +
        lambda * (j - 1) * dJFmT;
@@ -394,10 +418,11 @@ Matrix2 stress(real mu, real lambda, const Matrix2 &F) {
 auto test_2d_differential = []() {
   using Matrix = TMatrix<real, 2>;
   real mu = 13, lambda = 32;
-  for (int r = 0; r < 1000; r++) {
+  for (int r = 0; r < 10000; r++) {
     TC_INFO("{}", r);
     Matrix F = Matrix::rand();
-    if (abs(determinant(F)) < 0.1_f) {
+    if (determinant(F) < 0.1_f) {
+      // Assuming no negative
       continue;
     }
     for (int i = 0; i < 2; i++) {

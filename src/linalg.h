@@ -131,7 +131,7 @@ class TMatrix {
     return d[i];
   }
 
-  __device__ TMatrix operator*(const TMatrix &o) {
+  TC_FORCE_INLINE __device__ TMatrix operator*(const TMatrix &o) {
     TMatrix ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
@@ -143,7 +143,7 @@ class TMatrix {
     return ret;
   }
 
-  __device__ TMatrix operator+(const TMatrix &o) {
+  TC_FORCE_INLINE __device__ TMatrix operator+(const TMatrix &o) {
     TMatrix ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
@@ -153,7 +153,7 @@ class TMatrix {
     return ret;
   }
 
-  __device__ TMatrix operator-(const TMatrix &o) {
+  TC_FORCE_INLINE __device__ TMatrix operator-(const TMatrix &o) {
     TMatrix ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
@@ -163,7 +163,7 @@ class TMatrix {
     return ret;
   }
 
-  __device__ Vector operator*(const Vector &v) {
+  TC_FORCE_INLINE __device__ Vector operator*(const Vector &v) {
     Vector ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
@@ -173,12 +173,30 @@ class TMatrix {
     return ret;
   }
 
+  TC_FORCE_INLINE __device__ T &operator()(int i, int j) {
+    return d[i][j];
+  }
+
+  TC_FORCE_INLINE __device__ const T &operator()(int i, int j) const {
+    return d[i][j];
+  }
+
   static __device__ TMatrix outer_product(const Vector &col,
                                           const Vector &row) {
     TMatrix ret;
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         ret[i][j] = col[i] * row[j];
+      }
+    }
+    return ret;
+  }
+
+  TC_FORCE_INLINE __device__ TMatrix elementwise_dot(TMatrix o) {
+    T ret = 0;
+    for (int i = 0; i < dim; i++) {
+      for (int j = 0; j < dim; j++) {
+        ret += (*this)[i][j] * o[i][j];
       }
     }
     return ret;
@@ -275,6 +293,58 @@ __device__ void Times_Rotated_dP_dF_FixedCorotated(const real mu,
                                                    TMatrix<real, dim> &F_,
                                                    TMatrix<real, dim> &dF_,
                                                    TMatrix<real, dim> &dP_);
+
+TC_FORCE_INLINE __device__ TMatrix<real, 2> dR_from_dF(TMatrix<real, 2> &F,
+                                                       TMatrix<real, 2> &R,
+                                                       TMatrix<real, 2> &S,
+                                                       TMatrix<real, 2> &dF) {
+  using Matrix = TMatrix<real, 2>;
+  using Vector = TVector<real, 2>;
+  // set W = R^T dR = [  0    x  ]
+  //                  [  -x   0  ]
+  //
+  // R^T dF - dF^T R = WS + SW
+  //
+  // WS + SW = [ x(s21 - s12)   x(s11 + s22) ]
+  //           [ -x[s11 + s22]  x(s21 - s12) ]
+  // ----------------------------------------------------
+  Matrix lhs = transposed(R) * dF - transposed(dF) * R;
+  real x = lhs(0, 1) / (S(0, 0) + S(1, 1));
+  Matrix W = Matrix(0, x, -x, 0);
+  return R * W;
+}
+
+TC_FORCE_INLINE void __device__ polar_decomp(const TMatrix<real, 2> &m,
+                                             TMatrix<real, 2> &R,
+                                             TMatrix<real, 2> &S) {
+  auto x = m(0, 0) + m(1, 1);
+  auto y = m(1, 0) - m(0, 1);
+  auto scale = 1.0f / sqrtf(x * x + y * y);
+  auto c = x * scale;
+  auto s = y * scale;
+  R = TMatrix<real, 2>(c, -s, s, c);
+  S = transposed(R) * m;
+}
+
+template <>
+inline void __device__
+Times_Rotated_dP_dF_FixedCorotated<2>(real mu,
+                                      real lambda,
+                                      TMatrix<real, 2> &F,
+                                      TMatrix<real, 2> &dF,
+                                      TMatrix<real, 2> &dP) {
+  using Matrix = TMatrix<real, 2>;
+  using Vector = TVector<real, 2>;
+
+  const auto j = determinant(F);
+  Matrix r, s;
+  polar_decomp(F, r, s);
+  Matrix dR = dR_from_dF(F, r, s, dF);
+  Matrix JFmT = Matrix(F(1, 1), -F(1, 0), -F(0, 1), F(0, 0));
+  Matrix dJFmT = Matrix(dF(1, 1), -dF(1, 0), -dF(0, 1), dF(0, 0));
+  dP = 2.0f * mu * (dF - dR) + lambda * JFmT.elementwise_dot(dF) * JFmT +
+       lambda * (j - 1) * dJFmT;
+}
 
 template <>
 inline __device__ void Times_Rotated_dP_dF_FixedCorotated<3>(
@@ -395,16 +465,6 @@ inline __device__ void Times_Rotated_dP_dF_FixedCorotated<3>(
   dP[8] = (dP_hat[0] * U[2] + dP_hat[1] * U[5] + dP_hat[2] * U[8]) * V[2] +
           (dP_hat[3] * U[2] + dP_hat[4] * U[5] + dP_hat[5] * U[8]) * V[5] +
           (dP_hat[6] * U[2] + dP_hat[7] * U[5] + dP_hat[8] * U[8]) * V[8];
-};
-
-template <>
-inline __device__ void Times_Rotated_dP_dF_FixedCorotated<2>(
-    const real mu,
-    const real lambda,
-    TMatrix<real, 2> &F_,
-    TMatrix<real, 2> &dF_,
-    TMatrix<real, 2> &dP_){
-
 };
 
 TC_FORCE_INLINE __device__ TMatrix<real, 2> inversed(
