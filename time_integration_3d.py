@@ -11,6 +11,7 @@ class SimulationState3D:
   def __init__(self, sim):
     self.sim = sim
     self.affine = tf.zeros(shape=(self.sim.batch_size, dim, dim, sim.num_particles))
+    self.acceleration = tf.zeros(shape=(self.sim.batch_size, dim, sim.num_particles))
     self.position = None
     self.particle_mass = None
     self.particle_volume = None
@@ -32,7 +33,7 @@ class SimulationState3D:
   def get_state_names(self):
     return [
         'position', 'velocity', 'deformation_gradient', 'affine',
-        'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio', 'step_count'
+        'particle_mass', 'particle_volume', 'youngs_modulus', 'poissons_ratio', 'step_count', 'acceleration'
     ]
 
   def get_evaluated(self):
@@ -59,7 +60,8 @@ class SimulationState3D:
         'youngs_modulus': self.youngs_modulus,
         'poissons_ratio': self.poissons_ratio,
         'step_count': self.step_count,
-        'debug': self.debug
+        'debug': self.debug,
+        'acceleration': self.acceleration
     }
     ret_filtered = {}
     for k, v in ret.items():
