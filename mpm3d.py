@@ -57,6 +57,9 @@ def normalize_grid(grid, res, gravity, dt):
 
 @ops.RegisterGradient("Mpm")
 def _mpm_grad_cc(op, *grads):
-  return MPM_module.mpm_grad(op.inputs[0], op.inputs[1], op.inputs[2], op.inputs[3],
-    op.outputs[0], op.outputs[1], op.outputs[2], op.outputs[3], op.outputs[4], op.outputs[5],
-    grads[0], grads[1], grads[2], grads[3], grads[4], grads[5])
+  attr_labels = ['dt', 'dx']
+  attrs = {}
+  for st in attr_labels:
+    attrs[st] = op.get_attr(st)
+  tensors = list(op.inputs) + list(op.outputs) + list(grads)
+  return MPM_module.mpm_grad(*tensors, **attrs)

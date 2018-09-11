@@ -17,6 +17,8 @@ REGISTER_OP("Mpm")
     .Input("velocity: float")     //(batch_size, dim, particles)
     .Input("affine: float")       //(batch_size, dim, dim, particles)
     .Input("deformation: float")  //(batch_size, dim, dim, particles
+    .Attr("dt: float = 0.01")
+    .Attr("dx: float = 0.01")
     .Output("position_out: float")
     .Output("velocity_out: float")
     .Output("affine_out: float")
@@ -70,7 +72,7 @@ REGISTER_OP("Mpm")
       c->set_output(3, C_shape);
       c->set_output(4, C_shape);
       auto dim_ = *((int *)dim.Handle());
-      printf("dim %d\n", dim_);
+      // printf("dim %d\n", dim_);
       int res[3];
       int num_cells = 1;
       for(int i = 0; i < dim_; i++) {
@@ -111,8 +113,19 @@ void MPMKernelLauncher(int dim,
                        float *outgrid);
 
 class MPMOpGPU : public OpKernel {
+ private:
+  float dt_;
+  float dx_;
  public:
   explicit MPMOpGPU(OpKernelConstruction *context) : OpKernel(context) {
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("dt", &dt_));
+    OP_REQUIRES(context, dt_ > 0,
+                errors::InvalidArgument("Need dt > 0, got ", dt_));
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("dx", &dx_));
+    OP_REQUIRES(context, dx_ > 0,
+                errors::InvalidArgument("Need dx > 0, got ", dx_));
   }
 
   void Compute(OpKernelContext *context) override {
@@ -157,8 +170,7 @@ class MPMOpGPU : public OpKernel {
     }
     int grid_shape2 = dim + 1;
     // printf("MPMOpGPU\n");
-    float dx = 1.0f / res[0];
-    float dt = 1e-2f;
+    // float dx = 1.0f / res[0];
 
     const int particles = x_shape.dim_size(2);
     // printf("particles %d\n", particles);
@@ -207,7 +219,7 @@ class MPMOpGPU : public OpKernel {
     auto f_outP = outP->template flat<float>();
     auto f_outgrid = outgrid->template flat<float>();
 
-    MPMKernelLauncher(dim, res, particles, dx, dt, gravity, f_inx.data(),
+    MPMKernelLauncher(dim, res, particles, dx_, dt_, gravity, f_inx.data(),
                       f_inv.data(), f_inF.data(), f_inC.data(), f_outx.data(),
                       f_outv.data(), f_outF.data(), f_outC.data(),
                       f_outP.data(), f_outgrid.data());

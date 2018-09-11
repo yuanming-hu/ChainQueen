@@ -22,6 +22,8 @@ REGISTER_OP("MpmGrad")
   .Input("deformation_out_grad: float")   //(batch_size, dim, dim, particles) 
   .Input("poly_out_grad: float")          //(batch_size, dim, dim, particles)
   .Input("grid_out_grad: float")          //(batch_size, dim + 1, num_cells)
+  .Attr("dt: float")
+  .Attr("dx: float")
   .Output("position_grad: float")         //(batch_size, dim, particles)
   .Output("velocity_grad: float")         //(batch_size, dim, particles)
   .Output("affine_grad: float")           //(batch_size, dim, dim, particles)
@@ -39,8 +41,15 @@ void MPMGradKernelLauncher(
     const float *grad_outP, const float *grad_outgrid);
 
 class MPMGradOpGPU : public OpKernel {
-public:
+ private:
+  float dt_;
+  float dx_;
+ public:
   explicit MPMGradOpGPU(OpKernelConstruction* context) : OpKernel(context) {
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("dt", &dt_));
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("dx", &dx_));
   }
   
   void Compute(OpKernelContext* context) override {
@@ -80,8 +89,6 @@ public:
       num_cells *= res[i];
       gravity[i] = 0;
     }
-    float dx = 1.0f / res[0];
-    float dt = 1e-2f;
 
     // create output tensor
     Tensor* grad_inx= NULL;
@@ -115,7 +122,7 @@ public:
     auto f_grad_inC = grad_inC->template flat<float>();
     
 
-    MPMGradKernelLauncher(dim, res, particles, dx, dt, gravity,
+    MPMGradKernelLauncher(dim, res, particles, dx_, dt_, gravity,
         f_inx.data(), f_inv.data(), f_inF.data(), f_inC.data(),
         f_outx.data(), f_outv.data(), f_outF.data(), f_outC.data(),
         f_outP.data(), f_outgrid.data(),
