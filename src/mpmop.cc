@@ -25,13 +25,6 @@ REGISTER_OP("Mpm")
     .Output("grid_out: float")  //(batch_size, dim + 1, num_cells)
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext *c) {
 
-      int res[dim];
-      int num_cells = 1;
-      for (int i = 0; i < dim; i++) {
-        res[i] = 100;
-        num_cells *= res[i];
-      }
-      int grid_shape2 = dim + 1;
       shape_inference::ShapeHandle x_shape;
       TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 3, &x_shape));
       shape_inference::ShapeHandle v_shape;
@@ -76,13 +69,21 @@ REGISTER_OP("Mpm")
       c->set_output(2, F_shape);
       c->set_output(3, C_shape);
       c->set_output(4, C_shape);
+      auto dim_ = *((int *)dim.Handle());
+      printf("dim %d\n", dim_);
+      int res[3];
+      int num_cells = 1;
+      for(int i = 0; i < dim_; i++) {
+        res[i] = 100;
+        num_cells *= res[i];
+      }
       std::vector<shape_inference::DimensionHandle> new_shape;
       new_shape.clear();
       new_shape.push_back(batch_size);
       new_shape.push_back(
           c->MakeDim(shape_inference::DimensionOrConstant(num_cells)));
       new_shape.push_back(
-          c->MakeDim(shape_inference::DimensionOrConstant(grid_shape2)));
+          c->MakeDim(shape_inference::DimensionOrConstant(dim_ + 1)));
       c->set_output(5, c->MakeShape(new_shape));
 
       return Status::OK();
