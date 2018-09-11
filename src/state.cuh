@@ -83,7 +83,10 @@ struct TState : public TStateBase<dim_> {
   using Matrix = TMatrix<real, dim>;
 
   TState() {
-    num_cells = res[0] * res[1] * res[2];
+    num_cells = 1;
+    for (int i = 0; i < dim; i++) {
+      num_cells *= res[i];
+    }
   }
 
   TC_FORCE_INLINE __host__ __device__ int grid_size() const {
@@ -136,9 +139,9 @@ struct TState : public TStateBase<dim_> {
   TC_FORCE_INLINE __device__ void set_matrix(real *p,
                                              int part_id,
                                              Matrix m) const {
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        p[part_id + (i * 3 + j) * num_particles] = m[i][j];
+    for (int i = 0; i < dim; i++) {
+      for (int j = 0; j < dim; j++) {
+        p[part_id + (i * dim + j) * num_particles] = m[i][j];
       }
     }
   }
@@ -327,9 +330,14 @@ struct TState : public TStateBase<dim_> {
 
     std::vector<real> F_initial(num_particles * dim * dim, 0);
     for (int i = 0; i < num_particles; i++) {
-      F_initial[i] = 1;
-      F_initial[i + num_particles * 4] = 1;
-      F_initial[i + num_particles * 8] = 1;
+      if (dim == 2) {
+        F_initial[i] = 1;
+        F_initial[i + num_particles * 3] = 1;
+      } else {
+        F_initial[i] = 1;
+        F_initial[i + num_particles * 4] = 1;
+        F_initial[i + num_particles * 8] = 1;
+      }
     }
     cudaMemcpy(F_storage, F_initial.data(), sizeof(Matrix) * num_particles,
                cudaMemcpyHostToDevice);
@@ -346,8 +354,6 @@ struct TState : public TStateBase<dim_> {
 };
 
 constexpr int spline_size = 3;
-
-using State = TState<3>;
 
 template <int dim, bool with_grad = false>
 struct TransferCommon {

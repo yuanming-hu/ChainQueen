@@ -4,6 +4,7 @@
 #include <taichi/io/optix.h>
 #include <Partio.h>
 #include <taichi/system/profiler.h>
+#include <taichi/math/svd.h>
 #include "config.h"
 #include "kernels.h"
 #include "state_base.h"
@@ -110,7 +111,7 @@ auto gpu_mpm3d = []() {
   // Differentiate gravity is not supported
   Vector3 gravity(0, 0, 0);
   for (int i = 0; i < num_steps + 1; i++) {
-    initialize_mpm3d_state(&res[0], num_particles, &gravity[0],
+    initialize_mpm_state<3>(&res[0], num_particles, &gravity[0],
                            (void *&)states[i], 1.0_f / res[0], 5e-3_f,
                            initial_positions.data());
     std::fill(initial_positions.begin(), initial_positions.end(), 0);
@@ -211,11 +212,11 @@ auto gpu_mpm3d_falling_cube = []() {
   TStateBase<dim> *state2;
   int substep = 3;
   real dt = 1.0_f / 60 / substep;
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state, dx, dt,
-                         initial_positions.data());
+  initialize_mpm_state<3>(&res[0], num_particles, &gravity[0], (void *&)state,
+                         dx, dt, initial_positions.data());
   reinterpret_cast<TStateBase<3> *>(state)->set(10, 100, 5000, 0.3);
-  initialize_mpm3d_state(&res[0], num_particles, &gravity[0], (void *&)state2, dx, dt,
-                         initial_positions.data());
+  initialize_mpm_state<3>(&res[0], num_particles, &gravity[0], (void *&)state2,
+                         dx, dt, initial_positions.data());
   reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 5000, 0.3);
   state->set_initial_v(initial_velocities.data());
 
@@ -247,6 +248,73 @@ auto gpu_mpm3d_falling_cube = []() {
 };
 
 TC_REGISTER_TASK(gpu_mpm3d_falling_cube);
+
+auto gpu_mpm2d_falling_cube = []() {
+  constexpr int dim = 2;
+  // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
+  int n = 80;
+  real dx = 0.2;
+  real sample_density = 0.1;
+  Vector2 corner(2, 5 + 2 * dx);
+  int num_particles = n * n;
+  std::vector<real> initial_positions;
+  std::vector<real> initial_velocities;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      initial_positions.push_back(i * sample_density + corner[0]);
+      initial_velocities.push_back(0);
+    }
+  }
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      initial_positions.push_back(j * sample_density + corner[1]);
+      initial_velocities.push_back(0);
+    }
+  }
+  std::vector<real> initial_F;
+  int num_frames = 300;
+  Vector2i res(100, 120);
+  Vector2 gravity(0, -10);
+  TStateBase<dim> *state;
+  TStateBase<dim> *state2;
+  int substep = 3;
+  real dt = 1.0_f / 60 / substep;
+  initialize_mpm_state<2>(&res[0], num_particles, &gravity[0], (void *&)state,
+                         dx, dt, initial_positions.data());
+  reinterpret_cast<TStateBase<dim> *>(state)->set(10, 100, 5000, 0.3);
+  initialize_mpm_state<2>(&res[0], num_particles, &gravity[0], (void *&)state2,
+                         dx, dt, initial_positions.data());
+  reinterpret_cast<TStateBase<dim> *>(state2)->set(10, 100, 5000, 0.3);
+  state->set_initial_v(initial_velocities.data());
+
+  for (int i = 0; i < num_frames; i++) {
+    TC_INFO("forward step {}", i);
+    auto x = state->fetch_x();
+    auto fn = fmt::format("{:04d}.bgeo", i);
+    TC_INFO(fn);
+    std::vector<Vector3> parts;
+    for (int p = 0; p < (int)initial_positions.size() / dim; p++) {
+      auto pos = Vector3(x[p], x[p + num_particles], 0);
+      parts.push_back(pos);
+    }
+    write_partio(parts, fn);
+
+    {
+      TC_PROFILER("simulate one frame");
+      for (int j = 0; j < substep; j++)
+        forward_mpm_state<dim>(state, state);
+    }
+    taichi::print_profile_info();
+  }
+  while (true) {
+    TC_PROFILER("backward");
+    for (int j = 0; j < substep; j++)
+      backward_mpm_state<dim>(state2, state);
+    taichi::print_profile_info();
+  }
+};
+
+TC_REGISTER_TASK(gpu_mpm2d_falling_cube);
 
 auto test_cuda = []() {
   int N = 10;
@@ -342,5 +410,107 @@ auto write_partio_c = [](const std::vector<std::string> &parameters) {
 };
 
 TC_REGISTER_TASK(write_partio_c);
+
+TC_FORCE_INLINE void polar_decomp_simple(const TMatrix<real, 2> &m,
+                                         TMatrix<real, 2> &R,
+                                         TMatrix<real, 2> &S) {
+  /*
+  x = m[:, 0, 0, :] + m[:, 1, 1, :]
+  y = m[:, 1, 0, :] - m[:, 0, 1, :]
+  scale = 1.0 / tf.sqrt(x**2 + y**2)
+  c = x * scale
+  s = y * scale
+  r = make_matrix2d(c, -s, s, c)
+  return r, matmatmul(transpose(r), m)
+  */
+
+  auto x = m(0, 0) + m(1, 1);
+  auto y = m(1, 0) - m(0, 1);
+  auto scale = 1.0_f / std::sqrt(x * x + y * y);
+  auto c = x * scale;
+  auto s = y * scale;
+  R = Matrix2(Vector2(c, s), Vector2(-s, c));
+  S = transposed(R) * m;
+}
+
+TC_FORCE_INLINE TMatrix<real, 2> dR_from_dF(const TMatrix<real, 2> &F,
+                                            const TMatrix<real, 2> &R,
+                                            const TMatrix<real, 2> &S,
+                                            const TMatrix<real, 2> &dF) {
+  using Matrix = TMatrix<real, 2>;
+  using Vector = TVector<real, 2>;
+  // set W = R^T dR = [  0    x  ]
+  //                  [  -x   0  ]
+  //
+  // R^T dF - dF^T R = WS + SW
+  //
+  // WS + SW = [ x(s21 - s12)   x(s11 + s22) ]
+  //           [ -x[s11 + s22]  x(s21 - s12) ]
+  // ----------------------------------------------------
+  Matrix lhs = transposed(R) * dF - transposed(dF) * R;
+  real x = lhs(0, 1) / (S(0, 0) + S(1, 1));
+  Matrix W = Matrix(Vector(0, -x), Vector(x, 0));
+  return R * W;
+};
+
+void Times_Rotated_dP_dF_FixedCorotated(real mu,
+                                        real lambda,
+                                        const Matrix2 &F,
+                                        const TMatrix<real, 2> &dF,
+                                        TMatrix<real, 2> &dP) {
+  using Matrix = TMatrix<real, 2>;
+  using Vector = TVector<real, 2>;
+
+  const auto j = determinant(F);
+  Matrix r, s;
+  polar_decomp_simple(F, r, s);
+  Matrix dR = dR_from_dF(F, r, s, dF);
+  Matrix JFmT = Matrix(Vector(F(1, 1), -F(0, 1)), Vector(-F(1, 0), F(0, 0)));
+  Matrix dJFmT =
+      Matrix(Vector(dF(1, 1), -dF(0, 1)), Vector(-dF(1, 0), dF(0, 0)));
+  dP = 2.0_f * mu * (dF - dR) +
+       lambda * JFmT * (JFmT.elementwise_product(dF)).sum() +
+       lambda * (j - 1) * dJFmT;
+}
+
+Matrix2 stress(real mu, real lambda, const Matrix2 &F) {
+  Matrix2 r, s;
+  polar_decomp(F, r, s);
+  auto j = determinant(F);
+  return 2.0_f * mu * (F - r) + lambda * j * (j - 1) * inverse(transposed(F));
+}
+
+auto test_2d_differential = []() {
+  using Matrix = TMatrix<real, 2>;
+  real mu = 13, lambda = 32;
+  for (int r = 0; r < 10000; r++) {
+    TC_INFO("{}", r);
+    Matrix F = Matrix::rand();
+    if (determinant(F) < 0.1_f) {
+      // Assuming no negative
+      continue;
+    }
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 2; j++) {
+        Matrix dF, dP;
+        dF(i, j) = 1;
+        real s_delta = 1e-3;
+        Matrix delta;
+        delta(i, j) = s_delta;
+        Times_Rotated_dP_dF_FixedCorotated(mu, lambda, F, dF, dP);
+        auto dP_numerical =
+            1.0_f / (s_delta * 2) *
+            (stress(mu, lambda, F + delta) - stress(mu, lambda, F - delta));
+        auto ratio = (dP - dP_numerical).frobenius_norm() / dP.frobenius_norm();
+        TC_P(determinant(F));
+        TC_P(dP);
+        TC_P(dP_numerical);
+        TC_ASSERT(ratio < 1e-3);
+      }
+    }
+  }
+};
+
+TC_REGISTER_TASK(test_2d_differential);
 
 TC_NAMESPACE_END

@@ -260,7 +260,7 @@ class Simulation:
         last_grad_sym, self.initial_state.to_tuple())
 
     for v in variables:
-      assert tf.convert_to_tensor(v).dtype == tf.float32, v
+      assert tf.convert_to_tensor(v).dtype == tf_precision, v
 
     # partial S / partial var
     step_grad_variables = tf.gradients(
@@ -359,14 +359,16 @@ class Simulation:
                         particle_mass=None,
                         particle_volume=None,
                         youngs_modulus=None,
-                        poissons_ratio=None):
+                        poissons_ratio=None,
+                        deformation_gradient=None):
     if velocity is not None:
       initial_velocity = velocity
     else:
       initial_velocity = np.zeros(
           shape=[self.batch_size, self.dim, self.num_particles])
-    deformation_gradient = self.identity_matrix +\
-                           np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
+    if deformation_gradient is None:
+      deformation_gradient = self.identity_matrix +\
+                             np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
     affine = self.identity_matrix * 0 + \
                            np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
     batch_size = self.batch_size

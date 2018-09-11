@@ -1,17 +1,25 @@
 import tensorflow as tf
 import numpy as np
 
-# (b, X, Y, p)
+use_float64 = False
 
-identity_matrix = np.array([[1, 0], [0, 1]])[None, :, :, None]
-identity_matrix_3d = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])[None, :, :, None]
+if not use_float64:
+  np_precision = np.float32
+  tf_precision = tf.float32
+else:
+  np_precision = np.float64
+  tf_precision = tf.float64
+
+# (b, X, Y, p)
+identity_matrix = np.array([[1, 0], [0, 1]], dtype=np_precision)[None, :, :, None]
+identity_matrix_3d = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np_precision)[None, :, :, None]
 
 
 def make_matrix2d_from_scalar(m00, m01, m10, m11):
-  m00 = tf.ones(shape=(1, 1)) * m00
-  m01 = tf.ones(shape=(1, 1)) * m01
-  m10 = tf.ones(shape=(1, 1)) * m10
-  m11 = tf.ones(shape=(1, 1)) * m11
+  m00 = tf.ones(shape=(1, 1), dtype=tf_precision) * m00
+  m01 = tf.ones(shape=(1, 1), dtype=tf_precision) * m01
+  m10 = tf.ones(shape=(1, 1), dtype=tf_precision) * m10
+  m11 = tf.ones(shape=(1, 1), dtype=tf_precision) * m11
   return make_matrix2d(m00, m01, m10, m11)
 
 

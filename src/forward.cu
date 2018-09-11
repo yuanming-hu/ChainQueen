@@ -11,7 +11,7 @@
 
 // One particle per thread
 template <int dim>
-__global__ void P2G(State state) {
+__global__ void P2G(TState<dim> state) {
   // constexpr int scratch_size = 8;
   //__shared__ real scratch[dim + 1][scratch_size][scratch_size][scratch_size];
 
@@ -66,7 +66,7 @@ __global__ void P2G(State state) {
 }
 
 template <int dim>
-__global__ void normalize_grid(State state) {
+__global__ void normalize_grid(TState<dim> state) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   int boundary = 3;
   if (id < state.num_cells) {
@@ -79,17 +79,22 @@ __global__ void normalize_grid(State state) {
       for (int i = 0; i < dim; i++) {
         node[i] += state.gravity[i] * state.dt;
       }
+      /*
       int x = id / (state.res[1] * state.res[2]),
           y = id / state.res[2] % state.res[1], z = id % state.res[2];
       if (x < boundary || y < boundary || y < boundary ||
           x + boundary >= state.res[0] || y + boundary >= state.res[1] ||
           z + boundary >= state.res[2]) {
-        // All sticky for now
-        /*
-        for (int i = 0; i < dim; i++) {
-          node[i] = 0;
-        }
-        */
+        node[1] = max(0.0f, node[1]);
+      }
+      */
+      int y;
+      if (dim == 3) {
+        y = id / state.res[2] % state.res[1];
+      } else {
+        y = id % state.res[1];
+      }
+      if (y < boundary) {
         node[1] = max(0.0f, node[1]);
       }
     }
@@ -97,7 +102,7 @@ __global__ void normalize_grid(State state) {
 }
 
 template <int dim>
-__global__ void G2P(State state, State next_state) {
+__global__ void G2P(TState<dim> state, TState<dim> next_state) {
   int part_id = blockIdx.x * blockDim.x + threadIdx.x;
   if (part_id >= state.num_particles) {
     return;
@@ -105,23 +110,23 @@ __global__ void G2P(State state, State next_state) {
 
   real dt = state.dt;
   auto x = state.get_x(part_id);
-  State::Vector v;
-  Matrix F = state.get_F(part_id);
-  Matrix C;
+  typename TState<dim>::Vector v;
+  auto F = state.get_F(part_id);
+  typename TState<dim>::Matrix C;
 
   TransferCommon<dim> tc(state, x);
 
   for (int i = 0; i < kernel_volume<dim>(); i++) {
     auto dpos = tc.dpos(i);
     auto node = state.grid_node(tc.base_coord + offset_from_scalar<dim>(i));
-    auto node_v = State::Vector(node);
+    auto node_v = TState<dim>::Vector(node);
     auto w = tc.w(i);
     v = v + w * node_v;
-    C = C + Matrix::outer_product(w * node_v, state.invD * dpos);
+    C = C + TState<dim>::Matrix::outer_product(w * node_v, state.invD * dpos);
   }
   next_state.set_x(part_id, x + state.dt * v);
   next_state.set_v(part_id, v);
-  next_state.set_F(part_id, (Matrix(1) + dt * C) * F);
+  next_state.set_F(part_id, (typename TState<dim>::Matrix(1) + dt * C) * F);
   next_state.set_C(part_id, C);
 }
 
@@ -185,6 +190,8 @@ void P2GKernelLauncher(int res[dim],
   auto state =
       new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
                       (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+  cudaMemset(outgrid, 0,
+             state->num_cells * (dim + 1) * sizeof(real));
   int num_blocks =
       (num_particles + particle_block_dim - 1) / particle_block_dim;
   P2G<dim><<<num_blocks, particle_block_dim>>>(*state);
@@ -216,25 +223,42 @@ void G2PKernelLauncher(int res[dim],
   G2P<dim><<<num_blocks, particle_block_dim>>>(*instate, *outstate);
 }
 
-void initialize_mpm3d_state(int *res,
-                            int num_particles,
-                            float *gravity,
-                            void *&state_,
-                            float dx,
-                            float dt,
-                            float *initial_positions) {
+template <int dim>
+void initialize_mpm_state(int *res,
+                          int num_particles,
+                          float *gravity,
+                          void *&state_,
+                          float dx,
+                          float dt,
+                          float *initial_positions) {
   // State(int res[dim], int num_particles, real dx, real dt, real
-  auto state = new State(res, num_particles, dx, dt, gravity);
+  auto state = new TState<dim>(res, num_particles, dx, dt, gravity);
   state_ = state;
   cudaMemcpy(state->x_storage, initial_positions,
-             sizeof(TVector<real, dim>) * num_particles, cudaMemcpyHostToDevice);
+             sizeof(TVector<real, dim>) * num_particles,
+             cudaMemcpyHostToDevice);
 }
 
-template<int dim>
+template <int dim>
 void forward_mpm_state(void *state_, void *new_state_) {
-  State *state = reinterpret_cast<TState<dim> *>(state_);
-  State *new_state = reinterpret_cast<TState<dim> *>(new_state_);
+  auto *state = reinterpret_cast<TState<dim> *>(state_);
+  auto *new_state = reinterpret_cast<TState<dim> *>(new_state_);
   advance<dim>(*state, *new_state);
 }
 
+template void initialize_mpm_state<2>(int *res,
+                                      int num_particles,
+                                      float *gravity,
+                                      void *&state_,
+                                      float dx,
+                                      float dt,
+                                      float *initial_positions);
+template void initialize_mpm_state<3>(int *res,
+                                      int num_particles,
+                                      float *gravity,
+                                      void *&state_,
+                                      float dx,
+                                      float dt,
+                                      float *initial_positions);
+template void forward_mpm_state<2>(void *, void *);
 template void forward_mpm_state<3>(void *, void *);

@@ -2,17 +2,17 @@ import numpy as np
 import tensorflow as tf
 from vector_math import *
 
-sticky = False
 linear = False
-dim = 2
 kernel_size = 3
 
+dim = 2
 
 class SimulationState2D:
 
   def __init__(self, sim):
     self.sim = sim
-    self.affine = tf.zeros(shape=(self.sim.batch_size, dim, dim, sim.num_particles))
+    self.dim = sim.dim
+    self.affine = tf.zeros(shape=(self.sim.batch_size, dim, dim, sim.num_particles), dtype=tf_precision)
     self.position = None
     self.particle_mass = None
     self.particle_volume = None
@@ -90,7 +90,7 @@ class SimulationState2D:
     x = tf.abs(frac - grid_node_coord)
     #print('x', x.shape)
 
-    mask = tf.cast(x < 0.5, tf.float32)
+    mask = tf.cast(x < 0.5, tf_precision)
     y = mask * (0.75 - x * x) + (1 - mask) * (0.5 * (1.5 - x)**2)
     #print('y', y.shape)
     y = tf.reduce_prod(y, axis=3, keepdims=True)
@@ -105,31 +105,31 @@ class InitialSimulationState2D(SimulationState2D):
     self.t = 0
     num_particles = sim.num_particles
     self.position = tf.placeholder(
-        tf.float32, [self.sim.batch_size, dim, num_particles], name='position')
+        tf_precision, [self.sim.batch_size, dim, num_particles], name='position')
 
     self.velocity = tf.placeholder(
-        tf.float32, [self.sim.batch_size, dim, num_particles], name='velocity')
+        tf_precision, [self.sim.batch_size, dim, num_particles], name='velocity')
     self.deformation_gradient = tf.placeholder(
-        tf.float32, [self.sim.batch_size, dim, dim, num_particles], name='dg')
+        tf_precision, [self.sim.batch_size, dim, dim, num_particles], name='dg')
     self.particle_mass = tf.placeholder(
-        tf.float32, [self.sim.batch_size, 1, num_particles],
+        tf_precision, [self.sim.batch_size, 1, num_particles],
         name='particle_mass')
     self.particle_volume = tf.placeholder(
-        tf.float32, [self.sim.batch_size, 1, num_particles],
+        tf_precision, [self.sim.batch_size, 1, num_particles],
         name='particle_volume')
     self.youngs_modulus = tf.placeholder(
-        tf.float32, [self.sim.batch_size, 1, num_particles],
+        tf_precision, [self.sim.batch_size, 1, num_particles],
         name='youngs_modulus')
     self.poissons_ratio = tf.placeholder(
-        tf.float32, [self.sim.batch_size, 1, num_particles],
+        tf_precision, [self.sim.batch_size, 1, num_particles],
         name='poissons_ratio')
     self.grid_mass = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
-                                     self.sim.grid_res[1], 1))
+                                     self.sim.grid_res[1], 1), dtype=tf_precision)
     self.grid_velocity = tf.zeros(
         shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
-               dim))
+               dim), dtype=tf_precision)
     self.kernels = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
-                                   self.sim.grid_res[1], kernel_size, kernel_size))
+                                   self.sim.grid_res[1], kernel_size, kernel_size), dtype=tf_precision)
     self.step_count = tf.zeros(shape=(), dtype=np.int32)
 
     self.controller = controller
@@ -154,9 +154,9 @@ class UpdatedSimulationState2D(SimulationState2D):
     
     position = previous_state.position
     
-    minimum_positions = np.zeros(shape=previous_state.position.shape, dtype=np.float32)
+    minimum_positions = np.zeros(shape=previous_state.position.shape, dtype=np_precision)
     minimum_positions[:, :, :] = self.sim.dx * 2
-    maximum_positions = np.zeros(shape=previous_state.position.shape, dtype=np.float32)
+    maximum_positions = np.zeros(shape=previous_state.position.shape, dtype=np_precision)
     for i in range(dim):
       maximum_positions[:, i, :] = (self.sim.grid_res[i] - 2) * self.sim.dx
     # Safe guard
@@ -243,7 +243,7 @@ class UpdatedSimulationState2D(SimulationState2D):
         delta_node_position = np.array([i, j])[None, :, None]
         # xi - xp
         offset = (tf.floor(position * sim.inv_dx - 0.5) +
-                  tf.cast(delta_node_position, tf.float32) -
+                  tf.cast(delta_node_position, tf_precision) -
                   position * sim.inv_dx) * sim.dx
 
         grid_velocity_contributions = self.particle_mass * self.kernels[:, i, j, :] * (
@@ -263,12 +263,12 @@ class UpdatedSimulationState2D(SimulationState2D):
         self.sim.gravity)[None, None, None, :] * self.sim.dt
     self.grid_velocity = self.grid_velocity / tf.maximum(1e-30, self.grid_mass)
 
-    sticky_mask = tf.cast(self.sim.bc_parameter == -1, tf.float32)
+    sticky_mask = tf.cast(self.sim.bc_parameter == -1, tf_precision)
     self.grid_velocity *= (1 - sticky_mask)
     
     mask = tf.cast(
         tf.reduce_sum(self.sim.bc_normal**2, axis=3, keepdims=True) != 0,
-        tf.float32)
+        tf_precision)
     normal_component_length = tf.reduce_sum(
         self.grid_velocity * self.sim.bc_normal, axis=3, keepdims=True)
     perpendicular_component = self.grid_velocity - self.sim.bc_normal * normal_component_length
@@ -305,7 +305,7 @@ class UpdatedSimulationState2D(SimulationState2D):
 
         # xi - xp
         offset = (tf.floor(position * sim.inv_dx - 0.5) +
-                  tf.cast(delta_node_position, tf.float32) -
+                  tf.cast(delta_node_position, tf_precision) -
                   position * sim.inv_dx) * sim.dx
         assert offset.shape == position.shape
         weighted_node_velocity = grid_v * self.kernels[:, i, j, :]

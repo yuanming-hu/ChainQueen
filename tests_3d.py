@@ -90,7 +90,7 @@ class TestSimulator3D(unittest.TestCase):
     f[0, 2, 2, 0] = 1
     F = tf.constant(f)
     xx, vv, FF, CC, PP, grid = mpm3d.mpm(x, v, F, C)
-    print(grid.shape)
+    # print(grid.shape)
     step = mpm3d.mpm(xx, vv, FF, CC)
     feed_dict = {
         x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
@@ -98,8 +98,8 @@ class TestSimulator3D(unittest.TestCase):
     }
     o = sess.run(step, feed_dict=feed_dict)
     xout, vout, cout, fout, pout, gout = o
-    print(o)
-    print(gout.shape)
+    # print(o)
+    # print(gout.shape)
 
   def test_backward(self):
     # print('\n==============\ntest_backward start')
@@ -133,7 +133,7 @@ class TestSimulator3D(unittest.TestCase):
     dx = 0.03
     N = 10
     num_particles = N ** 3
-    steps = 10
+    steps = 1
     dt = 1e-2
     sim = Simulation(
       grid_res=(30, 30, 30),
@@ -174,12 +174,12 @@ class TestSimulator3D(unittest.TestCase):
     gravity = (0, -10, 0)
     batch_size = 1
     dx = 0.03
-    N = 3
+    N = 2
     num_particles = N ** 3
-    steps = 3
+    steps = 1
     dt = 1e-2
     sim = Simulation(
-      grid_res=(30, 30, 30),
+      grid_res=(20, 20, 20),
       dx=dx,
       num_particles=num_particles,
       gravity=gravity,
@@ -192,7 +192,21 @@ class TestSimulator3D(unittest.TestCase):
     
     position_val = np.zeros(shape=(batch_size, 3, num_particles))
     velocity_val = np.zeros(shape=(batch_size, 3, num_particles))
-    
+
+    F_val = np.zeros(shape=(batch_size, 3, 3, num_particles))
+    '''
+    F_val[:, 0, 0, :] = 0.8
+    F_val[:, 0, 1, :] = 0.2
+    F_val[:, 1, 1, :] = 1
+    F_val[:, 1, 0, :] = 0.3
+    F_val[:, 2, 2, :] = 0.8
+    F_val[:, 2, 1, :] = 0.1
+    F_val[:, 1, 2, :] = 0.3
+    '''
+    F_val[:, 0, 0, :] = 1
+    F_val[:, 1, 1, :] = 1
+    F_val[:, 2, 2, :] = 1
+
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):
@@ -201,7 +215,7 @@ class TestSimulator3D(unittest.TestCase):
               (((i + b * 3) * 0.5 + 12.75) * dx, (j * 0.5 + 12.75) * dx,
                (k * 0.5 + 12.75) * dx)
             
-    input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph)
+    input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph, deformation_gradient=F_val)
   
     loss = sim.initial_state.position[:, 0, 0]
   
@@ -215,7 +229,7 @@ class TestSimulator3D(unittest.TestCase):
     #sim.visualize(memo)
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
     grad = sim.eval_gradients(sym, memo)
-    delta = 1e-1
+    delta = 1e-3
     dim = 3
 
     for i in range(dim):
@@ -229,7 +243,8 @@ class TestSimulator3D(unittest.TestCase):
         position_val[0, i, j] += delta
         
         g = (v1 - v2) / (2 * delta)
-        self.assertAlmostEqualFloat32(g, grad[0][0, i, j], clip=0, relative_tol=1e-3)
+        print(g, grad[0][0, i, j])
+        self.assertAlmostEqualFloat32(g, grad[0][0, i, j], clip=1e-2, relative_tol=5e-2)
         
     for i in range(dim):
       for j in range(num_particles):
@@ -242,8 +257,89 @@ class TestSimulator3D(unittest.TestCase):
         velocity_val[0, i, j] += delta
     
         g = (v1 - v2) / (2 * delta)
-        print(g)
-        self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-3, relative_tol=2e-2)
+        print(g, grad[1][0, i, j])
+        self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=5e-2)
+
+  def test_gradients2(self):
+    gravity = (0, -10, 0)
+    batch_size = 1
+    dx = 0.03
+    N = 2
+    num_particles = N
+    steps = 4
+    dt = 1e-2
+    sim = Simulation(
+      grid_res=(10, 10, 10),
+      dx=dx,
+      num_particles=num_particles,
+      gravity=gravity,
+      dt=dt,
+      batch_size=batch_size,
+      sess=sess)
+
+    position_ph = tf.placeholder(shape=(batch_size, 3, num_particles), dtype=tf.float32)
+    velocity_ph = tf.placeholder(shape=(batch_size, 3, num_particles), dtype=tf.float32)
+
+    position_val = np.zeros(shape=(batch_size, 3, num_particles))
+    velocity_val = np.zeros(shape=(batch_size, 3, num_particles))
+
+    F_val = np.zeros(shape=(batch_size, 3, 3, num_particles))
+    F_val[:, 0, 0, :] = 0.5
+    F_val[:, 0, 1, :] = 0
+    F_val[:, 1, 1, :] = 1
+    F_val[:, 1, 0, :] = 0
+    F_val[:, 2, 2, :] = 1
+    F_val[:, 2, 1, :] = 0
+    F_val[:, 1, 2, :] = 0
+
+    for b in range(batch_size):
+      for i in range(N):
+        position_val[b, :, i] = (0.5, 0.5, 0.5)
+
+    input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph, deformation_gradient=F_val)
+
+    loss = sim.initial_state.position[:, 0, 0]
+
+    sim.set_initial_state(input_state)
+    sym = sim.gradients_sym(loss=loss, variables=[position_ph, velocity_ph])
+
+    def forward(pos, vel):
+      memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: vel, position_ph: pos}, loss=loss)
+      return memo.loss[0]
+
+    #sim.visualize(memo)
+    memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
+    grad = sim.eval_gradients(sym, memo)
+    delta = 1e-3
+    dim = 3
+
+    for i in range(dim):
+      for j in range(num_particles):
+        position_val[0, i, j] += delta
+        v1 = forward(position_val, velocity_val)
+
+        position_val[0, i, j] -= 2 * delta
+        v2 = forward(position_val, velocity_val)
+
+        position_val[0, i, j] += delta
+
+        g = (v1 - v2) / (2 * delta)
+        print(g, grad[0][0, i, j])
+        self.assertAlmostEqualFloat32(g, grad[0][0, i, j], clip=1e-2, relative_tol=4e-2)
+
+    for i in range(dim):
+      for j in range(num_particles):
+        velocity_val[0, i, j] += delta
+        v1 = forward(position_val, velocity_val)
+
+        velocity_val[0, i, j] -= 2 * delta
+        v2 = forward(position_val, velocity_val)
+
+        velocity_val[0, i, j] += delta
+
+        g = (v1 - v2) / (2 * delta)
+        print(g, grad[1][0, i, j])
+        self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=4e-2)
 
 if __name__ == '__main__':
   unittest.main()
