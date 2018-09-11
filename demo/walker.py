@@ -13,7 +13,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 0.03
+lr = 0.1
 gamma = 0.0
 
 sample_density = 20
@@ -65,10 +65,10 @@ def main(sess):
     controller_inputs = []
     for i in range(num_groups):
       mask = particle_mask(i * group_num_particles,
-                           (i + 1) * group_num_particles)[:, :, None] * (
+                           (i + 1) * group_num_particles)[:, None, :] * (
                                1.0 / group_num_particles)
-      pos = tf.reduce_sum(mask * state.position, axis=1, keepdims=False)
-      vel = tf.reduce_sum(mask * state.velocity, axis=1, keepdims=False)
+      pos = tf.reduce_sum(mask * state.position, axis=2, keepdims=False)
+      vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
       controller_inputs.append((goal - goal_pos) / np.maximum(goal_range, 1e-5))
@@ -97,8 +97,9 @@ def main(sess):
       # First PK stress here
       act = make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
-      total_actuation = total_actuation + matmatmul(
-        act, transpose(state['deformation_gradient']))
+      F = state['deformation_gradient']
+      total_actuation = total_actuation + matmatmul(F, matmatmul(
+        act, transpose(F)))
     return total_actuation, debug
   
   res = (80, 40)
@@ -139,6 +140,7 @@ def main(sess):
               ) * scale + 0.1
           initial_positions[b].append([u, v])
   assert len(initial_positions[0]) == num_particles
+  initial_positions = np.array(initial_positions).swapaxes(1, 2)
 
   sess.run(tf.global_variables_initializer())
 
