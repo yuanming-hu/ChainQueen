@@ -24,6 +24,9 @@ REGISTER_OP("Mpm")
   .Output("grid_out: float")        //(batch_size, dim + 1, num_cells)
   .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
 
+    int res[3] = {100, 100, 100};
+    int num_cells = res[0] * res[1] * res[2];
+    int grid_shape2 = 4;
     shape_inference::ShapeHandle x_shape;
     TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 3, &x_shape));
     shape_inference::ShapeHandle v_shape;
@@ -62,6 +65,19 @@ REGISTER_OP("Mpm")
     TF_RETURN_IF_ERROR(c->Merge(particle, particlev, &temp));
     TF_RETURN_IF_ERROR(c->Merge(particle, particleF, &temp));
     TF_RETURN_IF_ERROR(c->Merge(particle, particleC, &temp));
+
+    c->set_output(0, x_shape);
+    c->set_output(1, v_shape);
+    c->set_output(2, F_shape);
+    c->set_output(3, C_shape);
+    c->set_output(4, C_shape);
+    std::vector<shape_inference::DimensionHandle> new_shape;
+    new_shape.clear();
+    new_shape.push_back(batch_size);
+    new_shape.push_back(
+                     c->MakeDim(shape_inference::DimensionOrConstant(num_cells)));
+    new_shape.push_back(c->MakeDim(shape_inference::DimensionOrConstant(grid_shape2)));
+    c->set_output(5, c->MakeShape(new_shape));
     
     return Status::OK();
   });
@@ -88,6 +104,7 @@ public:
     float dx = 1.0f / res[0];
     float dt = 1e-2f;
     int num_cells = res[0] * res[1] * res[2];
+    int grid_shape2 = 4;
     //printf("MPMOpGPU\n");
 
     // get the x
@@ -107,7 +124,8 @@ public:
     const TensorShape& v_shape = inv.shape();
     const TensorShape& F_shape = inF.shape();
     const TensorShape& C_shape = inC.shape();
-    TensorShape grid_shape = inC.shape();
+    TensorShape P_shape = inC.shape();
+    TensorShape grid_shape = inx.shape();
     
     //Check that inputs' dimensional
     DCHECK_EQ(x_shape.dims(), 3);
@@ -152,8 +170,9 @@ public:
     OP_REQUIRES_OK(context, context->allocate_output(1, v_shape, &outv));
     OP_REQUIRES_OK(context, context->allocate_output(2, F_shape, &outF));
     OP_REQUIRES_OK(context, context->allocate_output(3, C_shape, &outC));
-    OP_REQUIRES_OK(context, context->allocate_output(4, C_shape, &outP));
-    grid_shape.set_dim(3, num_cells);
+    OP_REQUIRES_OK(context, context->allocate_output(4, P_shape, &outP));
+    grid_shape.set_dim(1, num_cells);
+    grid_shape.set_dim(2, grid_shape2);
     OP_REQUIRES_OK(context, context->allocate_output(5, grid_shape, &outgrid));
     
     auto f_inx = inx.flat<float>();

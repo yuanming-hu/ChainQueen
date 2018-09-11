@@ -18,6 +18,37 @@ class TestSimulator3D(unittest.TestCase):
     if abs(a - b) > relative_tol * max(max(abs(a), abs(b)), clip):
       self.assertEqual(a, b)
 
+  def test_g2p(self):
+    # print('\n==============\ntest_forward start')
+    x = tf.placeholder(tf.float32, shape=(1, 3, 1))
+    v = tf.placeholder(tf.float32, shape=(1, 3, 1))
+    C = tf.constant(np.zeros([1, 3, 3, 1]).astype(np.float32))
+    f = np.zeros([1, 3, 3, 1]).astype(np.float32)
+    f[0, 0, 0, 0] = 1
+    f[0, 1, 1, 0] = 1
+    f[0, 2, 2, 0] = 1
+    F = tf.constant(f)
+    P, G = mpm3d.p2g(x, v, F, C)
+
+    res = [100] * 3
+    gravity = [0.] * 3
+    dt = 1e-2
+    G = mpm3d.normalize_grid(G, res, gravity, dt)
+
+    step_p2g2p = mpm3d.g2p(x, v, F, C, P, G)
+    step_mpm = mpm3d.mpm(x, v, F, C)
+    feed_dict = {
+        x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
+        v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)
+    }
+    output_p2g2p = sess.run(step_p2g2p, feed_dict=feed_dict)
+    output_mpm = sess.run(step_mpm, feed_dict=feed_dict)
+
+    for i in range(4):
+      diff = np.abs(output_p2g2p[i] - output_mpm[i])
+      self.assertAlmostEqualFloat32(diff.max(), 0)
+
+
   def test_p2g(self):
     # print('\n==============\ntest_forward start')
     x = tf.placeholder(tf.float32, shape=(1, 3, 1))
@@ -28,20 +59,25 @@ class TestSimulator3D(unittest.TestCase):
     f[0, 1, 1, 0] = 1
     f[0, 2, 2, 0] = 1
     F = tf.constant(f)
-    step = mpm3d.p2g(x, v, C, F)
+    P, G = mpm3d.p2g(x, v, F, C)
     feed_dict = {
         x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
         v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)
     }
-    o = sess.run(step, feed_dict=feed_dict)
-    print(o)
-    PP, GG = o
-    for i in range(GG.shape[0]):
-      for j in range(GG.shape[1]):
-        for k in range(GG.shape[2]):
-          for l in range(GG.shape[3]):
-            if(np.abs(GG[i, j, k, l]) > 1e-5):
-              print('F', i, j, k, l, GG[i, j, k, l])
+    res = [100] * 3
+    gravity = [0.] * 3
+    dt = 1e-2
+    G_p2g = mpm3d.normalize_grid(G, res, gravity, dt)
+    mpm_output = mpm3d.mpm(x, v, F, C)
+    G_mpm = mpm_output[5]
+    G1 = sess.run(G_p2g, feed_dict=feed_dict)
+    G2 = sess.run(G_mpm, feed_dict=feed_dict)
+    
+    for i in range(G1.shape[0]):
+      for j in range(G1.shape[1]):
+        for k in range(G1.shape[2]):
+          self.assertAlmostEqualFloat32(G1[i, j, k], G2[i, j, k])
+    
 
   def test_forward(self):
     # print('\n==============\ntest_forward start')
@@ -53,16 +89,17 @@ class TestSimulator3D(unittest.TestCase):
     f[0, 1, 1, 0] = 1
     f[0, 2, 2, 0] = 1
     F = tf.constant(f)
-    xx, vv, CC, FF, PP, grid = mpm3d.mpm(x, v, C, F)
-    step = mpm3d.mpm(xx, vv, CC, FF)
+    xx, vv, FF, CC, PP, grid = mpm3d.mpm(x, v, F, C)
+    print(grid.shape)
+    step = mpm3d.mpm(xx, vv, FF, CC)
     feed_dict = {
         x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
         v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)
     }
     o = sess.run(step, feed_dict=feed_dict)
-    a, b, c, d, e, f = o
+    xout, vout, cout, fout, pout, gout = o
     print(o)
-    print(d.max())
+    print(gout.shape)
 
   def test_backward(self):
     # print('\n==============\ntest_backward start')

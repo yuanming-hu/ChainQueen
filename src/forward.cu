@@ -190,6 +190,32 @@ void P2GKernelLauncher(int res[dim],
   P2G<dim><<<num_blocks, particle_block_dim>>>(*state);
 }
 
+void G2PKernelLauncher(int res[dim],
+                       int num_particles,
+                       real dx,
+                       real dt,
+                       real gravity[dim],
+                       const real *inx,
+                       const real *inv,
+                       const real *inF,
+                       const real *inC,
+                       const real *inP,
+                       const real *ingrid,
+                       real *outx,
+                       real *outv,
+                       real *outF,
+                       real *outC) {
+  auto instate =
+      new TState<dim>(res, num_particles, dx, dt, gravity,
+                      (real *)inx, (real *)inv, (real *)inF, (real *)inC,
+                      (real *)inP, (real *)ingrid);
+  auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
+                                  outv, outF, outC, nullptr, nullptr);
+  int num_blocks =
+      (num_particles + particle_block_dim - 1) / particle_block_dim;
+  G2P<dim><<<num_blocks, particle_block_dim>>>(*instate, *outstate);
+}
+
 void initialize_mpm3d_state(int *res,
                             int num_particles,
                             float *gravity,
