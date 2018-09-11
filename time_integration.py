@@ -1,17 +1,19 @@
 import numpy as np
 import tensorflow as tf
 from vector_math import *
+import mpm3d
 
-linear = False
+use_cuda = False
+
 kernel_size = 3
 
-dim = 2
-
-class SimulationState2D:
+class SimulationState:
 
   def __init__(self, sim):
     self.sim = sim
     self.dim = sim.dim
+    dim = self.dim
+    self.grid_shape = (self.sim.batch_size,) + self.sim.grid_res + (1,)
     self.affine = tf.zeros(shape=(self.sim.batch_size, dim, dim, sim.num_particles), dtype=tf_precision)
     self.acceleration = tf.zeros(shape=(self.sim.batch_size, dim, sim.num_particles), dtype=tf_precision)
     self.position = None
@@ -63,7 +65,7 @@ class SimulationState2D:
         'youngs_modulus': self.youngs_modulus,
         'poissons_ratio': self.poissons_ratio,
         'step_count': self.step_count,
-        'debug': self.debug
+        'debug': self.debug,
     }
     ret_filtered = {}
     for k, v in ret.items():
@@ -78,13 +80,12 @@ class SimulationState2D:
   def __getitem__(self, item):
     return self.get_evaluated()[item]
 
-  @staticmethod
-  def compute_kernels(positions):
+  def compute_kernels(self, positions):
     # (x, y, dim)
     grid_node_coord = [[(i, j) for j in range(3)] for i in range(3)]
     grid_node_coord = np.array(grid_node_coord)[None, :, :, :, None]
     frac = (positions - tf.floor(positions - 0.5))[:, None, None, :, :]
-    assert frac.shape[3] == dim
+    assert frac.shape[3] == self.dim
     #print('frac', frac.shape)
     #print('grid_node_coord', grid_node_coord.shape)
 
@@ -96,14 +97,14 @@ class SimulationState2D:
     y = mask * (0.75 - x * x) + (1 - mask) * (0.5 * (1.5 - x)**2)
     #print('y', y.shape)
     y = tf.reduce_prod(y, axis=3, keepdims=True)
-    #print('y', y.shape)
     return y
 
 
-class InitialSimulationState2D(SimulationState2D):
+class InitialSimulationState(SimulationState):
 
   def __init__(self, sim, controller=None):
     super().__init__(sim)
+    dim = self.dim
     self.t = 0
     num_particles = sim.num_particles
     self.position = tf.placeholder(
@@ -125,13 +126,11 @@ class InitialSimulationState2D(SimulationState2D):
     self.poissons_ratio = tf.placeholder(
         tf_precision, [self.sim.batch_size, 1, num_particles],
         name='poissons_ratio')
-    self.grid_mass = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
-                                     self.sim.grid_res[1], 1), dtype=tf_precision)
-    self.grid_velocity = tf.zeros(
-        shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
-               dim), dtype=tf_precision)
-    self.kernels = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
-                                   self.sim.grid_res[1], kernel_size, kernel_size), dtype=tf_precision)
+    self.grid_mass = tf.zeros(shape=self.grid_shape, dtype=tf_precision)
+    self.grid_velocity = tf.zeros(shape=self.grid_shape, dtype=tf_precision)
+    if self.dim == 2:
+      self.kernels = tf.zeros(shape=(self.sim.batch_size,
+                                     kernel_size, kernel_size, 1, num_particles), dtype=tf_precision)
     self.step_count = tf.zeros(shape=(), dtype=np.int32)
 
     self.controller = controller
@@ -139,10 +138,31 @@ class InitialSimulationState2D(SimulationState2D):
       self.actuation, self.debug = controller(self)
 
 
-class UpdatedSimulationState2D(SimulationState2D):
+class UpdatedSimulationState(SimulationState):
+  def cuda(self, sim, previous_state, controller):
+    self.particle_mass = tf.identity(previous_state.particle_mass)
+    self.particle_volume = tf.identity(previous_state.particle_volume)
+    self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
+    self.poissons_ratio = tf.identity(previous_state.poissons_ratio)
+
+    self.step_count = previous_state.step_count + 1
+
+    self.t = previous_state.t + self.sim.dt
+
+    self.position, self.velocity, self.deformation_gradient, self.affine, _, _ = \
+      mpm3d.mpm(previous_state.position, previous_state.velocity,
+                previous_state.deformation_gradient, previous_state.affine)
+
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
+    dim = self.dim
+    if dim == 3 or use_cuda:
+      self.cuda(sim, previous_state, controller=controller)
+      return
+
+
+    # 2D time integration
     self.particle_mass = tf.identity(previous_state.particle_mass)
     self.particle_volume = tf.identity(previous_state.particle_volume)
     self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
@@ -193,27 +213,20 @@ class UpdatedSimulationState2D(SimulationState2D):
     # (b, 1, p) -> (b, 1, 1, p)
     mu = mu[:, :, None, :]
     lam = lam[:, :, None, :]
-    if linear:
-      self.stress_tensor1 = mu * (
-          transpose(self.deformation_gradient) + self.deformation_gradient -
-          2 * identity_matrix)
-      self.stress_tensor2 = lam * identity_matrix * (
-          trace(self.deformation_gradient)[:, None, None, :] - dim)
-    else:
-      # Corotated elasticity
-      # P(F) = dPhi/dF(F) = 2 mu (F-R) + lambda (J-1)JF^-T
+    # Corotated elasticity
+    # P(F) = dPhi/dF(F) = 2 mu (F-R) + lambda (J-1)JF^-T
 
-      r, s = polar_decomposition(self.deformation_gradient)
-      j = determinant(self.deformation_gradient)[:, None, None, :]
+    r, s = polar_decomposition(self.deformation_gradient)
+    j = determinant(self.deformation_gradient)[:, None, None, :]
 
-      # Note: stress_tensor here is right-multiplied by F^T
-      self.stress_tensor1 = 2 * mu * matmatmul(
-          self.deformation_gradient - r, transpose(self.deformation_gradient))
+    # Note: stress_tensor here is right-multiplied by F^T
+    self.stress_tensor1 = 2 * mu * matmatmul(
+        self.deformation_gradient - r, transpose(self.deformation_gradient))
 
-      if previous_state.controller:
-        self.stress_tensor1 += previous_state.actuation
+    if previous_state.controller:
+      self.stress_tensor1 += previous_state.actuation
 
-      self.stress_tensor2 = lam * (j - 1) * j * identity_matrix
+    self.stress_tensor2 = lam * (j - 1) * j * identity_matrix
 
     self.stress_tensor = self.stress_tensor1 + self.stress_tensor2
 

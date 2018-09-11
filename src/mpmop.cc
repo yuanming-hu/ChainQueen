@@ -6,8 +6,6 @@
 
 using namespace tensorflow;
 
-constexpr int dim = TC_DMPM_DIM;
-
 /*
     Register MPM operation
 */
@@ -73,7 +71,6 @@ REGISTER_OP("Mpm")
       c->set_output(3, C_shape);
       c->set_output(4, C_shape);
       auto dim_ = *((int *)dim.Handle());
-      // printf("dim %d\n", dim_);
       int res[3];
       int num_cells = 1;
       for(int i = 0; i < dim_; i++) {

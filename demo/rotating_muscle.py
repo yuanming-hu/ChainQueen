@@ -13,7 +13,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 0.1
+lr = 0.03
 gamma = 0.0
 
 sample_density = 20
@@ -21,20 +21,19 @@ group_num_particles = sample_density**2
 goal_pos = np.array([1.4, 0.4])
 goal_range = np.array([0.0, 0.00])
 batch_size = 1
-actuation_strength = 4
 
 config = 'B'
 
-exp = export.Export('walker')
+exp = export.Export('walker_video')
 
 # Robot B
-num_groups = 7
-group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
-group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
-actuations = [0, 1, 5, 6]
+num_groups = 1
+group_offsets = [(1, 1)]
+group_sizes = [(0.5, 1)]
+actuations = [0]
 fixed_groups = []
-head = 3
-gravity = (0, -2)
+head = 0
+gravity = (0, 0)
 
 num_particles = group_num_particles * num_groups
 
@@ -62,31 +61,7 @@ def main(sess):
 
   # Define your controller here
   def controller(state):
-    controller_inputs = []
-    for i in range(num_groups):
-      mask = particle_mask(i * group_num_particles,
-                           (i + 1) * group_num_particles)[:, None, :] * (
-                               1.0 / group_num_particles)
-      pos = tf.reduce_sum(mask * state.position, axis=2, keepdims=False)
-      vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
-      controller_inputs.append(pos)
-      controller_inputs.append(vel)
-      controller_inputs.append((goal - goal_pos) / np.maximum(goal_range, 1e-5))
-    # Batch, dim
-    controller_inputs = tf.concat(controller_inputs, axis=1)
-    assert controller_inputs.shape == (batch_size, 6 * num_groups), controller_inputs.shape
-    controller_inputs = controller_inputs[:, :, None]
-    assert controller_inputs.shape == (batch_size, 6 * num_groups, 1)
-    # Batch, 6 * num_groups, 1
-    intermediate = tf.matmul(W1[None, :, :] +
-                             tf.zeros(shape=[batch_size, 1, 1]), controller_inputs)
-    # Batch, #actuations, 1
-    assert intermediate.shape == (batch_size, len(actuations), 1)
-    assert intermediate.shape[2] == 1
-    intermediate = intermediate[:, :, 0]
-    # Batch, #actuations
-    actuation = tf.tanh(intermediate + b1[None, :]) * actuation_strength
-    debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation}
+    actuation = 2 * np.ones(shape=(batch_size, num_groups)) * tf.sin(0.1 * tf.cast(state.get_evaluated()['step_count'], tf.float32))
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
     for i, group in enumerate(actuations):
@@ -98,9 +73,8 @@ def main(sess):
       act = make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
       F = state['deformation_gradient']
-      total_actuation = total_actuation + matmatmul(F, matmatmul(
-        act, transpose(F)))
-    return total_actuation, debug
+      total_actuation = total_actuation + matmatmul(F, matmatmul(act, transpose(F)))
+    return total_actuation, 1
   
   res = (80, 40)
   bc = get_bounding_box_bc(res)
@@ -118,19 +92,14 @@ def main(sess):
       scale=20)
   print("Building time: {:.4f}s".format(time.time() - t))
 
-  final_state = sim.initial_state['debug']['controller_inputs']
   s = head * 6
   
-  final_position = final_state[:, s:s+2]
-  final_velocity = final_state[:, s + 2: s + 4]
-  loss1 = tf.reduce_mean(tf.reduce_sum((final_position - goal) ** 2, axis = 1))
-  loss2 = tf.reduce_mean(tf.reduce_sum(final_velocity ** 2, axis = 1)) 
-
-  loss = loss1 + gamma * loss2
-
   initial_positions = [[] for _ in range(batch_size)]
+  initial_velocity = np.zeros(shape=(batch_size, 2, num_particles))
   for b in range(batch_size):
+    c = 0
     for i, offset in enumerate(group_offsets):
+      c += 1
       for x in range(sample_density):
         for y in range(sample_density):
           scale = 0.2
@@ -139,23 +108,17 @@ def main(sess):
           v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
               ) * scale + 0.1
           initial_positions[b].append([u, v])
+          initial_velocity[0, :, c] = (2 * (y - sample_density / 2), -2 * (x - sample_density / 2))
   assert len(initial_positions[0]) == num_particles
   initial_positions = np.array(initial_positions).swapaxes(1, 2)
 
   sess.run(tf.global_variables_initializer())
 
   initial_state = sim.get_initial_state(
-      position=np.array(initial_positions), youngs_modulus=10)
+      position=np.array(initial_positions), youngs_modulus=10, velocity=initial_velocity)
 
-  trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
   
-  sym = sim.gradients_sym(loss, variables=trainables)
-  sim.add_point_visualization(pos=goal, color=(0, 1, 0), radius=3)
-  sim.add_vector_visualization(pos=final_position, vector=final_velocity, color=(0, 0, 1), scale=50)
- 
-  sim.add_point_visualization(pos=final_position, color=(1, 0, 0), radius=3)
-
   gx, gy = goal_range
   pos_x, pos_y = goal_pos
   goal_train = [np.array(
@@ -171,35 +134,22 @@ def main(sess):
     t = time.time()
     print('Epoch {:5d}, learning rate {}'.format(i, lr))
 
-    loss_cal = 0.
     print('train...')
     for it, goal_input in enumerate(goal_train):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=600,
+          num_steps=400,
           iteration_feed_dict={goal: goal_input},
-          loss=loss)
+          )
       print('forward', time.time() - tt)
       tt = time.time()
-      grad = sim.eval_gradients(sym=sym, memo=memo)
       print('backward', time.time() - tt)
 
-      for i, g in enumerate(grad):
-        print(i, np.mean(np.abs(g)))
-      
-      gradient_descent = [
-          v.assign(v - lr * g) for v, g in zip(trainables, grad)
-      ]
-      sess.run(gradient_descent)
-      print('Iter {:5d} time {:.3f} loss {}'.format(
-          it, time.time() - t, memo.loss))
-      loss_cal = loss_cal + memo.loss
       sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
                     show=True, interval=4)
     #exp.export()
-    print('train loss {}'.format(loss_cal / len(goal_train)))
-    
+
 if __name__ == '__main__':
   sess_config = tf.ConfigProto(allow_soft_placement=True)
   sess_config.gpu_options.allow_growth = True
