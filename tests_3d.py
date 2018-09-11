@@ -36,7 +36,7 @@ class TestSimulator3D(unittest.TestCase):
     G = mpm3d.normalize_grid(G, res, gravity, dt)
 
     step_p2g2p = mpm3d.g2p(x, v, F, C, P, G)
-    step_mpm = mpm3d.mpm(x, v, F, C, dt = 1e-2)
+    step_mpm = mpm3d.mpm(x, v, F, C, dt = 1e-2, gravity = gravity)
     feed_dict = {
         x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
         v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)
@@ -68,7 +68,7 @@ class TestSimulator3D(unittest.TestCase):
     gravity = [0.] * 3
     dt = 1e-2
     G_p2g = mpm3d.normalize_grid(G, res, gravity, dt)
-    mpm_output = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C)
+    mpm_output = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C, gravity = gravity)
     G_mpm = mpm_output[5]
     G1 = sess.run(G_p2g, feed_dict=feed_dict)
     G2 = sess.run(G_mpm, feed_dict=feed_dict)
@@ -89,9 +89,11 @@ class TestSimulator3D(unittest.TestCase):
     f[0, 1, 1, 0] = 1
     f[0, 2, 2, 0] = 1
     F = tf.constant(f)
-    xx, vv, FF, CC, PP, grid = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C, dt = 1e-3)
+    dt = 1e-2
+    gravity = [0, -1, 0]
+    xx, vv, FF, CC, PP, grid = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C, dt = dt, gravity = gravity)
     # print(grid.shape)
-    step = mpm3d.mpm(position = xx, velocity = vv, affine = FF, deformation = CC, dt = 1e-3)
+    step = mpm3d.mpm(position = xx, velocity = vv, affine = FF, deformation = CC, dt = dt, gravity = gravity)
     feed_dict = {
         x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
         v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)
@@ -111,7 +113,8 @@ class TestSimulator3D(unittest.TestCase):
     f[0, 1, 1, 0] = 1
     f[0, 2, 2, 0] = 1
     F = tf.constant(f)
-    xx, vv, FF, CC, PP, grid = mpm3d.mpm(x, v, F, C, dt = 1e-3)
+    gravity = [0, -1, 0]
+    xx, vv, FF, CC, PP, grid = mpm3d.mpm(x, v, F, C, dt = 1e-3, gravity = gravity)
     feed_dict = {
         x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
         v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)

@@ -19,6 +19,7 @@ REGISTER_OP("Mpm")
     .Input("deformation: float")  //(batch_size, dim, dim, particles
     .Attr("dt: float = 0.01")
     .Attr("dx: float = 0.01")
+    .Attr("gravity: list(float) = [0, 0, 0]")
     .Output("position_out: float")
     .Output("velocity_out: float")
     .Output("affine_out: float")
@@ -116,6 +117,7 @@ class MPMOpGPU : public OpKernel {
  private:
   float dt_;
   float dx_;
+  std::vector<float> gravity_;
  public:
   explicit MPMOpGPU(OpKernelConstruction *context) : OpKernel(context) {
     OP_REQUIRES_OK(context,
@@ -126,6 +128,8 @@ class MPMOpGPU : public OpKernel {
                    context->GetAttr("dx", &dx_));
     OP_REQUIRES(context, dx_ > 0,
                 errors::InvalidArgument("Need dx > 0, got ", dx_));
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("gravity", &gravity_));
   }
 
   void Compute(OpKernelContext *context) override {
@@ -160,13 +164,17 @@ class MPMOpGPU : public OpKernel {
 
     const int dim = x_shape.dim_size(1);
     // printf("dim %d\n", dim);
+
+    // Check gravity
+    OP_REQUIRES(context, (int)gravity_.size() == dim,
+                errors::InvalidArgument("Need gravity size == dim, got ", gravity_.size()));
     int res[dim];
     float gravity[dim];
     int num_cells = 1;
     for (int i = 0; i < dim; i++) {
       res[i] = 100;
       num_cells *= res[i];
-      gravity[i] = 0;
+      gravity[i] = gravity_[i];
     }
     int grid_shape2 = dim + 1;
     // printf("MPMOpGPU\n");
@@ -207,6 +215,7 @@ class MPMOpGPU : public OpKernel {
     grid_shape.set_dim(1, num_cells);
     grid_shape.set_dim(2, grid_shape2);
     OP_REQUIRES_OK(context, context->allocate_output(5, grid_shape, &outgrid));
+    
 
     auto f_inx = inx.flat<float>();
     auto f_inv = inv.flat<float>();

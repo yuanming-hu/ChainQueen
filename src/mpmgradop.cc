@@ -24,6 +24,7 @@ REGISTER_OP("MpmGrad")
   .Input("grid_out_grad: float")          //(batch_size, dim + 1, num_cells)
   .Attr("dt: float")
   .Attr("dx: float")
+  .Attr("gravity: list(float)")
   .Output("position_grad: float")         //(batch_size, dim, particles)
   .Output("velocity_grad: float")         //(batch_size, dim, particles)
   .Output("affine_grad: float")           //(batch_size, dim, dim, particles)
@@ -44,12 +45,15 @@ class MPMGradOpGPU : public OpKernel {
  private:
   float dt_;
   float dx_;
+  std::vector<float> gravity_;
  public:
   explicit MPMGradOpGPU(OpKernelConstruction* context) : OpKernel(context) {
     OP_REQUIRES_OK(context,
                    context->GetAttr("dt", &dt_));
     OP_REQUIRES_OK(context,
                    context->GetAttr("dx", &dx_));
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("gravity", &gravity_));
   }
   
   void Compute(OpKernelContext* context) override {
@@ -87,7 +91,7 @@ class MPMGradOpGPU : public OpKernel {
     for (int i = 0; i < dim; i++) {
       res[i] = 100;
       num_cells *= res[i];
-      gravity[i] = 0;
+      gravity[i] = gravity_[i];
     }
 
     // create output tensor
