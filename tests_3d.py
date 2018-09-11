@@ -90,10 +90,12 @@ class TestSimulator3D(unittest.TestCase):
     f[0, 2, 2, 0] = 1
     F = tf.constant(f)
     dt = 1e-2
+    dx = 1e-1
     gravity = [0, -1, 0]
-    xx, vv, FF, CC, PP, grid = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C, dt = dt, gravity = gravity)
+    res = [10, 10, 10]
+    xx, vv, FF, CC, PP, grid = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C, dt = dt, dx = dx, gravity = gravity, resolution = res)
     # print(grid.shape)
-    step = mpm3d.mpm(position = xx, velocity = vv, affine = FF, deformation = CC, dt = dt, gravity = gravity)
+    step = mpm3d.mpm(position = xx, velocity = vv, affine = FF, deformation = CC, dt = dt, dx = dx, gravity = gravity, resolution = res)
     feed_dict = {
         x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
         v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)

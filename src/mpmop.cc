@@ -18,6 +18,7 @@ REGISTER_OP("Mpm")
     .Attr("dt: float = 0.01")
     .Attr("dx: float = 0.01")
     .Attr("gravity: list(float) = [0, 0, 0]")
+    .Attr("resolution: list(int) = [100, 100, 100]")
     .Output("position_out: float")
     .Output("velocity_out: float")
     .Output("affine_out: float")
@@ -71,10 +72,24 @@ REGISTER_OP("Mpm")
       c->set_output(3, C_shape);
       c->set_output(4, C_shape);
       auto dim_ = *((int *)dim.Handle());
+
+      std::vector<int> res_;
+      TF_RETURN_IF_ERROR(c->GetAttr("resolution", &res_));
+      std::vector<float> gravity_;
+      TF_RETURN_IF_ERROR(c->GetAttr("gravity", &gravity_));
+
+      if((int)gravity_.size() != dim_)
+        return errors::InvalidArgument("Gravity length must be equal to " , dim_, ", but is ",
+                                        gravity_.size());
+      if((int)res_.size() != dim_)
+        return errors::InvalidArgument("Resolution length must be equal to " , dim_, ", but is ",
+                                        res_.size());
+
+
       int res[3];
       int num_cells = 1;
       for(int i = 0; i < dim_; i++) {
-        res[i] = 100;
+        res[i] = res_[i];
         num_cells *= res[i];
       }
       std::vector<shape_inference::DimensionHandle> new_shape;
@@ -115,6 +130,7 @@ class MPMOpGPU : public OpKernel {
   float dt_;
   float dx_;
   std::vector<float> gravity_;
+  std::vector<int> res_;
  public:
   explicit MPMOpGPU(OpKernelConstruction *context) : OpKernel(context) {
     OP_REQUIRES_OK(context,
@@ -127,6 +143,8 @@ class MPMOpGPU : public OpKernel {
                 errors::InvalidArgument("Need dx > 0, got ", dx_));
     OP_REQUIRES_OK(context,
                    context->GetAttr("gravity", &gravity_));
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("resolution", &res_));
   }
 
   void Compute(OpKernelContext *context) override {
@@ -163,13 +181,11 @@ class MPMOpGPU : public OpKernel {
     // printf("dim %d\n", dim);
 
     // Check gravity
-    OP_REQUIRES(context, (int)gravity_.size() == dim,
-                errors::InvalidArgument("Need gravity size == dim, got ", gravity_.size()));
     int res[dim];
     float gravity[dim];
     int num_cells = 1;
     for (int i = 0; i < dim; i++) {
-      res[i] = 100;
+      res[i] = res_[i];
       num_cells *= res[i];
       gravity[i] = gravity_[i];
     }
