@@ -3,6 +3,7 @@ from simulation import Simulation
 from time_integration_2d import UpdatedSimulationState2D
 import tensorflow as tf
 import numpy as np
+from vector_math import *
 
 sess = tf.Session()
 
@@ -87,8 +88,8 @@ class TestSimulator2D(unittest.TestCase):
 
   '''
   def test_recursive_placeholder(self):
-    a = tf.placeholder(dtype=tf.float32)
-    b = tf.placeholder(dtype=tf.float32)
+    a = tf.placeholder(dtype=tf_precision)
+    b = tf.placeholder(dtype=tf_precision)
     self.assertAlmostEqual(sess.run(a + b, feed_dict={(a, b): [1, 2]}), 3)
     # The following will not work
     # print(sess.run(a + b, feed_dict={{'a':a, 'b':b}: {'a':1, 'b':2}}))
@@ -109,7 +110,7 @@ class TestSimulator2D(unittest.TestCase):
         sess=sess)
     position = np.zeros(shape=(batch_size, 2, num_particles))
     poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.45
-    initial_velocity = tf.placeholder(shape=(2,), dtype=tf.float32)
+    initial_velocity = tf.placeholder(shape=(2,), dtype=tf_precision)
     velocity = tf.broadcast_to(
         initial_velocity[None, None, :], shape=(batch_size, 2, num_particles))
     for b in range(batch_size):
@@ -198,9 +199,9 @@ class TestSimulator2D(unittest.TestCase):
         sess=sess)
     position = np.zeros(shape=(batch_size, 2, num_particles))
     youngs_modulus = np.zeros(shape=(batch_size, 1, num_particles))
-    velocity_ph = tf.placeholder(shape=(2,), dtype=tf.float32)
+    velocity_ph = tf.placeholder(shape=(2,), dtype=tf_precision)
     velocity = velocity_ph[None, :, None] + tf.zeros(
-        shape=[batch_size, 2, num_particles], dtype=tf.float32)
+        shape=[batch_size, 2, num_particles], dtype=tf_precision)
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):

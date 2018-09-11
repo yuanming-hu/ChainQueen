@@ -260,7 +260,7 @@ class Simulation:
         last_grad_sym, self.initial_state.to_tuple())
 
     for v in variables:
-      assert tf.convert_to_tensor(v).dtype == tf.float32, v
+      assert tf.convert_to_tensor(v).dtype == tf_precision, v
 
     # partial S / partial var
     step_grad_variables = tf.gradients(
