@@ -129,6 +129,46 @@ class TestSimulator2D(unittest.TestCase):
         initial_state=input_state,
         initial_feed_dict={initial_velocity: [1, 0]})
     sim.visualize(memo, interval=5)
+    
+  def test_bouncing_cube_benchmark(self):
+    gravity = (0, -10)
+    batch_size = 1
+    dx = 0.2
+    sample_density = 0.1
+    N = 80
+    num_particles = N * N
+    sim = Simulation(
+      grid_res=(100, 120),
+      dx=dx,
+      num_particles=num_particles,
+      gravity=gravity,
+      dt=1 / 60 / 3,
+      batch_size=batch_size,
+      sess=sess)
+    position = np.zeros(shape=(batch_size, 2, num_particles))
+    poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.3
+    initial_velocity = tf.placeholder(shape=(2,), dtype=tf_precision)
+    velocity = tf.broadcast_to(
+      initial_velocity[None, None, :], shape=(batch_size, 2, num_particles))
+    for b in range(batch_size):
+      for i in range(N):
+        for j in range(N):
+          position[b, :, i * N + j] = (i * sample_density + 2, j * sample_density + 5 + 2 * dx)
+          
+    input_state = sim.get_initial_state(
+      position=position,
+      velocity=velocity,
+      poissons_ratio=poissons_ratio,
+      youngs_modulus=1000)
+  
+    import time
+    t = time.time()
+    memo = sim.run(
+      num_steps=1000,
+      initial_state=input_state,
+      initial_feed_dict={initial_velocity: [1, 0]})
+    print((time.time() - t) / 1000 * 3)
+    sim.visualize(memo, interval=5)
 
   def test_rotating_cube(self):
     gravity = (0, 0)
