@@ -150,7 +150,6 @@ void advance(TState<dim> &state, TState<dim> &new_state) {
 }
 
 // compability
-constexpr int dim = 3;
 void MPMKernelLauncher(
                        int dim_,
                        int *res,
@@ -187,6 +186,47 @@ void MPMKernelLauncher(
   }
 }
 
+template <int dim>
+void initialize_mpm_state(int *res,
+                          int num_particles,
+                          float *gravity,
+                          void *&state_,
+                          float dx,
+                          float dt,
+                          float *initial_positions) {
+  // State(int res[dim], int num_particles, real dx, real dt, real
+  auto state = new TState<dim>(res, num_particles, dx, dt, gravity);
+  state_ = state;
+  cudaMemcpy(state->x_storage, initial_positions,
+             sizeof(TVector<real, dim>) * num_particles,
+             cudaMemcpyHostToDevice);
+}
+
+template <int dim>
+void forward_mpm_state(void *state_, void *new_state_) {
+  auto *state = reinterpret_cast<TState<dim> *>(state_);
+  auto *new_state = reinterpret_cast<TState<dim> *>(new_state_);
+  advance<dim>(*state, *new_state);
+}
+
+template void initialize_mpm_state<2>(int *res,
+                                      int num_particles,
+                                      float *gravity,
+                                      void *&state_,
+                                      float dx,
+                                      float dt,
+                                      float *initial_positions);
+template void initialize_mpm_state<3>(int *res,
+                                      int num_particles,
+                                      float *gravity,
+                                      void *&state_,
+                                      float dx,
+                                      float dt,
+                                      float *initial_positions);
+template void forward_mpm_state<2>(void *, void *);
+template void forward_mpm_state<3>(void *, void *);
+
+constexpr int dim = 3;
 void P2GKernelLauncher(int res[dim],
                        int num_particles,
                        real dx,
@@ -234,42 +274,3 @@ void G2PKernelLauncher(int res[dim],
   G2P<dim><<<num_blocks, particle_block_dim>>>(*instate, *outstate);
 }
 
-template <int dim>
-void initialize_mpm_state(int *res,
-                          int num_particles,
-                          float *gravity,
-                          void *&state_,
-                          float dx,
-                          float dt,
-                          float *initial_positions) {
-  // State(int res[dim], int num_particles, real dx, real dt, real
-  auto state = new TState<dim>(res, num_particles, dx, dt, gravity);
-  state_ = state;
-  cudaMemcpy(state->x_storage, initial_positions,
-             sizeof(TVector<real, dim>) * num_particles,
-             cudaMemcpyHostToDevice);
-}
-
-template <int dim>
-void forward_mpm_state(void *state_, void *new_state_) {
-  auto *state = reinterpret_cast<TState<dim> *>(state_);
-  auto *new_state = reinterpret_cast<TState<dim> *>(new_state_);
-  advance<dim>(*state, *new_state);
-}
-
-template void initialize_mpm_state<2>(int *res,
-                                      int num_particles,
-                                      float *gravity,
-                                      void *&state_,
-                                      float dx,
-                                      float dt,
-                                      float *initial_positions);
-template void initialize_mpm_state<3>(int *res,
-                                      int num_particles,
-                                      float *gravity,
-                                      void *&state_,
-                                      float dx,
-                                      float dt,
-                                      float *initial_positions);
-template void forward_mpm_state<2>(void *, void *);
-template void forward_mpm_state<3>(void *, void *);

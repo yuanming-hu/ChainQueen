@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from vector_math import *
+import mpm3d
 
 linear = False
 kernel_size = 3
@@ -140,9 +141,27 @@ class InitialSimulationState2D(SimulationState2D):
 
 
 class UpdatedSimulationState2D(SimulationState2D):
+  def cuda(self, sim, previous_state, controller):
+    self.particle_mass = tf.identity(previous_state.particle_mass)
+    self.particle_volume = tf.identity(previous_state.particle_volume)
+    self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
+    self.poissons_ratio = tf.identity(previous_state.poissons_ratio)
+
+    self.step_count = previous_state.step_count + 1
+
+    self.t = previous_state.t + self.sim.dt
+
+    self.grid_velocity = tf.zeros(
+      shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
+             dim))
+
+    self.position, self.velocity, self.deformation_gradient, self.affine, _, _ = \
+      mpm3d.mpm(previous_state.position, previous_state.velocity,
+                previous_state.deformation_gradient, previous_state.affine)
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
+    return self.cuda(sim, previous_state, controller=controller)
     self.particle_mass = tf.identity(previous_state.particle_mass)
     self.particle_volume = tf.identity(previous_state.particle_volume)
     self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
