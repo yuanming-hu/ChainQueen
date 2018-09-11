@@ -157,6 +157,7 @@ class TestSimulator3D(unittest.TestCase):
     velocity_val = np.zeros(shape=(batch_size, 3, num_particles))
 
     F_val = np.zeros(shape=(batch_size, 3, 3, num_particles))
+    '''
     F_val[:, 0, 0, :] = 0.8
     F_val[:, 0, 1, :] = 0.2
     F_val[:, 1, 1, :] = 1
@@ -164,6 +165,10 @@ class TestSimulator3D(unittest.TestCase):
     F_val[:, 2, 2, :] = 0.8
     F_val[:, 2, 1, :] = 0.1
     F_val[:, 1, 2, :] = 0.3
+    '''
+    F_val[:, 0, 0, :] = 1
+    F_val[:, 1, 1, :] = 1
+    F_val[:, 2, 2, :] = 1
 
     for b in range(batch_size):
       for i in range(N):
@@ -187,7 +192,7 @@ class TestSimulator3D(unittest.TestCase):
     #sim.visualize(memo)
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
     grad = sim.eval_gradients(sym, memo)
-    delta = 1e-5
+    delta = 1e-3
     dim = 3
 
     for i in range(dim):
@@ -268,7 +273,7 @@ class TestSimulator3D(unittest.TestCase):
     #sim.visualize(memo)
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
     grad = sim.eval_gradients(sym, memo)
-    delta = 1e-4
+    delta = 1e-3
     dim = 3
 
     for i in range(dim):
