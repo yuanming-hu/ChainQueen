@@ -97,7 +97,6 @@ class SimulationState:
     y = mask * (0.75 - x * x) + (1 - mask) * (0.5 * (1.5 - x)**2)
     #print('y', y.shape)
     y = tf.reduce_prod(y, axis=3, keepdims=True)
-    #print('y', y.shape)
     return y
 
 
@@ -130,8 +129,8 @@ class InitialSimulationState(SimulationState):
     self.grid_mass = tf.zeros(shape=self.grid_shape, dtype=tf_precision)
     self.grid_velocity = tf.zeros(shape=self.grid_shape, dtype=tf_precision)
     if self.dim == 2:
-      self.kernels = tf.zeros(shape=(self.sim.batch_size, self.sim.grid_res[0],
-                                     self.sim.grid_res[1], kernel_size, kernel_size), dtype=tf_precision)
+      self.kernels = tf.zeros(shape=(self.sim.batch_size,
+                                     kernel_size, kernel_size, 1, num_particles), dtype=tf_precision)
     self.step_count = tf.zeros(shape=(), dtype=np.int32)
 
     self.controller = controller
@@ -161,6 +160,9 @@ class UpdatedSimulationState(SimulationState):
     if dim == 3 or use_cuda:
       self.cuda(sim, previous_state, controller=controller)
       return
+
+
+    # 2D time integration
     self.particle_mass = tf.identity(previous_state.particle_mass)
     self.particle_volume = tf.identity(previous_state.particle_volume)
     self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
