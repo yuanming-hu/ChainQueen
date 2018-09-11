@@ -52,7 +52,7 @@ public:
     int res[3] = {100, 100, 100};
     float gravity[3] = {0, -0, 0};
     float dx = 1.0f / res[0];
-    float dt = 1e-2f;
+    float dt = 1e-3f;
 
     // get the x
     const Tensor& inx = context->input(0);

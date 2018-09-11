@@ -19,7 +19,7 @@ goal_range = 0.15
 res = (100, 100)
 bc = get_bounding_box_bc(res)
 
-lr = 2e-2
+lr = 2e-1
 
 def main(sess):
   
@@ -61,7 +61,7 @@ def main(sess):
       position=position, velocity=velocity, youngs_modulus=1)
 
   final_position = sim.initial_state.center_of_mass(group_particles, None)
-  loss = tf.reduce_sum((final_position - goal) ** 2) ** 0.5
+  loss = tf.reduce_sum((final_position - goal) ** 2)
   # loss = tf.reduce_sum(tf.abs(final_position - goal))
   sim.add_point_visualization(pos = final_position, color = (1, 0, 0), radius = 3)
   sim.add_point_visualization(pos = goal, color = (0, 1, 0), radius = 3)
@@ -72,7 +72,7 @@ def main(sess):
   sym = sim.gradients_sym(loss, variables = trainables)
 
   goal_input = np.array(
-          [[0.7, 0.4]],
+          [[0.7, 0.3]],
     dtype=np.float32)
 
   for i in range(1000000):
