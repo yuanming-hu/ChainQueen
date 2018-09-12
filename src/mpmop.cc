@@ -17,6 +17,10 @@ REGISTER_OP("Mpm")
     .Input("deformation: float")  //(batch_size, dim, dim, particles
     .Attr("dt: float = 0.01")
     .Attr("dx: float = 0.01")
+    .Attr("E: float = 50")
+    .Attr("nu: float = 0.3")
+    .Attr("m_p: float = 100")
+    .Attr("V_p: float = 10")
     .Attr("gravity: list(float) = [0, 0, 0]")
     .Attr("resolution: list(int) = [100, 100, 100]")
     .Output("position_out: float")
@@ -78,17 +82,16 @@ REGISTER_OP("Mpm")
       std::vector<float> gravity_;
       TF_RETURN_IF_ERROR(c->GetAttr("gravity", &gravity_));
 
-      if((int)gravity_.size() != dim_)
-        return errors::InvalidArgument("Gravity length must be equal to " , dim_, ", but is ",
-                                        gravity_.size());
-      if((int)res_.size() != dim_)
-        return errors::InvalidArgument("Resolution length must be equal to " , dim_, ", but is ",
-                                        res_.size());
-
+      if ((int)gravity_.size() != dim_)
+        return errors::InvalidArgument("Gravity length must be equal to ", dim_,
+                                       ", but is ", gravity_.size());
+      if ((int)res_.size() != dim_)
+        return errors::InvalidArgument("Resolution length must be equal to ",
+                                       dim_, ", but is ", res_.size());
 
       int res[3];
       int num_cells = 1;
-      for(int i = 0; i < dim_; i++) {
+      for (int i = 0; i < dim_; i++) {
         res[i] = res_[i];
         num_cells *= res[i];
       }
@@ -113,6 +116,10 @@ void MPMKernelLauncher(int dim,
                        int num_particles,
                        float dx,
                        float dt,
+                       float E,
+                       float nu,
+                       float m_p,
+                       float V_p,
                        float *gravity,
                        const float *inx,
                        const float *inv,
@@ -129,22 +136,32 @@ class MPMOpGPU : public OpKernel {
  private:
   float dt_;
   float dx_;
+  float m_p_, V_p_, E_, nu_;
   std::vector<float> gravity_;
   std::vector<int> res_;
+
  public:
   explicit MPMOpGPU(OpKernelConstruction *context) : OpKernel(context) {
-    OP_REQUIRES_OK(context,
-                   context->GetAttr("dt", &dt_));
+    OP_REQUIRES_OK(context, context->GetAttr("dt", &dt_));
     OP_REQUIRES(context, dt_ > 0,
                 errors::InvalidArgument("Need dt > 0, got ", dt_));
-    OP_REQUIRES_OK(context,
-                   context->GetAttr("dx", &dx_));
+    OP_REQUIRES_OK(context, context->GetAttr("dx", &dx_));
     OP_REQUIRES(context, dx_ > 0,
                 errors::InvalidArgument("Need dx > 0, got ", dx_));
-    OP_REQUIRES_OK(context,
-                   context->GetAttr("gravity", &gravity_));
-    OP_REQUIRES_OK(context,
-                   context->GetAttr("resolution", &res_));
+    OP_REQUIRES_OK(context, context->GetAttr("gravity", &gravity_));
+    OP_REQUIRES_OK(context, context->GetAttr("resolution", &res_));
+    OP_REQUIRES_OK(context, context->GetAttr("E", &E_));
+    OP_REQUIRES_OK(context, context->GetAttr("nu", &nu_));
+    OP_REQUIRES_OK(context, context->GetAttr("m_p", &m_p_));
+    OP_REQUIRES_OK(context, context->GetAttr("V_p", &V_p_));
+    OP_REQUIRES(context, E_ > 0,
+                errors::InvalidArgument("Need E > 0, got ", E_));
+    OP_REQUIRES(context, nu_ > 0,
+                errors::InvalidArgument("Need nu_p > 0, got ", nu_));
+    OP_REQUIRES(context, m_p_ > 0,
+                errors::InvalidArgument("Need m_p > 0, got ", m_p_));
+    OP_REQUIRES(context, V_p_ > 0,
+                errors::InvalidArgument("Need V_p > 0, got ", V_p_));
   }
 
   void Compute(OpKernelContext *context) override {
@@ -228,7 +245,6 @@ class MPMOpGPU : public OpKernel {
     grid_shape.set_dim(1, num_cells);
     grid_shape.set_dim(2, grid_shape2);
     OP_REQUIRES_OK(context, context->allocate_output(5, grid_shape, &outgrid));
-    
 
     auto f_inx = inx.flat<float>();
     auto f_inv = inv.flat<float>();
@@ -241,10 +257,10 @@ class MPMOpGPU : public OpKernel {
     auto f_outP = outP->template flat<float>();
     auto f_outgrid = outgrid->template flat<float>();
 
-    MPMKernelLauncher(dim, res, particles, dx_, dt_, gravity, f_inx.data(),
-                      f_inv.data(), f_inF.data(), f_inC.data(), f_outx.data(),
-                      f_outv.data(), f_outF.data(), f_outC.data(),
-                      f_outP.data(), f_outgrid.data());
+    MPMKernelLauncher(dim, res, particles, dx_, dt_, E_, nu_, m_p_, V_p_, gravity,
+                      f_inx.data(), f_inv.data(), f_inF.data(), f_inC.data(),
+                      f_outx.data(), f_outv.data(), f_outF.data(),
+                      f_outC.data(), f_outP.data(), f_outgrid.data());
   }
 };
 

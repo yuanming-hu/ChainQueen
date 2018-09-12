@@ -57,7 +57,7 @@ def normalize_grid(grid, res, gravity, dt):
 
 @ops.RegisterGradient("Mpm")
 def _mpm_grad_cc(op, *grads):
-  attr_labels = ['dt', 'dx', 'gravity', 'resolution']
+  attr_labels = ['dt', 'dx', 'gravity', 'resolution', 'E', 'nu', 'm_p', 'V_p']
   attrs = {}
   for st in attr_labels:
     attrs[st] = op.get_attr(st)

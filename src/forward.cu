@@ -150,12 +150,15 @@ void advance(TState<dim> &state, TState<dim> &new_state) {
 }
 
 // compability
-void MPMKernelLauncher(
-                       int dim_,
+void MPMKernelLauncher(int dim_,
                        int *res,
                        int num_particles,
                        real dx,
                        real dt,
+                       real E,
+                       real nu,
+                       real m_p,
+                       real V_p,
                        real *gravity,
                        const real *inx,
                        const real *inv,
@@ -172,16 +175,20 @@ void MPMKernelLauncher(
     auto instate =
         new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
                         (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+    instate->set(V_p, m_p, E, nu);
     auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
                                     outv, outF, outC, nullptr, nullptr);
+    outstate->set(V_p, m_p, E, nu);
     advance<dim>(*instate, *outstate);
   } else {
     constexpr int dim = 2;
     auto instate =
         new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
                         (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+    instate->set(V_p, m_p, E, nu);
     auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
                                     outv, outF, outC, nullptr, nullptr);
+    outstate->set(V_p, m_p, E, nu);
     advance<dim>(*instate, *outstate);
   }
 }
@@ -241,8 +248,7 @@ void P2GKernelLauncher(int res[dim],
   auto state =
       new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
                       (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
-  cudaMemset(outgrid, 0,
-             state->num_cells * (dim + 1) * sizeof(real));
+  cudaMemset(outgrid, 0, state->num_cells * (dim + 1) * sizeof(real));
   int num_blocks =
       (num_particles + particle_block_dim - 1) / particle_block_dim;
   P2G<dim><<<num_blocks, particle_block_dim>>>(*state);
@@ -263,14 +269,12 @@ void G2PKernelLauncher(int res[dim],
                        real *outv,
                        real *outF,
                        real *outC) {
-  auto instate =
-      new TState<dim>(res, num_particles, dx, dt, gravity,
-                      (real *)inx, (real *)inv, (real *)inF, (real *)inC,
-                      (real *)inP, (real *)ingrid);
+  auto instate = new TState<dim>(res, num_particles, dx, dt, gravity,
+                                 (real *)inx, (real *)inv, (real *)inF,
+                                 (real *)inC, (real *)inP, (real *)ingrid);
   auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
                                   outv, outF, outC, nullptr, nullptr);
   int num_blocks =
       (num_particles + particle_block_dim - 1) / particle_block_dim;
   G2P<dim><<<num_blocks, particle_block_dim>>>(*instate, *outstate);
 }
-

@@ -184,7 +184,7 @@ class TestSimulator3D(unittest.TestCase):
     steps = 1
     dt = 1e-2
     sim = Simulation(
-      grid_res=(20, 20, 20),
+      grid_res=(100, 100, 100),
       dx=dx,
       num_particles=num_particles,
       gravity=gravity,
@@ -274,7 +274,7 @@ class TestSimulator3D(unittest.TestCase):
     steps = 4
     dt = 1e-2
     sim = Simulation(
-      grid_res=(10, 10, 10),
+      grid_res=(100, 100, 100),
       dx=dx,
       num_particles=num_particles,
       gravity=gravity,

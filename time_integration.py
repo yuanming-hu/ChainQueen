@@ -151,7 +151,8 @@ class UpdatedSimulationState(SimulationState):
 
     self.position, self.velocity, self.deformation_gradient, self.affine, _, _ = \
       mpm3d.mpm(previous_state.position, previous_state.velocity,
-                previous_state.deformation_gradient, previous_state.affine)
+                previous_state.deformation_gradient, previous_state.affine, dx=sim.dx,
+                dt=sim.dt, gravity=sim.gravity, resolution=sim.grid_res)
 
 
   def __init__(self, sim, previous_state, controller=None):

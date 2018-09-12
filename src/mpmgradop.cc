@@ -24,6 +24,10 @@ REGISTER_OP("MpmGrad")
   .Input("grid_out_grad: float")          //(batch_size, dim + 1, num_cells)
   .Attr("dt: float")
   .Attr("dx: float")
+  .Attr("E: float")
+  .Attr("nu: float")
+  .Attr("m_p: float")
+  .Attr("V_p: float")
   .Attr("gravity: list(float)")
   .Attr("resolution: list(int)")
   .Output("position_grad: float")         //(batch_size, dim, particles)
@@ -33,7 +37,9 @@ REGISTER_OP("MpmGrad")
 
 
 void MPMGradKernelLauncher(
-    int dim, int *res, int num_particles, float dx, float dt, float *gravity,
+    int dim, int *res, int num_particles, float dx, float dt, float E, float nu,
+    float m_p, float V_p,
+    float *gravity,
     const float *inx, const float *inv, const float *inF, const float *inC,
     const float *outx, const float *outv, const float *outF, const float *outC,
     const float *outP, const float *outgrid,
@@ -46,6 +52,7 @@ class MPMGradOpGPU : public OpKernel {
  private:
   float dt_;
   float dx_;
+  float E_, nu_, m_p_, V_p_;
   std::vector<float> gravity_;
   std::vector<int> res_;
  public:
@@ -54,6 +61,14 @@ class MPMGradOpGPU : public OpKernel {
                    context->GetAttr("dt", &dt_));
     OP_REQUIRES_OK(context,
                    context->GetAttr("dx", &dx_));
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("E", &E_));
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("nu", &nu_));
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("m_p", &m_p_));
+    OP_REQUIRES_OK(context,
+                   context->GetAttr("V_p", &V_p_));
     OP_REQUIRES_OK(context,
                    context->GetAttr("gravity", &gravity_));
     OP_REQUIRES_OK(context,
@@ -130,7 +145,7 @@ class MPMGradOpGPU : public OpKernel {
     auto f_grad_inC = grad_inC->template flat<float>();
     
 
-    MPMGradKernelLauncher(dim, res, particles, dx_, dt_, gravity,
+    MPMGradKernelLauncher(dim, res, particles, dx_, dt_, E_, nu_, m_p_, V_p_, gravity,
         f_inx.data(), f_inv.data(), f_inF.data(), f_inC.data(),
         f_outx.data(), f_outv.data(), f_outF.data(), f_outC.data(),
         f_outP.data(), f_outgrid.data(),
