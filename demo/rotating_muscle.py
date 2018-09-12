@@ -65,7 +65,7 @@ def main(sess):
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
     for i, group in enumerate(actuations):
-      act = actuation[:, i:i+1]
+      act = actuation[:, i:i+1] * 2
       assert len(act.shape) == 2
       mask = particle_mask_from_group(group)
       act = act * mask
