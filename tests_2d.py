@@ -10,8 +10,8 @@ sess = tf.Session()
 
 class TestSimulator2D(unittest.TestCase):
 
-  def assertAlmostEqualFloat32(self, a, b):
-    if abs(a - b) > 1e-5 * max(max(abs(a), abs(b)), 1e-3):
+  def assertAlmostEqualFloat32(self, a, b, relative_tol=1e-5, clip=1e-3):
+    if abs(a - b) > relative_tol * max(max(abs(a), abs(b)), clip):
       self.assertEqual(a, b)
 
   def motion_test(self,
@@ -223,7 +223,7 @@ class TestSimulator2D(unittest.TestCase):
     memo = sim.run(100, input_state)
     sim.visualize(memo)
 
-  def test_initial_gradient(self):
+  def test_initial_gradients(self):
     gravity = (0, 0)
     batch_size = 1
     dx = 0.03
@@ -259,6 +259,83 @@ class TestSimulator2D(unittest.TestCase):
     grad = sim.eval_gradients(sym, memo)
     self.assertAlmostEqualFloat32(grad[0][0], steps * dt)
     self.assertAlmostEqualFloat32(grad[0][1], 0)
+    
+  def test_gradients(self):
+    gravity = (0, 0)
+    batch_size = 1
+    dx = 0.03
+    N = 2
+    num_particles = N
+    steps = 10
+    dt = 1e-2
+    sim = Simulation(
+      grid_res=(30, 30),
+      dx=dx,
+      num_particles=num_particles,
+      gravity=gravity,
+      dt=dt,
+      batch_size=batch_size,
+      E=1,
+      sess=sess)
+  
+    position_ph = tf.placeholder(shape=(batch_size, 2, num_particles), dtype=tf.float32)
+    velocity_ph = tf.placeholder(shape=(batch_size, 2, num_particles), dtype=tf.float32)
+  
+    position_val = np.zeros(shape=(batch_size, 2, num_particles))
+    velocity_val = np.zeros(shape=(batch_size, 2, num_particles))
+  
+    F_val = np.zeros(shape=(batch_size, 2, 2, num_particles))
+    F_val[:, 0, 0, :] = 0.5
+    F_val[:, 1, 1, :] = 1
+  
+    for b in range(batch_size):
+      for i in range(N):
+        position_val[b, :, i] = (0.5, 0.5)
+  
+    input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph, deformation_gradient=F_val)
+  
+    loss = sim.initial_state.position[:, 0, 0]
+  
+    sim.set_initial_state(input_state)
+    sym = sim.gradients_sym(loss=loss, variables=[position_ph, velocity_ph])
+  
+    def forward(pos, vel):
+      memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: vel, position_ph: pos}, loss=loss)
+      return memo.loss[0]
+  
+    #sim.visualize(memo)
+    memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
+    grad = sim.eval_gradients(sym, memo)
+    delta = 1e-3
+    dim = 2
+  
+    for i in range(dim):
+      for j in range(num_particles):
+        position_val[0, i, j] += delta
+        v1 = forward(position_val, velocity_val)
+      
+        position_val[0, i, j] -= 2 * delta
+        v2 = forward(position_val, velocity_val)
+      
+        position_val[0, i, j] += delta
+      
+        g = (v1 - v2) / (2 * delta)
+        print(g, grad[0][0, i, j])
+        self.assertAlmostEqualFloat32(g, grad[0][0, i, j], clip=1e-2, relative_tol=4e-2)
+  
+    for i in range(dim):
+      for j in range(num_particles):
+        velocity_val[0, i, j] += delta
+        v1 = forward(position_val, velocity_val)
+      
+        velocity_val[0, i, j] -= 2 * delta
+        v2 = forward(position_val, velocity_val)
+      
+        velocity_val[0, i, j] += delta
+      
+        g = (v1 - v2) / (2 * delta)
+        print(g, grad[1][0, i, j])
+        self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=4e-2)
 
 
 if __name__ == '__main__':
