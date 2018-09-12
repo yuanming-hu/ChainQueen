@@ -193,6 +193,46 @@ void MPMKernelLauncher(int dim_,
     advance<dim>(*instate, *outstate);
   }
 }
+void P2GKernelLauncher(int dim_,
+                       int *res,
+                       int num_particles,
+                       real dx,
+                       real dt,
+                       real E,
+                       real nu,
+                       real m_p,
+                       real V_p,
+                       real *gravity,
+                       const real *inx,
+                       const real *inv,
+                       const real *inF,
+                       const real *inC,
+                       const real *inA,
+                       real *outP,
+                       real *outgrid) {
+  if (dim_ == 3) {
+    constexpr int dim = 3;
+    auto state =
+        new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
+                        (real *)inv, (real *)inF, (real *)inC, (real *)inA, outP, outgrid);
+    int num_blocks =
+      (num_particles + particle_block_dim - 1) / particle_block_dim;
+    cudaMemset(outgrid, 0, state->num_cells * (dim + 1) * sizeof(real));
+    state->set(V_p, m_p, E, nu);
+    P2G<dim><<<num_blocks, particle_block_dim>>>(*state);
+  } else {
+    constexpr int dim = 2;
+    auto state =
+        new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
+                        (real *)inv, (real *)inF, (real *)inC, (real *)inA, outP, outgrid);
+    int num_blocks =
+      (num_particles + particle_block_dim - 1) / particle_block_dim;
+    cudaMemset(outgrid, 0, state->num_cells * (dim + 1) * sizeof(real));
+    state->set(V_p, m_p, E, nu);
+    P2G<dim><<<num_blocks, particle_block_dim>>>(*state);
+  }
+}
+
 
 template <int dim>
 void initialize_mpm_state(int *res,

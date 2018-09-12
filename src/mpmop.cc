@@ -14,8 +14,8 @@ REGISTER_OP("Mpm")
     .Input("position: float")     //(batch_size, dim, particles)
     .Input("velocity: float")     //(batch_size, dim, particles)
     .Input("affine: float")       //(batch_size, dim, dim, particles)
-    .Input("deformation: float")  //(batch_size, dim, dim, particles
-    .Input("actuation: float")    //(batch_size, dim, dim, particles
+    .Input("deformation: float")  //(batch_size, dim, dim, particles)
+    .Input("actuation: float")    //(batch_size, dim, dim, particles)
     .Attr("dt: float = 0.01")
     .Attr("dx: float = 0.01")
     .Attr("E: float = 50")
