@@ -148,6 +148,9 @@ class InitialSimulationState(SimulationState):
 
 class UpdatedSimulationState(SimulationState):
   def cuda(self, sim, previous_state, controller):
+    self.position = previous_state.position
+    self.velocity = previous_state.velocity
+    self.deformation_gradient = previous_state.deformation_gradient
     self.particle_mass = tf.identity(previous_state.particle_mass)
     self.particle_volume = tf.identity(previous_state.particle_volume)
     self.youngs_modulus = tf.identity(previous_state.youngs_modulus)

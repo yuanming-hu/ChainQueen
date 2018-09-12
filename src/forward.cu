@@ -65,38 +65,33 @@ __global__ void P2G(TState<dim> state) {
   }
 }
 
-TC_FORCE_INLINE __device__ real sgn(real x) {
-  return x > 0 ? 1 : -1;
-}
-
 template <int dim>
-__global__ void normalize_grid(TState<dim> state) {
+__global__ void grid_forward(TState<dim> state) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   using Vector = TVector<real, dim>;
   if (id < state.num_cells) {
     auto node = state.grid_node(id);
+    auto v_i = Vector(node);
     if (node[dim] > 0) {
       real inv_m = 1.0f / node[dim];
+      v_i = inv_m * v_i;
       for (int i = 0; i < dim; i++) {
-        node[i] *= inv_m;
+        v_i[i] += state.gravity[i] * state.dt;
       }
-      for (int i = 0; i < dim; i++) {
-        node[i] += state.gravity[i] * state.dt;
-      }
-      auto vi = Vector(node);
       auto bc = state.grid_node_bc(id);
       auto normal = Vector(bc);
       real coeff = bc[dim];
       if (normal.length2() > 0) {
-        auto lin = vi.dot(normal);
-        auto vit = vi - lin * normal;
+        auto lin = v_i.dot(normal);
+        auto vit = v_i - lin * normal;
         auto lit = (sqrt(vit.length2()) + 1e-20);
         auto vithat = (1 / lit) * vit;
         auto litstar = sgn(lit) * max(abs(lit) + coeff * min(lin, 0.0f), 0.0f);
         auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
-        for (int i = 0; i < dim; i++) {
-          node[i] = vistar[i];
-        }
+        v_i = vistar;
+      }
+      for (int i = 0; i < dim; i++) {
+        node[i] = v_i[i];
       }
     }
   }
@@ -139,7 +134,7 @@ void advance(TState<dim> &state, TState<dim> &new_state) {
       (state.num_particles + particle_block_dim - 1) / particle_block_dim;
   P2G<dim><<<num_blocks, particle_block_dim>>>(state);
 
-  normalize_grid<dim>
+  grid_forward<dim>
       <<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
          grid_block_dim>>>(state);
   G2P<dim><<<num_blocks, particle_block_dim>>>(state, new_state);
