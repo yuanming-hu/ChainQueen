@@ -175,6 +175,7 @@ void MPMKernelLauncher(int dim_,
                                    (real *)inx, (real *)inv, (real *)inF,
                                    (real *)inC, (real *)inA, outP, outgrid);
     instate->grid_bc = const_cast<real *>(ingrid);
+    instate->grid_star_storage = outgrid_star;
     instate->set(V_p, m_p, E, nu);
     auto outstate =
         new TState<dim>(res, num_particles, dx, dt, gravity, outx, outv, outF,
@@ -187,6 +188,7 @@ void MPMKernelLauncher(int dim_,
                                    (real *)inx, (real *)inv, (real *)inF,
                                    (real *)inC, (real *)inA, outP, outgrid);
     instate->grid_bc = const_cast<real *>(ingrid);
+    instate->grid_star_storage = outgrid_star;
     instate->set(V_p, m_p, E, nu);
     auto outstate =
         new TState<dim>(res, num_particles, dx, dt, gravity, outx, outv, outF,

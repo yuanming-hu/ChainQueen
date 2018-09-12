@@ -172,7 +172,7 @@ class UpdatedSimulationState(SimulationState):
     bc = np.concatenate([self.sim.bc_normal, self.sim.bc_parameter], axis=self.dim + 1).reshape(1, num_cells, self.dim + 1)
     bc = tf.constant(bc, dtype=tf.float32)
 
-    self.position, self.velocity, self.deformation_gradient, self.affine, _, _ = \
+    self.position, self.velocity, self.deformation_gradient, self.affine, _, _, _ = \
       mpm3d.mpm(previous_state.position, previous_state.velocity,
                 previous_state.deformation_gradient, previous_state.affine, dx=sim.dx,
                 dt=sim.dt, gravity=sim.gravity, resolution=sim.grid_res, E=sim.E, nu=sim.nu,

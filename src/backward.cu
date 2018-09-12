@@ -408,6 +408,7 @@ void MPMGradKernelLauncher(int dim,
         grad_inx, grad_inv, grad_inF, grad_inC, grad_inA, (real *)grad_outP,
         (real *)grad_outgrid);
     current->grid_bc = const_cast<real *>(ingrid);
+    current->grid_star_storage = const_cast<real *>(outgrid_star);
     current->set(V_p, m_p, E, nu);
     auto next = new TState<dim>(
         res, num_particles, dx, dt, gravity, (real *)outx, (real *)outv,
@@ -424,6 +425,7 @@ void MPMGradKernelLauncher(int dim,
         grad_inx, grad_inv, grad_inF, grad_inC, grad_inA, (real *)grad_outP,
         (real *)grad_outgrid);
     current->grid_bc = const_cast<real *>(ingrid);
+    current->grid_star_storage = const_cast<real *>(outgrid_star);
     current->set(V_p, m_p, E, nu);
     auto next = new TState<dim>(
         res, num_particles, dx, dt, gravity, (real *)outx, (real *)outv,
