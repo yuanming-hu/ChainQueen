@@ -14,7 +14,7 @@ class WalkerEnv(gym.Env):
     max_obs is n-d array, where n is the state space of the robot.  Assumes 0 is the minimum observation
     init_state is the initial state of the entire robot
     '''
-    max_act = np.ones(4) * 1.0
+    max_act = np.ones(4) * 1000.0
     max_obs = np.ones(42) * 2.0
     goal_input = np.expand_dims(w_s.goal_pos, axis=0)
     
@@ -66,6 +66,9 @@ class WalkerEnv(gym.Env):
         iteration_feed_dict={w_s.goal: self.goal_input, w_s.actuation: action_},
         loss=self.obs)
     
+    if self.iter_ % 10 == 0:
+      self.sim.visualize(memo, show=True)
+
         
     #2. update state
     #TODO: update state
@@ -75,19 +78,20 @@ class WalkerEnv(gym.Env):
     
     
     #3. calculate reward as velocity toward the goal
-    reward = -memo.loss
+    reward = memo.loss
+    #print(reward)
     
     #TODO: 4. return if we're exactly at the goal and give a bonus to reward if we are
     success = np.linalg.norm(obs[18:20] - self.goal_input) < goal_ball #TODO: unhardcode
-    if self.iter_ == 800:
-      self.iter_ = 0
+    if self.iter_ == 799:
+      self.iter_ = -1
       fail = True
     else:
       fail = False
     
     if success:
       reward += 1
-    if fail:
+    elif fail:
       reward -= 1
       
     self.iter_ += 1

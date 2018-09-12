@@ -111,9 +111,10 @@ def generate_sim():
   
   res = (80, 40)
   bc = get_bounding_box_bc(res)
-  
+  dt = 0.005  
+
   sim = Simulation(
-      dt=0.005,
+      dt=dt,
       num_particles=num_particles,
       grid_res=res,
       dx=1.0 / res[1],
@@ -139,7 +140,7 @@ def generate_sim():
   
   
   loss_obs = final_state
-  loss_fwd = -tf.reduce_mean(tf.reduce_sum(final_state[:, s + 2:s + 3], axis=1))
+  loss_fwd = tf.reduce_mean(tf.reduce_sum(final_state[:, s+2:s + 3], axis=1)) * dt
 
   loss = loss_fwd #really, the reward forward
   
