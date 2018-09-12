@@ -166,8 +166,8 @@ class MPMOpGPU : public OpKernel {
     OP_REQUIRES_OK(context, context->GetAttr("nu", &nu_));
     OP_REQUIRES_OK(context, context->GetAttr("m_p", &m_p_));
     OP_REQUIRES_OK(context, context->GetAttr("V_p", &V_p_));
-    OP_REQUIRES(context, E_ > 0,
-                errors::InvalidArgument("Need E > 0, got ", E_));
+    OP_REQUIRES(context, E_ >= 0,
+                errors::InvalidArgument("Need E >= 0, got ", E_));
     OP_REQUIRES(context, nu_ > 0,
                 errors::InvalidArgument("Need nu_p > 0, got ", nu_));
     OP_REQUIRES(context, m_p_ > 0,

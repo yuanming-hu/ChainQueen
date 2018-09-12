@@ -37,8 +37,8 @@ __global__ void P2G_backward(TState<dim> state, TState<dim> next_state) {
   }
 
   // Accumulate to grad_v and grad_C
-  next_state.set_grad_v(part_id, grad_v_next);
-  next_state.set_grad_C(part_id, grad_C_next);
+  //next_state.set_grad_v(part_id, grad_v_next);
+  //next_state.set_grad_C(part_id, grad_C_next);
 
   TransferCommon<dim, true> tc(state, x);
 
@@ -117,8 +117,21 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   auto grad_C_next = next_state.get_grad_C(part_id);
   auto grad_P_next = next_state.get_grad_P(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
+  auto grad_x_next = next_state.get_grad_x(part_id);
 
   auto C_next = next_state.get_C(part_id);
+  // (A) v_p^n+1, accumulate
+  grad_v_next = grad_v_next + state.dt * grad_x_next;
+
+  // (B) C_p^n+1, accumulate
+  for (int alpha = 0; alpha < dim; alpha++) {
+    for (int beta = 0; beta < dim; beta++) {
+      for (int gamma = 0; gamma < dim; gamma++) {
+        grad_C_next[alpha][beta] +=
+            state.dt * grad_F_next[alpha][gamma] * F[beta][gamma];
+      }
+    }
+  }
 
   TMatrix<real, dim> grad_P, grad_F, grad_C;
 
@@ -260,7 +273,7 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
         // (J), term 2
         grad_x[alpha] += grad_v_next[beta] * grad_N[alpha] * vi[beta];
         // (J), term 3
-        auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
+        auto tmp = grad_N[alpha] * vi[beta] * dpos[alpha] - N * vi[beta];
         grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
         // (J), term 4
         grad_x[alpha] +=

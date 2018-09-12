@@ -265,8 +265,8 @@ class TestSimulator2D(unittest.TestCase):
     batch_size = 1
     dx = 0.03
     N = 2
-    num_particles = N
-    steps = 10
+    num_particles = N * N
+    steps = 30
     dt = 1e-2
     sim = Simulation(
       grid_res=(30, 30),
@@ -275,7 +275,7 @@ class TestSimulator2D(unittest.TestCase):
       gravity=gravity,
       dt=dt,
       batch_size=batch_size,
-      E=1,
+      E=0.1,
       sess=sess)
   
     position_ph = tf.placeholder(shape=(batch_size, 2, num_particles), dtype=tf.float32)
@@ -286,11 +286,14 @@ class TestSimulator2D(unittest.TestCase):
   
     F_val = np.zeros(shape=(batch_size, 2, 2, num_particles))
     F_val[:, 0, 0, :] = 0.5
+    F_val[:, 0, 1, :] = 0.5
+    F_val[:, 1, 0, :] = -0.5
     F_val[:, 1, 1, :] = 1
   
     for b in range(batch_size):
       for i in range(N):
-        position_val[b, :, i] = (0.5 + i * dx * 0.3, 0.5)
+        for j in range(N):
+          position_val[b, :, i * N + j] = (0.5 + i * dx * 0.3, 0.5 + j * dx * 0.2)
   
     input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph, deformation_gradient=F_val)
   
@@ -306,7 +309,7 @@ class TestSimulator2D(unittest.TestCase):
     #sim.visualize(memo)
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
     grad = sim.eval_gradients(sym, memo)
-    delta = 1e-4
+    delta = 1e-3
     dim = 2
   
     for i in range(dim):
