@@ -31,6 +31,7 @@ REGISTER_OP("Mpm")
     .Output("deformation_out: float")
     .Output("poly_out: float")  //(batch_size, dim, dim, particles)
     .Output("grid_out: float")  //(batch_size, num_cells, dim + 1)
+    .Output("grid_star: float") //(batch_size, dim, dim, particles)
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext *c) {
 
       shape_inference::ShapeHandle x_shape;
@@ -121,6 +122,7 @@ REGISTER_OP("Mpm")
       c->set_output(3, C_shape);
       c->set_output(4, C_shape);
       c->set_output(5, grid_shape);
+      c->set_output(6, grid_shape);
 
       return Status::OK();
     });
@@ -150,7 +152,8 @@ void MPMKernelLauncher(int dim,
                        float *outF,
                        float *outC,
                        float *outP,
-                       float *outgrid);
+                       float *outgrid,
+                       float *outgrid_star);
 
 class MPMOpGPU : public OpKernel {
  private:
@@ -257,12 +260,14 @@ class MPMOpGPU : public OpKernel {
     Tensor *outC = NULL;
     Tensor *outP = NULL;
     Tensor *outgrid = NULL;
+    Tensor *outgrid_star = NULL;
     OP_REQUIRES_OK(context, context->allocate_output(0, x_shape, &outx));
     OP_REQUIRES_OK(context, context->allocate_output(1, v_shape, &outv));
     OP_REQUIRES_OK(context, context->allocate_output(2, F_shape, &outF));
     OP_REQUIRES_OK(context, context->allocate_output(3, C_shape, &outC));
     OP_REQUIRES_OK(context, context->allocate_output(4, P_shape, &outP));
     OP_REQUIRES_OK(context, context->allocate_output(5, grid_shape, &outgrid));
+    OP_REQUIRES_OK(context, context->allocate_output(6, grid_shape, &outgrid_star));
 
     auto f_inx = inx.flat<float>();
     auto f_inv = inv.flat<float>();
@@ -276,12 +281,14 @@ class MPMOpGPU : public OpKernel {
     auto f_outC = outC->template flat<float>();
     auto f_outP = outP->template flat<float>();
     auto f_outgrid = outgrid->template flat<float>();
+    auto f_outgrid_star = outgrid_star->template flat<float>();
 
     MPMKernelLauncher(dim, res, particles, dx_, dt_, E_, nu_, m_p_, V_p_, gravity,
                       f_inx.data(), f_inv.data(), f_inF.data(), f_inC.data(),
                       f_inA.data(), f_ingrid.data(),
                       f_outx.data(), f_outv.data(), f_outF.data(),
-                      f_outC.data(), f_outP.data(), f_outgrid.data());
+                      f_outC.data(), f_outP.data(), f_outgrid.data(),
+                      f_outgrid_star.data());
   }
 };
 

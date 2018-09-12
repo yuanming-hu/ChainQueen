@@ -167,7 +167,8 @@ void MPMKernelLauncher(int dim_,
                        real *outF,
                        real *outC,
                        real *outP,
-                       real *outgrid) {
+                       real *outgrid,
+                       real *outgrid_star) {
   if (dim_ == 3) {
     constexpr int dim = 3;
     auto instate = new TState<dim>(res, num_particles, dx, dt, gravity,
