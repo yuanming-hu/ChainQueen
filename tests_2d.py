@@ -275,7 +275,7 @@ class TestSimulator2D(unittest.TestCase):
       gravity=gravity,
       dt=dt,
       batch_size=batch_size,
-      E=0.1,
+      E=1,
       sess=sess)
   
     position_ph = tf.placeholder(shape=(batch_size, 2, num_particles), dtype=tf.float32)
@@ -298,7 +298,8 @@ class TestSimulator2D(unittest.TestCase):
     input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph, deformation_gradient=F_val)
   
     # loss = sim.initial_state.velocity[:, 1, 0]
-    loss = sim.initial_state.deformation_gradient[:, 1, 1, 0]
+    #loss = sim.initial_state.deformation_gradient[:, 1, 1, 0]
+    loss = sim.initial_state.affine[:, 1, 0, 0]
   
     sim.set_initial_state(input_state)
     sym = sim.gradients_sym(loss=loss, variables=[position_ph, velocity_ph])
