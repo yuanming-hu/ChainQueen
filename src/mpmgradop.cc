@@ -18,12 +18,14 @@ REGISTER_OP("MpmGrad")
   .Input("deformation_out: float")        //(batch_size, dim, dim, particles)
   .Input("poly_out: float")               //(batch_size, dim, dim, particles)
   .Input("grid_out: float")               //(batch_size, num_cells, dim + 1)
+  .Input("grid_star_out: float")               //(batch_size, num_cells, dim + 1)
   .Input("position_out_grad: float")      //(batch_size, dim, particles) 
   .Input("velocity_out_grad: float")      //(batch_size, dim, particles) 
   .Input("affine_out_grad: float")        //(batch_size, dim, dim, particles) 
   .Input("deformation_out_grad: float")   //(batch_size, dim, dim, particles) 
   .Input("poly_out_grad: float")          //(batch_size, dim, dim, particles)
   .Input("grid_out_grad: float")          //(batch_size, num_cells, dim + 1)
+  .Input("grid_out_star_grad: float")     //(batch_size, num_cells, dim + 1)
   .Attr("dt: float")
   .Attr("dx: float")
   .Attr("E: float")
@@ -47,12 +49,13 @@ void MPMGradKernelLauncher(
     const float *inx, const float *inv, const float *inF, const float *inC,
     const float *inA, const float *ingrid,
     const float *outx, const float *outv, const float *outF, const float *outC,
-    const float *outP, const float *outgrid,
+    const float *outP, const float *outgrid, const float *outgrid_star,
     float *grad_inx, float *grad_inv, float *grad_inF, float *grad_inC,
     float *grad_inA, float *grad_ingrid,
     const float *grad_outx, const float *grad_outv, 
     const float *grad_outF, const float *grad_outC,
-    const float *grad_outP, const float *grad_outgrid);
+    const float *grad_outP, const float *grad_outgrid,
+    const float *grad_outgrid_star);
 
 class MPMGradOpGPU : public OpKernel {
  private:
@@ -98,12 +101,14 @@ class MPMGradOpGPU : public OpKernel {
     const Tensor& outC = context->input(cnt++);
     const Tensor& outP = context->input(cnt++);
     const Tensor& outgrid = context->input(cnt++);
+    const Tensor& outgrid_star = context->input(cnt++);
     const Tensor& grad_outx = context->input(cnt++);
     const Tensor& grad_outv = context->input(cnt++);
     const Tensor& grad_outF = context->input(cnt++);
     const Tensor& grad_outC = context->input(cnt++);
     const Tensor& grad_outP = context->input(cnt++);
     const Tensor& grad_outgrid = context->input(cnt++);
+    const Tensor& grad_outgrid_star = context->input(cnt++);
 
     const TensorShape& x_shape = inx.shape();
     const TensorShape& v_shape = inv.shape();
@@ -150,12 +155,14 @@ class MPMGradOpGPU : public OpKernel {
     auto f_outC = outC.flat<float>();
     auto f_outP = outP.flat<float>();
     auto f_outgrid = outgrid.flat<float>();
+    auto f_outgrid_star = outgrid_star.flat<float>();
     auto f_grad_outx = grad_outx.flat<float>();
     auto f_grad_outv = grad_outv.flat<float>();
     auto f_grad_outF = grad_outF.flat<float>();
     auto f_grad_outC = grad_outC.flat<float>();
     auto f_grad_outP = grad_outP.flat<float>();
     auto f_grad_outgrid = grad_outgrid.flat<float>();
+    auto f_grad_outgrid_star = grad_outgrid_star.flat<float>();
     auto f_grad_inx = grad_inx->template flat<float>();
     auto f_grad_inv = grad_inv->template flat<float>();
     auto f_grad_inF = grad_inF->template flat<float>();
@@ -167,13 +174,14 @@ class MPMGradOpGPU : public OpKernel {
     MPMGradKernelLauncher(dim, res, particles, dx_, dt_, E_, nu_, m_p_, V_p_, gravity,
         f_inx.data(), f_inv.data(), f_inF.data(), f_inC.data(), f_inA.data(), f_ingrid.data(),
         f_outx.data(), f_outv.data(), f_outF.data(), f_outC.data(),
-        f_outP.data(), f_outgrid.data(),
+        f_outP.data(), f_outgrid.data(), f_outgrid_star.data(),
         f_grad_inx.data(), f_grad_inv.data(),
         f_grad_inF.data(), f_grad_inC.data(),
         f_grad_inA.data(), f_grad_ingrid.data(),
         f_grad_outx.data(), f_grad_outv.data(),
         f_grad_outF.data(), f_grad_outC.data(),
-        f_grad_outP.data(), f_grad_outgrid.data());
+        f_grad_outP.data(), f_grad_outgrid.data(),
+        f_grad_outgrid_star.data());
   }
 };
 

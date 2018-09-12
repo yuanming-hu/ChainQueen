@@ -386,6 +386,7 @@ void MPMGradKernelLauncher(int dim,
                            const real *outC,
                            const real *outP,
                            const real *outgrid,
+                           const real *outgrid_star,
                            real *grad_inx,
                            real *grad_inv,
                            real *grad_inF,
@@ -397,7 +398,8 @@ void MPMGradKernelLauncher(int dim,
                            const real *grad_outF,
                            const real *grad_outC,
                            const real *grad_outP,
-                           const real *grad_outgrid) {
+                           const real *grad_outgrid,
+                           const real *grad_outgrid_star) {
   if (dim == 2) {
     constexpr int dim = 2;
     auto current = new TState<dim>(
