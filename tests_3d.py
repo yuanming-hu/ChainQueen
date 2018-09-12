@@ -185,15 +185,15 @@ class TestSimulator3D(unittest.TestCase):
     self.assertAlmostEqualFloat32(grad[0][2], 0)
     
   def test_gradients(self):
-    gravity = (0, -10, 0)
+    gravity = (0, 0, 0)
     batch_size = 1
     dx = 0.03
     N = 2
     num_particles = N ** 3
-    steps = 1
+    steps = 3
     dt = 1e-2
     sim = Simulation(
-      grid_res=(100, 100, 100),
+      grid_res=(20, 20, 20),
       dx=dx,
       num_particles=num_particles,
       gravity=gravity,
@@ -243,7 +243,7 @@ class TestSimulator3D(unittest.TestCase):
     #sim.visualize(memo)
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
     grad = sim.eval_gradients(sym, memo)
-    delta = 1e-3
+    delta = 1e-2
     dim = 3
 
     for i in range(dim):

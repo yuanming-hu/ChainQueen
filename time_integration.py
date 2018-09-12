@@ -2,10 +2,13 @@ import numpy as np
 import tensorflow as tf
 from vector_math import *
 
-use_cuda = False
 
-if use_cuda:
-   import mpm3d
+use_cuda = True
+try:
+  import mpm3d
+except:
+  use_cuda = False
+  printf("Warning: NOT using CUDA")
 
 kernel_size = 3
 
@@ -169,7 +172,7 @@ class UpdatedSimulationState(SimulationState):
     super().__init__(sim)
     dim = self.dim
     if dim == 3 or use_cuda:
-      print("Running with cuda")
+      # print("Running with cuda")
       self.cuda(sim, previous_state, controller=controller)
       return
 
