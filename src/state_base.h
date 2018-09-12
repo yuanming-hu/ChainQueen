@@ -35,6 +35,8 @@ struct TStateBase {
   real *C_storage;
   real *grid_storage;
 
+  real *grid_bc;
+
   real *grad_x_storage;
   real *grad_v_storage;
   real *grad_F_storage;

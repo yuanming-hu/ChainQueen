@@ -67,6 +67,22 @@ class TVector {
     }
     return ret;
   }
+
+  __device__ T length2() const {
+    T ret = 0;
+    for (int i = 0; i < dim; i++) {
+      ret += d[i] * d[i];
+    }
+    return ret;
+  }
+
+  __device__ T dot(TVector &other) const {
+    T ret = 0;
+    for (int i = 0; i < dim; i++) {
+      ret += d[i] * other[i];
+    }
+    return ret;
+  }
 };
 
 template <typename T, int dim>

@@ -3,7 +3,7 @@ import tensorflow as tf
 from vector_math import *
 
 
-use_cuda = True
+use_cuda = False
 use_apic = True
 
 try:
@@ -154,8 +154,8 @@ class UpdatedSimulationState(SimulationState):
     self.poissons_ratio = tf.identity(previous_state.poissons_ratio)
     self.step_count = previous_state.step_count + 1
 
-    for i in range(self.dim):
-      assert self.sim.gravity[i] == 0, "Non-zero gravity not supported"
+    #for i in range(self.dim):
+    #  assert self.sim.gravity[i] == 0, "Non-zero gravity not supported"
     if controller:
       self.actuation, self.debug = controller(self)
     else:
@@ -163,11 +163,17 @@ class UpdatedSimulationState(SimulationState):
 
     self.t = previous_state.t + self.sim.dt
 
+    num_cells = 1
+    for i in range(self.dim):
+      num_cells *= sim.grid_res[i]
+    bc = np.concatenate([self.sim.bc_normal, self.sim.bc_parameter], axis=self.dim + 1).reshape(1, num_cells, self.dim + 1)
+    bc = tf.constant(bc, dtype=tf.float32)
+
     self.position, self.velocity, self.deformation_gradient, self.affine, _, _ = \
       mpm3d.mpm(previous_state.position, previous_state.velocity,
                 previous_state.deformation_gradient, previous_state.affine, dx=sim.dx,
                 dt=sim.dt, gravity=sim.gravity, resolution=sim.grid_res, E=sim.E, nu=sim.nu,
-                V_p=sim.V_p, m_p=sim.m_p, actuation=self.actuation)
+                V_p=sim.V_p, m_p=sim.m_p, actuation=self.actuation, grid_bc=bc)
 
 
   def __init__(self, sim, previous_state, controller=None):

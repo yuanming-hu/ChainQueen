@@ -96,8 +96,9 @@ class TestSimulator2D(unittest.TestCase):
   '''
 
   def test_bouncing_cube(self):
+    #gravity = (0, -10)
     gravity = (0, -10)
-    batch_size = 2
+    batch_size = 1
     dx = 0.03
     num_particles = 100
     sim = Simulation(
@@ -112,7 +113,7 @@ class TestSimulator2D(unittest.TestCase):
     poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.45
     initial_velocity = tf.placeholder(shape=(2,), dtype=tf_precision)
     velocity = tf.broadcast_to(
-        initial_velocity[None, None, :], shape=(batch_size, 2, num_particles))
+        initial_velocity[None, :, None], shape=(batch_size, 2, num_particles))
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
@@ -127,7 +128,7 @@ class TestSimulator2D(unittest.TestCase):
     memo = sim.run(
         num_steps=1000,
         initial_state=input_state,
-        initial_feed_dict={initial_velocity: [1, 0]})
+        initial_feed_dict={initial_velocity: [1, -2]})
     sim.visualize(memo, interval=5)
     
   def test_bouncing_cube_benchmark(self):

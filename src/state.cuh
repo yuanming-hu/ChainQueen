@@ -79,6 +79,7 @@ struct TState : public TStateBase<dim_> {
   using Base::res;
   using Base::v_storage;
   using Base::x_storage;
+  using Base::grid_bc;
 
   using VectorI = TVector<int, dim>;
   using Vector = TVector<real, dim>;
@@ -115,6 +116,10 @@ struct TState : public TStateBase<dim_> {
 
   TC_FORCE_INLINE __device__ real *grid_node(VectorI x) const {
     return grid_node(linearized_offset(x));
+  }
+
+  TC_FORCE_INLINE __device__ real *grid_node_bc(int offset) const {
+    return grid_bc + (dim + 1) * offset;
   }
 
   TC_FORCE_INLINE __device__ real *grad_grid_node(VectorI x) const {
