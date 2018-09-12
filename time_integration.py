@@ -138,6 +138,7 @@ class InitialSimulationState(SimulationState):
     self.controller = controller
     if controller is not None:
       self.actuation, self.debug = controller(self)
+      self.actuation = matmatmul(self.deformation_gradient, matmatmul(self.actuation, transpose(self.deformation_gradient)))
 
 
 class UpdatedSimulationState(SimulationState):
