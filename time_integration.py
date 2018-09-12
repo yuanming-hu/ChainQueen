@@ -152,6 +152,8 @@ class UpdatedSimulationState(SimulationState):
     self.poissons_ratio = tf.identity(previous_state.poissons_ratio)
     self.step_count = previous_state.step_count + 1
 
+    for i in range(self.dim):
+      assert self.sim.gravity[i] == 0, "Non-zero gravity not supported"
     if controller:
       self.actuation, self.debug = controller(self)
     else:
