@@ -37,8 +37,8 @@ __global__ void P2G_backward(TState<dim> state, TState<dim> next_state) {
   }
 
   // Accumulate to grad_v and grad_C
-  next_state.set_grad_v(part_id, grad_v_next);
-  next_state.set_grad_C(part_id, grad_C_next);
+  // next_state.set_grad_v(part_id, grad_v_next);
+  // next_state.set_grad_C(part_id, grad_C_next);
 
   TransferCommon<dim, true> tc(state, x);
 
@@ -64,10 +64,16 @@ __global__ void P2G_backward(TState<dim> state, TState<dim> next_state) {
   }
 }
 
+TC_FORCE_INLINE __device__ real H(real x) {
+  return x >= 0 ? 1 : 0;
+}
+
 template <int dim>
 __global__ void grid_backward(TState<dim> state) {
   // Scatter particle gradients to grid nodes
   // P2G part of back-propagation
+
+  using Vector = typename TState<dim>::Vector;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < state.num_cells) {
     auto node = state.grid_node(id);
@@ -78,13 +84,52 @@ __global__ void grid_backward(TState<dim> state) {
       // grad_p = grad_v / m
       auto m = node[dim];
       real inv_m = 1.0f / m;  // TODO: guard?
+
       auto grad_v_i = TVector<real, dim>(state.grad_grid_node(id));
-      auto grad_p = inv_m * grad_v_i;
-      auto v_i = TVector<real, dim>(node);
-      for (int d = 0; d < dim; d++) {
-        // printf("g v %f\n", v_i[d]);
+      auto v_i = TVector<real, dim>(state.grid_node(id));
+
+      if (false) {
+        auto bc = state.grid_node_bc(id);
+        auto normal = Vector(bc);
+
+        if (normal.length2() > 0) {
+          real coeff = bc[dim];
+          auto v_i_star = TVector<real, dim>(state.grid_star_node(id));
+          auto grad_v_i_star = grad_v_i;
+
+          auto lin = v_i.dot(normal);
+          auto vit = v_i - lin * normal;
+          auto lit = (sqrt(vit.length2()) + 1e-20);
+          auto vithat = (1 / lit) * vit;
+          auto R = abs(lit) + coeff * min(lin, 0.0f);
+          auto litstar = sgn(lit) * max(R, 0.0f);
+          auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
+
+          auto grad_litstar = 0.0f;
+          for (int i = 0; i < dim; i++) {
+            grad_litstar += grad_v_i_star[i] * vithat[i];
+          }
+          Vector grad_vithat = grad_litstar * grad_v_i_star;
+
+          auto grad_lit = grad_litstar * H(R);
+          for (int i = 0; i < dim; i++) {
+            grad_vithat += -1 / (litstar * litstar) * grad_vithat[i];
+          }
+          auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
+          auto grad_lin =
+              grad_litstar * sgn(lit) * H(R) * coeff * H(-lin);
+
+          for (int i = 0; i < dim; i++) {
+            grad_lin -= grad_vit[i] * normal[i];
+          }
+
+          grad_v_i = grad_lin * normal + grad_vit;
+        }
+      } else {
       }
-      // printf("g m %f\n", m);
+
+      auto grad_p = inv_m * grad_v_i;
+
       auto p_i = m * v_i;
       // (E)
       real grad_m = 0;
@@ -117,8 +162,21 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   auto grad_C_next = next_state.get_grad_C(part_id);
   auto grad_P_next = next_state.get_grad_P(part_id);
   auto grad_v_next = next_state.get_grad_v(part_id);
+  auto grad_x_next = next_state.get_grad_x(part_id);
 
   auto C_next = next_state.get_C(part_id);
+  // (A) v_p^n+1, accumulate
+  grad_v_next = grad_v_next + state.dt * grad_x_next;
+
+  // (B) C_p^n+1, accumulate
+  for (int alpha = 0; alpha < dim; alpha++) {
+    for (int beta = 0; beta < dim; beta++) {
+      for (int gamma = 0; gamma < dim; gamma++) {
+        grad_C_next[alpha][beta] +=
+            state.dt * grad_F_next[alpha][gamma] * F[beta][gamma];
+      }
+    }
+  }
 
   TMatrix<real, dim> grad_P, grad_F, grad_C;
 
@@ -171,7 +229,7 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         auto inc = F, dec = F;
-        real delta = 1e-3f;
+        real delta = 1e-4f;
         inc[i][j] += delta;
         dec[i][j] -= delta;
         auto diff = (1 / (2 * delta)) * (PK1(state.mu, state.lambda, inc) -
@@ -200,6 +258,19 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
       }
     }
   }
+
+  typename TState<dim>::Matrix grad_A;
+  for (int alpha = 0; alpha < dim; alpha++) {
+    for (int beta = 0; beta < dim; beta++) {
+      for (int gamma = 0; gamma < dim; gamma++) {
+        for (int eta = 0; eta < dim; eta++) {
+          grad_A[alpha][beta] +=
+              grad_P[gamma][alpha] * F[gamma][alpha] * F[eta][beta];
+        }
+      }
+    }
+  }
+  state.set_grad_A(part_id, grad_A);
 
   // (J) term 1
   auto grad_x = next_state.get_grad_x(part_id);
@@ -248,8 +319,8 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
         // (J), term 2
         grad_x[alpha] += grad_v_next[beta] * grad_N[alpha] * vi[beta];
         // (J), term 3
-        auto tmp = grad_N[alpha] * vi[alpha] * dpos[beta] - N * vi[alpha];
-        grad_x[alpha] += state.invD * grad_C[beta][alpha] * tmp;
+        auto tmp = grad_N[alpha] * vi[beta] * dpos[alpha] - N * vi[beta];
+        grad_x[alpha] += state.invD * grad_C_next[beta][alpha] * tmp;
         // (J), term 4
         grad_x[alpha] +=
             grad_p[beta] *
@@ -284,13 +355,13 @@ void backward(TState<dim> &state, TState<dim> &next) {
   int num_blocks_grid = state.grid_size();
   P2G_backward<dim><<<num_blocks, particle_block_dim>>>(state, next);
   auto err = cudaThreadSynchronize();
+  grid_backward<dim>
+      <<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(state);
+  G2P_backward<dim><<<num_blocks, particle_block_dim>>>(state, next);
   if (err) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  grid_backward<dim>
-      <<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(state);
-  G2P_backward<dim><<<num_blocks, particle_block_dim>>>(state, next);
 }
 
 void MPMGradKernelLauncher(int dim,
@@ -308,47 +379,57 @@ void MPMGradKernelLauncher(int dim,
                            const real *inF,
                            const real *inC,
                            const real *inA,
+                           const real *ingrid,
                            const real *outx,
                            const real *outv,
                            const real *outF,
                            const real *outC,
                            const real *outP,
                            const real *outgrid,
+                           const real *outgrid_star,
                            real *grad_inx,
                            real *grad_inv,
                            real *grad_inF,
                            real *grad_inC,
                            real *grad_inA,
+                           real *grad_ingrid,
                            const real *grad_outx,
                            const real *grad_outv,
                            const real *grad_outF,
                            const real *grad_outC,
                            const real *grad_outP,
-                           const real *grad_outgrid) {
+                           const real *grad_outgrid,
+                           const real *grad_outgrid_star) {
   if (dim == 2) {
     constexpr int dim = 2;
-    auto current = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                                   (real *)inv, (real *)inF, (real *)inC, (real *)outP, (real *)inA,
-                                   (real *)outgrid, grad_inx, grad_inv, grad_inF,
-                                   grad_inC, grad_inA, (real *)grad_outP, (real *)grad_outgrid);
+    auto current = new TState<dim>(
+        res, num_particles, dx, dt, gravity, (real *)inx, (real *)inv,
+        (real *)inF, (real *)inC, (real *)outP, (real *)inA, (real *)outgrid,
+        grad_inx, grad_inv, grad_inF, grad_inC, grad_inA, (real *)grad_outP,
+        (real *)grad_outgrid);
+    current->grid_bc = const_cast<real *>(ingrid);
     current->set(V_p, m_p, E, nu);
-    auto next = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)outx,
-                                (real *)outv, (real *)outF, (real *)outC, nullptr, nullptr,
-                                nullptr, (real *)grad_outx, (real *)grad_outv,
-                                (real *)grad_outF, (real *)grad_outC, nullptr, nullptr, nullptr);
+    auto next = new TState<dim>(
+        res, num_particles, dx, dt, gravity, (real *)outx, (real *)outv,
+        (real *)outF, (real *)outC, nullptr, nullptr, nullptr,
+        (real *)grad_outx, (real *)grad_outv, (real *)grad_outF,
+        (real *)grad_outC, nullptr, nullptr, nullptr);
     next->set(V_p, m_p, E, nu);
     backward<dim>(*current, *next);
   } else {
     constexpr int dim = 3;
-    auto current = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                                   (real *)inv, (real *)inF, (real *)inC, (real *)outP, (real *)inA,
-                                   (real *)outgrid, grad_inx, grad_inv, grad_inF,
-                                   grad_inC, grad_inA, (real *)grad_outP, (real *)grad_outgrid);
+    auto current = new TState<dim>(
+        res, num_particles, dx, dt, gravity, (real *)inx, (real *)inv,
+        (real *)inF, (real *)inC, (real *)outP, (real *)inA, (real *)outgrid,
+        grad_inx, grad_inv, grad_inF, grad_inC, grad_inA, (real *)grad_outP,
+        (real *)grad_outgrid);
+    current->grid_bc = const_cast<real *>(ingrid);
     current->set(V_p, m_p, E, nu);
-    auto next = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)outx,
-                                (real *)outv, (real *)outF, (real *)outC, nullptr, nullptr,
-                                nullptr, (real *)grad_outx, (real *)grad_outv,
-                                (real *)grad_outF, (real *)grad_outC, nullptr, nullptr, nullptr);
+    auto next = new TState<dim>(
+        res, num_particles, dx, dt, gravity, (real *)outx, (real *)outv,
+        (real *)outF, (real *)outC, nullptr, nullptr, nullptr,
+        (real *)grad_outx, (real *)grad_outv, (real *)grad_outF,
+        (real *)grad_outC, nullptr, nullptr, nullptr);
     next->set(V_p, m_p, E, nu);
     backward<dim>(*current, *next);
   }

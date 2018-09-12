@@ -25,7 +25,7 @@ REGISTER_OP("P2g")
     .Attr("gravity: list(float) = [0, 0, 0]")
     .Attr("resolution: list(int) = [100, 100, 100]")
     .Output("poly_out: float")  //(batch_size, dim, dim, particles)
-    .Output("grid_out: float")  //(batch_size, dim + 1, num_cells)
+    .Output("grid_out: float")  //(batch_size, num_cells, dim + 1)
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext *c) {
 
       shape_inference::ShapeHandle x_shape;

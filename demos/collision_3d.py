@@ -9,17 +9,17 @@ import numpy as np
 from IPython import embed
 
 batch_size = 1
-gravity = (0, 0)
-N = 5
+gravity = (0, 0, 0)
+N = 15
 group_particles = N * N * N
 num_balls = 2
 num_particles = group_particles * num_balls
 steps = 100
-dt = 1e-2
+dt = 5e-3
 res = (100, 100, 100)
 bc = get_bounding_box_bc(res)
 
-lr = 2e1
+lr = 1e3
 
 
 def main(sess):
@@ -32,19 +32,20 @@ def main(sess):
       grid_res=res,
       bc=bc,
       gravity=gravity,
+      E=1,
       sess=sess)
   position = np.zeros(shape=(batch_size, 3, num_particles))
   velocity_delta = np.zeros(shape=(batch_size, 3, num_particles))
   
   F = np.zeros(shape=(batch_size, 3, 3, num_particles))
-  scale = 1.05
+  scale = 1.00
   F[:, 0, 0, :] = scale
   F[:, 1, 1, :] = scale
   F[:, 2, 2, :] = scale
 
   #velocity_ph = tf.Variable([0.4, 0.00, 0.0], trainable = True)
   delta = np.zeros(shape=(batch_size, 3, group_particles), dtype=np.float32)
-  delta[:, 0, :] = 0.1
+  delta[:, 0, :] = 0.2
   velocity_ph = tf.Variable(delta, trainable=True)
   velocity_1 = velocity_ph + delta
   if num_balls > 1:
@@ -107,7 +108,7 @@ def main(sess):
     print('iter {:5d} time {:.3f} loss {:.4f}'.format(
         i, time.time() - t, memo.loss))
     if i % 5 == 0: # True: # memo.loss < 0.01: 
-      sim.visualize(memo)
+      sim.visualize(memo, interval=3, export=True)
     
 if __name__ == '__main__':
   sess_config = tf.ConfigProto(allow_soft_placement=True)

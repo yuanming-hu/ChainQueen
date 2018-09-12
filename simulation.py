@@ -52,10 +52,10 @@ class Simulation:
                damping=0.0,
                dx=None,
                bc=None,
-               E=50,
+               E=10,
                nu=0.3,
-               m_p=100,
-               V_p=10,
+               m_p=1,
+               V_p=1,
                batch_size=1,
                scale=None):
     self.dim = len(grid_res)
@@ -65,7 +65,8 @@ class Simulation:
       self.identity_matrix = identity_matrix
     else:
       self.identity_matrix = identity_matrix_3d
-      assert batch_size == 1, "In 3D only batch_size = 1 is supported."
+
+    assert batch_size == 1, "Only batch_size = 1 is supported."
 
     self.sess = sess
     self.num_particles = num_particles
@@ -101,6 +102,7 @@ class Simulation:
     self.parameterized_initial_state = None
     self.point_visualization = []
     self.vector_visualization = []
+    self.frame_counter = 0
 
   def visualize_2d(self, memo, interval=1, batch=0, export=None, show=False):
     import math
@@ -165,15 +167,21 @@ class Simulation:
       export.wait()
 
   def visualize_3d(self, memo, interval=1, batch=0, export=None, show=False):
+    if export:
+      frame_count_delta = self.frame_counter
+    else:
+      frame_count_delta = 0
+    print("Warning: skipping the 0th frame..")
     for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
-      if i % interval != 0:
+      if i % interval != 0 or i == 0:
         continue
       pos = s[0][batch].copy()
       #print(np.mean(pos, axis=(0)))
       task = Task('write_partio_c')
       ptr = pos.ctypes.data_as(ctypes.c_void_p).value
       task.run(str(self.num_particles),
-               str(ptr), '{:04d}.bgeo'.format(i))
+               str(ptr), '{:04d}.bgeo'.format(i // interval + frame_count_delta))
+      self.frame_counter += 1
 
   def visualize(self, memo, interval=1, batch=0, export=None, show=False):
     if self.dim == 2:
@@ -388,13 +396,19 @@ class Simulation:
     num_particles = self.num_particles
 
     if particle_mass is None:
-      particle_mass = np.ones(shape=(batch_size, 1, num_particles))
+      particle_mass = np.ones(shape=(batch_size, 1, num_particles)) * self.m_p
+      self.m_p = 1
     if particle_volume is None:
-      particle_volume = np.ones(shape=(batch_size, 1, num_particles))
+      particle_volume = np.ones(shape=(batch_size, 1, num_particles)) * self.V_p
+      self.V_p = 1
     if youngs_modulus is None:
-      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * 10
-    if type(youngs_modulus) in [int, float]:
+      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * self.E
+    elif type(youngs_modulus) in [int, float]:
+      self.E = youngs_modulus
       youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * youngs_modulus
+    else:
+      self.E = youngs_modulus[0][0][0]
+      print(self.E)
 
     if poissons_ratio is None:
       poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.3

@@ -60,42 +60,38 @@ __global__ void P2G(TState<dim> state) {
   }
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
-      //printf("forward A[%d][%d] %f\n", i, j, A[i][j]);
+      // printf("forward A[%d][%d] %f\n", i, j, A[i][j]);
     }
   }
 }
 
 template <int dim>
-__global__ void normalize_grid(TState<dim> state) {
+__global__ void grid_forward(TState<dim> state) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  int boundary = 3;
+  using Vector = TVector<real, dim>;
   if (id < state.num_cells) {
     auto node = state.grid_node(id);
+    auto v_i = Vector(node);
     if (node[dim] > 0) {
       real inv_m = 1.0f / node[dim];
+      v_i = inv_m * v_i;
       for (int i = 0; i < dim; i++) {
-        node[i] *= inv_m;
+        v_i[i] += state.gravity[i] * state.dt;
+      }
+      auto bc = state.grid_node_bc(id);
+      auto normal = Vector(bc);
+      real coeff = bc[dim];
+      if (normal.length2() > 0) {
+        auto lin = v_i.dot(normal);
+        auto vit = v_i - lin * normal;
+        auto lit = (sqrt(vit.length2()) + 1e-20);
+        auto vithat = (1 / lit) * vit;
+        auto litstar = sgn(lit) * max(abs(lit) + coeff * min(lin, 0.0f), 0.0f);
+        auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
+        v_i = vistar;
       }
       for (int i = 0; i < dim; i++) {
-        node[i] += state.gravity[i] * state.dt;
-      }
-      /*
-      int x = id / (state.res[1] * state.res[2]),
-          y = id / state.res[2] % state.res[1], z = id % state.res[2];
-      if (x < boundary || y < boundary || y < boundary ||
-          x + boundary >= state.res[0] || y + boundary >= state.res[1] ||
-          z + boundary >= state.res[2]) {
-        node[1] = max(0.0f, node[1]);
-      }
-      */
-      int y;
-      if (dim == 3) {
-        y = id / state.res[2] % state.res[1];
-      } else {
-        y = id % state.res[1];
-      }
-      if (y < boundary) {
-        node[1] = max(0.0f, node[1]);
+        node[i] = v_i[i];
       }
     }
   }
@@ -138,15 +134,15 @@ void advance(TState<dim> &state, TState<dim> &new_state) {
       (state.num_particles + particle_block_dim - 1) / particle_block_dim;
   P2G<dim><<<num_blocks, particle_block_dim>>>(state);
 
+  grid_forward<dim>
+      <<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
+         grid_block_dim>>>(state);
+  G2P<dim><<<num_blocks, particle_block_dim>>>(state, new_state);
   auto err = cudaThreadSynchronize();
   if (err) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  normalize_grid<dim>
-      <<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
-         grid_block_dim>>>(state);
-  G2P<dim><<<num_blocks, particle_block_dim>>>(state, new_state);
 }
 
 // compability
@@ -165,30 +161,36 @@ void MPMKernelLauncher(int dim_,
                        const real *inF,
                        const real *inC,
                        const real *inA,
+                       const real *ingrid,
                        real *outx,
                        real *outv,
                        real *outF,
                        real *outC,
                        real *outP,
-                       real *outgrid) {
+                       real *outgrid,
+                       real *outgrid_star) {
   if (dim_ == 3) {
     constexpr int dim = 3;
-    auto instate =
-        new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                        (real *)inv, (real *)inF, (real *)inC, (real *)inA,outP,  outgrid);
+    auto instate = new TState<dim>(res, num_particles, dx, dt, gravity,
+                                   (real *)inx, (real *)inv, (real *)inF,
+                                   (real *)inC, (real *)inA, outP, outgrid);
+    instate->grid_bc = const_cast<real *>(ingrid);
     instate->set(V_p, m_p, E, nu);
-    auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
-                                    outv, outF, outC, nullptr, nullptr, nullptr);
+    auto outstate =
+        new TState<dim>(res, num_particles, dx, dt, gravity, outx, outv, outF,
+                        outC, nullptr, nullptr, nullptr);
     outstate->set(V_p, m_p, E, nu);
     advance<dim>(*instate, *outstate);
   } else {
     constexpr int dim = 2;
-    auto instate =
-        new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                        (real *)inv, (real *)inF, (real *)inC,(real *)inA, outP,  outgrid);
+    auto instate = new TState<dim>(res, num_particles, dx, dt, gravity,
+                                   (real *)inx, (real *)inv, (real *)inF,
+                                   (real *)inC, (real *)inA, outP, outgrid);
+    instate->grid_bc = const_cast<real *>(ingrid);
     instate->set(V_p, m_p, E, nu);
-    auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
-                                    outv, outF, outC, nullptr, nullptr, nullptr);
+    auto outstate =
+        new TState<dim>(res, num_particles, dx, dt, gravity, outx, outv, outF,
+                        outC, nullptr, nullptr, nullptr);
     outstate->set(V_p, m_p, E, nu);
     advance<dim>(*instate, *outstate);
   }
@@ -212,27 +214,57 @@ void P2GKernelLauncher(int dim_,
                        real *outgrid) {
   if (dim_ == 3) {
     constexpr int dim = 3;
-    auto state =
-        new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                        (real *)inv, (real *)inF, (real *)inC, (real *)inA, outP, outgrid);
+    auto state = new TState<dim>(res, num_particles, dx, dt, gravity,
+                                 (real *)inx, (real *)inv, (real *)inF,
+                                 (real *)inC, (real *)inA, outP, outgrid);
     int num_blocks =
-      (num_particles + particle_block_dim - 1) / particle_block_dim;
+        (num_particles + particle_block_dim - 1) / particle_block_dim;
     cudaMemset(outgrid, 0, state->num_cells * (dim + 1) * sizeof(real));
     state->set(V_p, m_p, E, nu);
     P2G<dim><<<num_blocks, particle_block_dim>>>(*state);
   } else {
     constexpr int dim = 2;
-    auto state =
-        new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                        (real *)inv, (real *)inF, (real *)inC, (real *)inA, outP, outgrid);
+    auto state = new TState<dim>(res, num_particles, dx, dt, gravity,
+                                 (real *)inx, (real *)inv, (real *)inF,
+                                 (real *)inC, (real *)inA, outP, outgrid);
     int num_blocks =
-      (num_particles + particle_block_dim - 1) / particle_block_dim;
+        (num_particles + particle_block_dim - 1) / particle_block_dim;
     cudaMemset(outgrid, 0, state->num_cells * (dim + 1) * sizeof(real));
     state->set(V_p, m_p, E, nu);
     P2G<dim><<<num_blocks, particle_block_dim>>>(*state);
   }
 }
-
+/*
+void G2PKernelLauncher(int dim_,
+                       int *res,
+                       int num_particles,
+                       real dx,
+                       real dt,
+                       real E,
+                       real nu,
+                       real m_p,
+                       real V_p,
+                       real *gravity,
+                       const real *inx,
+                       const real *inv,
+                       const real *inF,
+                       const real *inC,
+                       const real *inP,
+                       const real *ingrid,
+                       real *outx,
+                       real *outv,
+                       real *outF,
+                       real *outC) {
+  auto instate = new TState<dim>(res, num_particles, dx, dt, gravity,
+                                 (real *)inx, (real *)inv, (real *)inF,
+                                 (real *)inC, (real *)inP, (real *)ingrid);
+  auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
+                                  outv, outF, outC, nullptr, nullptr);
+  int num_blocks =
+      (num_particles + particle_block_dim - 1) / particle_block_dim;
+  G2P<dim><<<num_blocks, particle_block_dim>>>(*instate, *outstate);
+}
+*/
 
 template <int dim>
 void initialize_mpm_state(int *res,

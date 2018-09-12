@@ -52,6 +52,13 @@ class TVector {
     return d[i];
   }
 
+  TC_FORCE_INLINE __device__ TVector &operator+=(const TVector &o) {
+    for (int i = 0; i < dim; i++) {
+      d[i] += o[i];
+    }
+    return *this;
+  }
+
   TC_FORCE_INLINE __device__ TVector operator+(const TVector &o) {
     TVector ret;
     for (int i = 0; i < dim; i++) {
@@ -64,6 +71,22 @@ class TVector {
     TVector ret;
     for (int i = 0; i < dim; i++) {
       ret[i] = d[i] - o[i];
+    }
+    return ret;
+  }
+
+  __device__ T length2() const {
+    T ret = 0;
+    for (int i = 0; i < dim; i++) {
+      ret += d[i] * d[i];
+    }
+    return ret;
+  }
+
+  __device__ T dot(TVector &other) const {
+    T ret = 0;
+    for (int i = 0; i < dim; i++) {
+      ret += d[i] * other[i];
     }
     return ret;
   }
@@ -503,6 +526,11 @@ kirchhoff_stress(real mu, real lambda, TMatrix<real, dim> F) {
   return 2 * mu * (F - r) * transposed(F) +
          TMatrix<real, dim>(lambda * (J - 1) * J);
 }
+
+TC_FORCE_INLINE __device__ real sgn(real x) {
+  return x > 0 ? 1 : -1;
+}
+
 
 /*
 // Takes B, dL/dAB

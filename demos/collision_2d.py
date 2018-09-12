@@ -19,7 +19,7 @@ goal_range = 0.15
 res = (100, 100)
 bc = get_bounding_box_bc(res)
 
-lr = 2e-1
+lr = 5e-1
 
 def main(sess):
   
@@ -31,6 +31,9 @@ def main(sess):
       grid_res=res,
       bc=bc,
       gravity=gravity,
+      E=1,
+      m_p=1,
+      V_p=1,
       sess=sess)
   position = np.zeros(shape=(batch_size, 2, num_particles))
 
@@ -57,8 +60,7 @@ def main(sess):
 
   sess.run(tf.global_variables_initializer())
 
-  initial_state = sim.get_initial_state(
-      position=position, velocity=velocity, youngs_modulus=1)
+  initial_state = sim.get_initial_state(position=position, velocity=velocity)
 
   final_position = sim.initial_state.center_of_mass(group_particles, None)
   loss = tf.reduce_sum((final_position - goal) ** 2)
@@ -71,15 +73,9 @@ def main(sess):
 
   sym = sim.gradients_sym(loss, variables = trainables)
 
-  goal_input = np.array(
-          [[0.7, 0.3]],
-    dtype=np.float32)
+  goal_input = np.array([[0.7, 0.3]], dtype=np.float32)
 
   for i in range(1000000):
-    # if i > 10:
-    #     lr = 1e-1
-    # elif i > 20:
-    #     lr = 1e-2
     t = time.time()
     memo = sim.run(
         initial_state = initial_state, 
@@ -87,6 +83,7 @@ def main(sess):
         iteration_feed_dict = {goal: goal_input},
         loss = loss)
     grad = sim.eval_gradients(sym, memo)
+    print('grad', grad)
     gradient_descent = [
         v.assign(v - lr * g) for v, g in zip(trainables, grad)
     ]
@@ -95,7 +92,7 @@ def main(sess):
         i, time.time() - t, memo.loss))
     if i % 5 == 0: # True: # memo.loss < 0.01: 
       sim.visualize(memo)
-    
+
 if __name__ == '__main__':
   sess_config = tf.ConfigProto(allow_soft_placement=True)
   sess_config.gpu_options.allow_growth = True

@@ -68,6 +68,7 @@ struct TState : public TStateBase<dim_> {
   using Base::grad_x_storage;
   using Base::gravity;
   using Base::grid_storage;
+  using Base::grid_star_storage;
   using Base::invD;
   using Base::inv_dx;
   using Base::lambda;
@@ -79,6 +80,7 @@ struct TState : public TStateBase<dim_> {
   using Base::res;
   using Base::v_storage;
   using Base::x_storage;
+  using Base::grid_bc;
 
   using VectorI = TVector<int, dim>;
   using Vector = TVector<real, dim>;
@@ -109,12 +111,20 @@ struct TState : public TStateBase<dim_> {
     return grid_storage + (dim + 1) * offset;
   }
 
+  TC_FORCE_INLINE __device__ real *grid_star_node(int offset) const {
+    return grid_star_storage + (dim + 1) * offset;
+  }
+
   TC_FORCE_INLINE __device__ real *grad_grid_node(int offset) const {
     return grad_grid_storage + (dim + 1) * offset;
   }
 
   TC_FORCE_INLINE __device__ real *grid_node(VectorI x) const {
     return grid_node(linearized_offset(x));
+  }
+
+  TC_FORCE_INLINE __device__ real *grid_node_bc(int offset) const {
+    return grid_bc + (dim + 1) * offset;
   }
 
   TC_FORCE_INLINE __device__ real *grad_grid_node(VectorI x) const {
@@ -331,6 +341,7 @@ struct TState : public TStateBase<dim_> {
     cudaMalloc(&P_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&A_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
+    cudaMalloc(&grid_star_storage, sizeof(real) * (dim + 1) * num_cells);
 
     cudaMalloc(&grad_x_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&grad_v_storage, sizeof(real) * dim * num_particles);

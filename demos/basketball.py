@@ -33,16 +33,16 @@ def main(sess):
       gravity=gravity,
       sess=sess)
   position = np.zeros(shape=(batch_size, num_particles, 2))
-  youngs_modulus = np.zeros(shape=(batch_size, num_particles, 1))
 
   velocity_ph = tf.Variable([0.2, 0.3], trainable = True)
-  velocity = velocity_ph[None, None, :] + tf.zeros(
-      shape=[batch_size, num_particles, 2], dtype=tf.float32)
+  velocity = velocity_ph[None, :, None] + tf.zeros(
+      shape=[batch_size, 2, num_particles], dtype=tf.float32)
   for b in range(batch_size):
     for i in range(N):
       for j in range(N):
         position[b, i * N + j] = ((i * 0.5 + 3) / 30,
                                   (j * 0.5 + 12.75) / 30)
+  position = np.array(position).swapaxes(1, 2)
 
   sess.run(tf.global_variables_initializer())
 

@@ -97,19 +97,20 @@ class TestSimulator3D(unittest.TestCase):
     f[0, 1, 1, 0] = 1
     f[0, 2, 2, 0] = 1
     F = tf.constant(f)
+    grid_bc = tf.constant(np.zeros([1, 1000, 4]).astype(np.float32))
     dt = 1e-2
     dx = 1e-1
     gravity = [0, -1, 0]
     res = [10, 10, 10]
-    xx, vv, FF, CC, PP, grid = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C, actuation = A, dt = dt, dx = dx, gravity = gravity, resolution = res)
+    xx, vv, FF, CC, PP, grid, grid_star = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C, actuation = A, grid_bc = grid_bc, dt = dt, dx = dx, gravity = gravity, resolution = res)
     # print(grid.shape)
-    step = mpm3d.mpm(position = xx, velocity = vv, affine = FF, deformation = CC, actuation = A, dt = dt, dx = dx, gravity = gravity, resolution = res)
+    step = mpm3d.mpm(position = xx, velocity = vv, affine = FF, deformation = CC, actuation = A, grid_bc = grid_bc, dt = dt, dx = dx, gravity = gravity, resolution = res)
     feed_dict = {
         x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
         v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)
     }
     o = sess.run(step, feed_dict=feed_dict)
-    xout, vout, cout, fout, pout, gout = o
+    xout, vout, cout, fout, pout, gout, gsout = o
     print(o)
     print(gout.shape)
 
@@ -185,15 +186,15 @@ class TestSimulator3D(unittest.TestCase):
     self.assertAlmostEqualFloat32(grad[0][2], 0)
     
   def test_gradients(self):
-    gravity = (0, -10, 0)
+    gravity = (0, 0, 0)
     batch_size = 1
     dx = 0.03
     N = 2
     num_particles = N ** 3
-    steps = 1
+    steps = 3
     dt = 1e-2
     sim = Simulation(
-      grid_res=(100, 100, 100),
+      grid_res=(20, 20, 20),
       dx=dx,
       num_particles=num_particles,
       gravity=gravity,
@@ -243,7 +244,7 @@ class TestSimulator3D(unittest.TestCase):
     #sim.visualize(memo)
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
     grad = sim.eval_gradients(sym, memo)
-    delta = 1e-3
+    delta = 1e-2
     dim = 3
 
     for i in range(dim):
@@ -275,7 +276,7 @@ class TestSimulator3D(unittest.TestCase):
         self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=5e-2)
 
   def test_gradients2(self):
-    gravity = (0, -10, 0)
+    gravity = (0, -0, 0)
     batch_size = 1
     dx = 0.03
     N = 2
@@ -283,12 +284,13 @@ class TestSimulator3D(unittest.TestCase):
     steps = 4
     dt = 1e-2
     sim = Simulation(
-      grid_res=(100, 100, 100),
+      grid_res=(30, 30, 30),
       dx=dx,
       num_particles=num_particles,
       gravity=gravity,
       dt=dt,
       batch_size=batch_size,
+      E=0.01,
       sess=sess)
 
     position_ph = tf.placeholder(shape=(batch_size, 3, num_particles), dtype=tf.float32)

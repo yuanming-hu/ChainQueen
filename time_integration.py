@@ -2,10 +2,15 @@ import numpy as np
 import tensorflow as tf
 from vector_math import *
 
-use_cuda = False
 
-if use_cuda:
-   import mpm3d
+use_cuda = True
+use_apic = True
+
+try:
+  import mpm3d
+except:
+  use_cuda = False
+  printf("Warning: NOT using CUDA")
 
 kernel_size = 3
 
@@ -143,33 +148,42 @@ class InitialSimulationState(SimulationState):
 
 class UpdatedSimulationState(SimulationState):
   def cuda(self, sim, previous_state, controller):
+    self.position = previous_state.position
+    self.velocity = previous_state.velocity
+    self.deformation_gradient = previous_state.deformation_gradient
     self.particle_mass = tf.identity(previous_state.particle_mass)
     self.particle_volume = tf.identity(previous_state.particle_volume)
     self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
     self.poissons_ratio = tf.identity(previous_state.poissons_ratio)
     self.step_count = previous_state.step_count + 1
 
+    #for i in range(self.dim):
+    #  assert self.sim.gravity[i] == 0, "Non-zero gravity not supported"
     if controller:
       self.actuation, self.debug = controller(self)
     else:
       self.actuation = np.zeros(shape=(self.sim.batch_size, self.dim, self.dim, self.sim.num_particles))
-    print(self.actuation[:, 1, 1, :])
-
 
     self.t = previous_state.t + self.sim.dt
+
+    num_cells = 1
+    for i in range(self.dim):
+      num_cells *= sim.grid_res[i]
+    bc = np.concatenate([self.sim.bc_normal, self.sim.bc_parameter], axis=self.dim + 1).reshape(1, num_cells, self.dim + 1)
+    bc = tf.constant(bc, dtype=tf.float32)
 
     self.position, self.velocity, self.deformation_gradient, self.affine, _, _ = \
       mpm3d.mpm(previous_state.position, previous_state.velocity,
                 previous_state.deformation_gradient, previous_state.affine, dx=sim.dx,
                 dt=sim.dt, gravity=sim.gravity, resolution=sim.grid_res, E=sim.E, nu=sim.nu,
-                V_p=sim.V_p, m_p=sim.m_p, actuation=self.actuation)
+                V_p=sim.V_p, m_p=sim.m_p, actuation=self.actuation, grid_bc=bc)
 
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
     dim = self.dim
     if dim == 3 or use_cuda:
-      print("Running with cuda")
+      # print("Running with cuda")
       self.cuda(sim, previous_state, controller=controller)
       return
 
@@ -344,6 +358,8 @@ class UpdatedSimulationState(SimulationState):
 
     self.affine *= 4 * sim.inv_dx * sim.inv_dx
     dg_change = identity_matrix + self.sim.dt * self.affine
+    if not use_apic:
+      self.affine *= 0
     #print(dg_change.shape)
     #print(previous_state.deformation_gradient)
     self.deformation_gradient = matmatmul(dg_change,
