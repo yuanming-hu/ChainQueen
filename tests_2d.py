@@ -208,24 +208,23 @@ class TestSimulator2D(unittest.TestCase):
         num_particles=num_particles,
         gravity=gravity,
         dt=1e-3,
-        sess=sess)
+        sess=sess,
+        E=0.01)
     position = np.zeros(shape=(batch_size, 2, num_particles))
     velocity = np.zeros(shape=(batch_size, 2, num_particles))
-    youngs_modulus = np.zeros(shape=(batch_size, 1, num_particles))
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
           position[b, :, i * 10 + j] = ((i * 0.5 + 12.75) * dx,
                                      (j * 0.5 + 12.75) * dx)
           velocity[b, :, i * 10 + j] = (0.5 * (i - 4.5), 0)
-    input_state = sim.get_initial_state(
-        position=position, velocity=velocity, youngs_modulus=youngs_modulus)
+    input_state = sim.get_initial_state(position=position, velocity=velocity)
 
     memo = sim.run(100, input_state)
     sim.visualize(memo)
 
   def test_initial_gradient(self):
-    gravity = (0, 1)
+    gravity = (0, 0)
     batch_size = 1
     dx = 0.03
     N = 10

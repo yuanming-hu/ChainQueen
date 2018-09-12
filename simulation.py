@@ -395,9 +395,12 @@ class Simulation:
       self.V_p = 1
     if youngs_modulus is None:
       youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * self.E
-    if type(youngs_modulus) in [int, float]:
+    elif type(youngs_modulus) in [int, float]:
       self.E = youngs_modulus
       youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * youngs_modulus
+    else:
+      self.E = youngs_modulus[0][0][0]
+      print(self.E)
 
     if poissons_ratio is None:
       poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.3
