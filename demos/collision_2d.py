@@ -92,7 +92,7 @@ def main(sess):
         i, time.time() - t, memo.loss))
     if i % 5 == 0: # True: # memo.loss < 0.01: 
       sim.visualize(memo)
-    
+
 if __name__ == '__main__':
   sess_config = tf.ConfigProto(allow_soft_placement=True)
   sess_config.gpu_options.allow_growth = True

@@ -115,6 +115,7 @@ class TestSimulator2D(unittest.TestCase):
     initial_velocity = tf.placeholder(shape=(2,), dtype=tf_precision)
     velocity = tf.broadcast_to(
         initial_velocity[None, :, None], shape=(batch_size, 2, num_particles))
+
     for b in range(batch_size):
       for i in range(10):
         for j in range(10):
@@ -130,7 +131,7 @@ class TestSimulator2D(unittest.TestCase):
         initial_state=input_state,
         initial_feed_dict={initial_velocity: [1, -2]})
     sim.visualize(memo, interval=5)
-    
+
   def test_bouncing_cube_benchmark(self):
     return
     gravity = (0, -10)
