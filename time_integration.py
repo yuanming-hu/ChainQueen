@@ -1,9 +1,11 @@
 import numpy as np
 import tensorflow as tf
 from vector_math import *
-import mpm3d
 
-use_cuda = True
+use_cuda = False
+
+if use_cuda:
+   import mpm3d
 
 kernel_size = 3
 
