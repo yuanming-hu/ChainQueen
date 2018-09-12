@@ -307,6 +307,7 @@ void MPMGradKernelLauncher(int dim,
                            const real *inv,
                            const real *inF,
                            const real *inC,
+                           const real *inA,
                            const real *outx,
                            const real *outv,
                            const real *outF,
@@ -317,6 +318,7 @@ void MPMGradKernelLauncher(int dim,
                            real *grad_inv,
                            real *grad_inF,
                            real *grad_inC,
+                           real *grad_inA,
                            const real *grad_outx,
                            const real *grad_outv,
                            const real *grad_outF,
@@ -326,27 +328,27 @@ void MPMGradKernelLauncher(int dim,
   if (dim == 2) {
     constexpr int dim = 2;
     auto current = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                                   (real *)inv, (real *)inF, (real *)inC, (real *)outP,
+                                   (real *)inv, (real *)inF, (real *)inC, (real *)outP, (real *)inA,
                                    (real *)outgrid, grad_inx, grad_inv, grad_inF,
-                                   grad_inC, (real *)grad_outP, (real *)grad_outgrid);
+                                   grad_inC, (real *)grad_outP, grad_inA, (real *)grad_outgrid);
     current->set(V_p, m_p, E, nu);
     auto next = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)outx,
-                                (real *)outv, (real *)outF, (real *)outC, nullptr,
+                                (real *)outv, (real *)outF, (real *)outC, nullptr, nullptr,
                                 nullptr, (real *)grad_outx, (real *)grad_outv,
-                                (real *)grad_outF, (real *)grad_outC, nullptr, nullptr);
+                                (real *)grad_outF, (real *)grad_outC, nullptr, nullptr, nullptr);
     next->set(V_p, m_p, E, nu);
     backward<dim>(*current, *next);
   } else {
     constexpr int dim = 3;
     auto current = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                                   (real *)inv, (real *)inF, (real *)inC, (real *)outP,
+                                   (real *)inv, (real *)inF, (real *)inC, (real *)outP, (real *)inA,
                                    (real *)outgrid, grad_inx, grad_inv, grad_inF,
-                                   grad_inC, (real *)grad_outP, (real *)grad_outgrid);
+                                   grad_inC, (real *)grad_outP, grad_inA, (real *)grad_outgrid);
     current->set(V_p, m_p, E, nu);
     auto next = new TState<dim>(res, num_particles, dx, dt, gravity, (real *)outx,
-                                (real *)outv, (real *)outF, (real *)outC, nullptr,
+                                (real *)outv, (real *)outF, (real *)outC, nullptr, nullptr,
                                 nullptr, (real *)grad_outx, (real *)grad_outv,
-                                (real *)grad_outF, (real *)grad_outC, nullptr, nullptr);
+                                (real *)grad_outF, (real *)grad_outC, nullptr, nullptr, nullptr);
     next->set(V_p, m_p, E, nu);
     backward<dim>(*current, *next);
   }

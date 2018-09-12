@@ -1,3 +1,4 @@
+#if(0)
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/platform/default/logging.h"
@@ -195,3 +196,4 @@ public:
 
 REGISTER_KERNEL_BUILDER(Name("G2p").Device(DEVICE_GPU), G2POpGPU);
 
+#endif

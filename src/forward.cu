@@ -164,6 +164,7 @@ void MPMKernelLauncher(int dim_,
                        const real *inv,
                        const real *inF,
                        const real *inC,
+                       const real *inA,
                        real *outx,
                        real *outv,
                        real *outF,
@@ -174,20 +175,20 @@ void MPMKernelLauncher(int dim_,
     constexpr int dim = 3;
     auto instate =
         new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                        (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+                        (real *)inv, (real *)inF, (real *)inC, (real *)inA, outP, outgrid);
     instate->set(V_p, m_p, E, nu);
     auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
-                                    outv, outF, outC, nullptr, nullptr);
+                                    outv, outF, outC, nullptr, nullptr, nullptr);
     outstate->set(V_p, m_p, E, nu);
     advance<dim>(*instate, *outstate);
   } else {
     constexpr int dim = 2;
     auto instate =
         new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                        (real *)inv, (real *)inF, (real *)inC, outP, outgrid);
+                        (real *)inv, (real *)inF, (real *)inC, (real *)inA, outP, outgrid);
     instate->set(V_p, m_p, E, nu);
     auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
-                                    outv, outF, outC, nullptr, nullptr);
+                                    outv, outF, outC, nullptr, nullptr, nullptr);
     outstate->set(V_p, m_p, E, nu);
     advance<dim>(*instate, *outstate);
   }
@@ -232,7 +233,7 @@ template void initialize_mpm_state<3>(int *res,
                                       float *initial_positions);
 template void forward_mpm_state<2>(void *, void *);
 template void forward_mpm_state<3>(void *, void *);
-
+/*
 constexpr int dim = 3;
 void P2GKernelLauncher(int res[dim],
                        int num_particles,
@@ -278,3 +279,4 @@ void G2PKernelLauncher(int res[dim],
       (num_particles + particle_block_dim - 1) / particle_block_dim;
   G2P<dim><<<num_blocks, particle_block_dim>>>(*instate, *outstate);
 }
+*/

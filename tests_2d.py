@@ -182,6 +182,7 @@ class TestSimulator2D(unittest.TestCase):
         num_particles=num_particles,
         gravity=gravity,
         dt=1e-3,
+        E=1000,
         sess=sess)
     position = np.zeros(shape=(batch_size, 2, num_particles))
     velocity = np.zeros(shape=(batch_size, 2, num_particles))
@@ -193,8 +194,8 @@ class TestSimulator2D(unittest.TestCase):
           velocity[b, :, i * 10 + j] = (1 * (j - 4.5), -1 * (i - 4.5))
     input_state = sim.get_initial_state(position=position, velocity=velocity)
 
-    memo = sim.run(100, input_state)
-    sim.visualize(memo)
+    memo = sim.run(1000, input_state)
+    sim.visualize(memo, interval=5)
 
   def test_dilating_cube(self):
     gravity = (0, 0)

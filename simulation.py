@@ -51,6 +51,10 @@ class Simulation:
                damping=0.0,
                dx=None,
                bc=None,
+               E=50,
+               nu=0.3,
+               m_p=100,
+               V_p=10,
                batch_size=1,
                scale=None):
     self.dim = len(grid_res)
@@ -84,8 +88,12 @@ class Simulation:
     self.grad_state = self.InitialSimulationState(self, controller)
     self.updated_states = []
     self.gravity = gravity
-    self.dt = dt
     self.dx = dx
+    self.dt = dt
+    self.E = E
+    self.nu = nu
+    self.m_p = m_p
+    self.V_p = V_p
     self.inv_dx = 1.0 / dx
     self.updated_state = self.UpdatedSimulationState(self, self.initial_state)
     self.controller = controller

@@ -55,12 +55,14 @@ struct TState : public TStateBase<dim_> {
   using Base::E;
   using Base::F_storage;
   using Base::P_storage;
+  using Base::A_storage;
   using Base::V_p;
   using Base::dt;
   using Base::dx;
   using Base::grad_C_storage;
   using Base::grad_F_storage;
   using Base::grad_P_storage;
+  using Base::grad_A_storage;
   using Base::grad_grid_storage;
   using Base::grad_v_storage;
   using Base::grad_x_storage;
@@ -229,6 +231,7 @@ struct TState : public TStateBase<dim_> {
   TC_MPM_MATRIX(F);
   TC_MPM_MATRIX(P);
   TC_MPM_MATRIX(C);
+  TC_MPM_MATRIX(A);
 
   TState(int res[dim],
          int num_particles,
@@ -240,6 +243,7 @@ struct TState : public TStateBase<dim_> {
          real *F_storage,
          real *C_storage,
          real *P_storage,
+         real *A_storage,
          real *grid_storage)
       : Base() {
     this->num_cells = 1;
@@ -259,6 +263,7 @@ struct TState : public TStateBase<dim_> {
     this->F_storage = F_storage;
     this->C_storage = C_storage;
     this->P_storage = P_storage;
+    this->A_storage = A_storage;
     this->grid_storage = grid_storage;
   }
 
@@ -272,12 +277,14 @@ struct TState : public TStateBase<dim_> {
          real *F_storage,
          real *C_storage,
          real *P_storage,
+         real *A_storage,
          real *grid_storage,
          real *grad_x_storage,
          real *grad_v_storage,
          real *grad_F_storage,
          real *grad_C_storage,
          real *grad_P_storage,
+         real *grad_A_storage,
          real *grad_grid_storage)
       : TState(res,
                num_particles,
@@ -289,12 +296,14 @@ struct TState : public TStateBase<dim_> {
                F_storage,
                C_storage,
                P_storage,
+               A_storage,
                grid_storage) {
     this->grad_x_storage = grad_x_storage;
     this->grad_v_storage = grad_v_storage;
     this->grad_F_storage = grad_F_storage;
     this->grad_C_storage = grad_C_storage;
     this->grad_P_storage = grad_P_storage;
+    this->grad_A_storage = grad_A_storage;
     this->grad_grid_storage = grad_grid_storage;
     // cudaMalloc(&this->grad_P_storage, sizeof(real) * dim * dim *
     // num_particles);
@@ -313,12 +322,14 @@ struct TState : public TStateBase<dim_> {
                NULL,
                NULL,
                NULL,
+               NULL,
                NULL) {
     cudaMalloc(&x_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&v_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&F_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&C_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&P_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&A_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
 
     cudaMalloc(&grad_x_storage, sizeof(real) * dim * num_particles);
@@ -326,6 +337,7 @@ struct TState : public TStateBase<dim_> {
     cudaMalloc(&grad_F_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grad_C_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grad_P_storage, sizeof(real) * dim * dim * num_particles);
+    cudaMalloc(&grad_A_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grad_grid_storage, sizeof(real) * (dim + 1) * num_cells);
 
     std::vector<real> F_initial(num_particles * dim * dim, 0);
@@ -347,8 +359,9 @@ struct TState : public TStateBase<dim_> {
     cudaMemset(grad_v_storage, 0, sizeof(real) * dim * num_particles);
     cudaMemset(grad_x_storage, 0, sizeof(real) * dim * num_particles);
     cudaMemset(grad_F_storage, 0, sizeof(real) * dim * dim * num_particles);
-    cudaMemset(grad_P_storage, 0, sizeof(real) * dim * dim * num_particles);
     cudaMemset(grad_C_storage, 0, sizeof(real) * dim * dim * num_particles);
+    cudaMemset(grad_P_storage, 0, sizeof(real) * dim * dim * num_particles);
+    cudaMemset(grad_A_storage, 0, sizeof(real) * dim * dim * num_particles);
     cudaMemset(grad_grid_storage, 0, num_cells * (dim + 1) * sizeof(real));
   }
 };

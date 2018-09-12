@@ -3,7 +3,7 @@ import tensorflow as tf
 from vector_math import *
 import mpm3d
 
-use_cuda = False
+use_cuda = True
 
 kernel_size = 3
 
@@ -152,13 +152,15 @@ class UpdatedSimulationState(SimulationState):
     self.position, self.velocity, self.deformation_gradient, self.affine, _, _ = \
       mpm3d.mpm(previous_state.position, previous_state.velocity,
                 previous_state.deformation_gradient, previous_state.affine, dx=sim.dx,
-                dt=sim.dt, gravity=sim.gravity, resolution=sim.grid_res)
+                dt=sim.dt, gravity=sim.gravity, resolution=sim.grid_res, E=sim.E, nu=sim.nu,
+                V_p=sim.V_p, m_p=sim.m_p)
 
 
   def __init__(self, sim, previous_state, controller=None):
     super().__init__(sim)
     dim = self.dim
     if dim == 3 or use_cuda:
+      print("Running with cuda")
       self.cuda(sim, previous_state, controller=controller)
       return
 

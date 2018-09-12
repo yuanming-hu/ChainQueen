@@ -15,6 +15,7 @@ REGISTER_OP("Mpm")
     .Input("velocity: float")     //(batch_size, dim, particles)
     .Input("affine: float")       //(batch_size, dim, dim, particles)
     .Input("deformation: float")  //(batch_size, dim, dim, particles
+    .Input("actuation: float")    //(batch_size, dim, dim, particles
     .Attr("dt: float = 0.01")
     .Attr("dx: float = 0.01")
     .Attr("E: float = 50")
@@ -39,6 +40,8 @@ REGISTER_OP("Mpm")
       TF_RETURN_IF_ERROR(c->WithRank(c->input(2), 4, &F_shape));
       shape_inference::ShapeHandle C_shape;
       TF_RETURN_IF_ERROR(c->WithRank(c->input(3), 4, &C_shape));
+      shape_inference::ShapeHandle A_shape;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(4), 4, &A_shape));
 
       shape_inference::DimensionHandle temp;
 
@@ -46,9 +49,11 @@ REGISTER_OP("Mpm")
       shape_inference::DimensionHandle batch_sizev = c->Dim(v_shape, 0);
       shape_inference::DimensionHandle batch_sizeF = c->Dim(F_shape, 0);
       shape_inference::DimensionHandle batch_sizeC = c->Dim(C_shape, 0);
+      shape_inference::DimensionHandle batch_sizeA = c->Dim(A_shape, 0);
       TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizev, &temp));
       TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizeF, &temp));
       TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizeC, &temp));
+      TF_RETURN_IF_ERROR(c->Merge(batch_size, batch_sizeA, &temp));
 
       shape_inference::DimensionHandle dim = c->Dim(x_shape, 1);
       shape_inference::DimensionHandle dimv = c->Dim(v_shape, 1);
@@ -56,19 +61,25 @@ REGISTER_OP("Mpm")
       shape_inference::DimensionHandle dimF2 = c->Dim(F_shape, 2);
       shape_inference::DimensionHandle dimC1 = c->Dim(C_shape, 1);
       shape_inference::DimensionHandle dimC2 = c->Dim(C_shape, 2);
+      shape_inference::DimensionHandle dimA1 = c->Dim(A_shape, 1);
+      shape_inference::DimensionHandle dimA2 = c->Dim(A_shape, 2);
       TF_RETURN_IF_ERROR(c->Merge(dim, dimv, &temp));
       TF_RETURN_IF_ERROR(c->Merge(dim, dimF1, &temp));
       TF_RETURN_IF_ERROR(c->Merge(dim, dimF2, &temp));
       TF_RETURN_IF_ERROR(c->Merge(dim, dimC1, &temp));
       TF_RETURN_IF_ERROR(c->Merge(dim, dimC2, &temp));
+      TF_RETURN_IF_ERROR(c->Merge(dim, dimA1, &temp));
+      TF_RETURN_IF_ERROR(c->Merge(dim, dimA2, &temp));
 
       shape_inference::DimensionHandle particle = c->Dim(x_shape, 2);
       shape_inference::DimensionHandle particlev = c->Dim(v_shape, 2);
       shape_inference::DimensionHandle particleF = c->Dim(F_shape, 3);
       shape_inference::DimensionHandle particleC = c->Dim(C_shape, 3);
+      shape_inference::DimensionHandle particleA = c->Dim(A_shape, 3);
       TF_RETURN_IF_ERROR(c->Merge(particle, particlev, &temp));
       TF_RETURN_IF_ERROR(c->Merge(particle, particleF, &temp));
       TF_RETURN_IF_ERROR(c->Merge(particle, particleC, &temp));
+      TF_RETURN_IF_ERROR(c->Merge(particle, particleA, &temp));
 
       c->set_output(0, x_shape);
       c->set_output(1, v_shape);
@@ -125,6 +136,7 @@ void MPMKernelLauncher(int dim,
                        const float *inv,
                        const float *inF,
                        const float *inC,
+                       const float *inA,
                        float *outx,
                        float *outv,
                        float *outF,
@@ -177,11 +189,15 @@ class MPMOpGPU : public OpKernel {
     // get the C tensor
     const Tensor &inC = context->input(3);
 
+    // get the A tensor
+    const Tensor &inA = context->input(4);
+
     // check shapes of input and weights
     const TensorShape &x_shape = inx.shape();
     const TensorShape &v_shape = inv.shape();
     const TensorShape &F_shape = inF.shape();
     const TensorShape &C_shape = inC.shape();
+    const TensorShape &A_shape = inA.shape();
     TensorShape P_shape = inC.shape();
     TensorShape grid_shape = inx.shape();
 
@@ -190,6 +206,7 @@ class MPMOpGPU : public OpKernel {
     DCHECK_EQ(v_shape.dims(), 3);
     DCHECK_EQ(F_shape.dims(), 4);
     DCHECK_EQ(C_shape.dims(), 4);
+    DCHECK_EQ(A_shape.dims(), 4);
 
     const int batch_size = x_shape.dim_size(0);
     // printf("batch_size %d\n", batch_size);
@@ -217,6 +234,7 @@ class MPMOpGPU : public OpKernel {
     DCHECK_EQ(batch_size, v_shape.dim_size(0));
     DCHECK_EQ(batch_size, F_shape.dim_size(0));
     DCHECK_EQ(batch_size, C_shape.dim_size(0));
+    DCHECK_EQ(batch_size, A_shape.dim_size(0));
 
     // Check input dim
     DCHECK_EQ(dim, v_shape.dim_size(1));
@@ -224,11 +242,14 @@ class MPMOpGPU : public OpKernel {
     DCHECK_EQ(dim, F_shape.dim_size(2));
     DCHECK_EQ(dim, C_shape.dim_size(1));
     DCHECK_EQ(dim, C_shape.dim_size(2));
+    DCHECK_EQ(dim, A_shape.dim_size(1));
+    DCHECK_EQ(dim, A_shape.dim_size(2));
 
     // Check input particles
     DCHECK_EQ(particles, v_shape.dim_size(2));
     DCHECK_EQ(particles, F_shape.dim_size(3));
     DCHECK_EQ(particles, C_shape.dim_size(3));
+    DCHECK_EQ(particles, A_shape.dim_size(3));
 
     // create output tensor
     Tensor *outx = NULL;
@@ -250,6 +271,7 @@ class MPMOpGPU : public OpKernel {
     auto f_inv = inv.flat<float>();
     auto f_inF = inF.flat<float>();
     auto f_inC = inC.flat<float>();
+    auto f_inA = inA.flat<float>();
     auto f_outx = outx->template flat<float>();
     auto f_outv = outv->template flat<float>();
     auto f_outF = outF->template flat<float>();
@@ -259,7 +281,7 @@ class MPMOpGPU : public OpKernel {
 
     MPMKernelLauncher(dim, res, particles, dx_, dt_, E_, nu_, m_p_, V_p_, gravity,
                       f_inx.data(), f_inv.data(), f_inF.data(), f_inC.data(),
-                      f_outx.data(), f_outv.data(), f_outF.data(),
+                      f_inA.data(), f_outx.data(), f_outv.data(), f_outF.data(),
                       f_outC.data(), f_outP.data(), f_outgrid.data());
   }
 };

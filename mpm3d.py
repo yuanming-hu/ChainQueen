@@ -9,8 +9,8 @@ file_dir = os.path.dirname(os.path.realpath(__file__))
 MPM_module = tf.load_op_library(os.path.join(file_dir, '../../build/libtaichi_tf_differentiable_mpm.so'))
 
 mpm = MPM_module.mpm
-p2g = MPM_module.p2g
-g2p = MPM_module.g2p
+# p2g = MPM_module.p2g
+# g2p = MPM_module.g2p
 
 def normalize_grid(grid, res, gravity, dt):
   np_res = np.array(res)

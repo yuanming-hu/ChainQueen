@@ -1,3 +1,4 @@
+#if (0)
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/platform/default/logging.h"
@@ -167,4 +168,4 @@ public:
 };
 
 REGISTER_KERNEL_BUILDER(Name("P2g").Device(DEVICE_GPU), P2GOpGPU);
-
+#endif
