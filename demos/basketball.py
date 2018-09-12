@@ -63,7 +63,7 @@ def main(sess):
           [[0.7, 0.3]],
     dtype=np.float32)
 
-  for i in range(1000000):
+  for i in range(2):
     # if i > 10:
     #     lr = 1e-1
     # elif i > 20:
