@@ -181,8 +181,8 @@ class TestSimulator2D(unittest.TestCase):
         dx=dx,
         num_particles=num_particles,
         gravity=gravity,
-        dt=1e-3,
-        E=1000,
+        dt=1e-4,
+        E=1,
         sess=sess)
     position = np.zeros(shape=(batch_size, 2, num_particles))
     velocity = np.zeros(shape=(batch_size, 2, num_particles))

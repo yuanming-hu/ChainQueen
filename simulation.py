@@ -52,10 +52,10 @@ class Simulation:
                damping=0.0,
                dx=None,
                bc=None,
-               E=50,
+               E=10,
                nu=0.3,
-               m_p=100,
-               V_p=10,
+               m_p=1,
+               V_p=1,
                batch_size=1,
                scale=None):
     self.dim = len(grid_res)
@@ -388,12 +388,15 @@ class Simulation:
     num_particles = self.num_particles
 
     if particle_mass is None:
-      particle_mass = np.ones(shape=(batch_size, 1, num_particles))
+      particle_mass = np.ones(shape=(batch_size, 1, num_particles)) * self.m_p
+      self.m_p = 1
     if particle_volume is None:
-      particle_volume = np.ones(shape=(batch_size, 1, num_particles))
+      particle_volume = np.ones(shape=(batch_size, 1, num_particles)) * self.V_p
+      self.V_p = 1
     if youngs_modulus is None:
-      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * 10
+      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * self.E
     if type(youngs_modulus) in [int, float]:
+      self.E = youngs_modulus
       youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * youngs_modulus
 
     if poissons_ratio is None:

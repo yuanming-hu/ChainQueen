@@ -31,6 +31,9 @@ def main(sess):
       grid_res=res,
       bc=bc,
       gravity=gravity,
+      E=1,
+      m_p=1,
+      V_p=1,
       sess=sess)
   position = np.zeros(shape=(batch_size, 2, num_particles))
 
@@ -57,8 +60,7 @@ def main(sess):
 
   sess.run(tf.global_variables_initializer())
 
-  initial_state = sim.get_initial_state(
-      position=position, velocity=velocity, youngs_modulus=1)
+  initial_state = sim.get_initial_state(position=position, velocity=velocity)
 
   final_position = sim.initial_state.center_of_mass(group_particles, None)
   loss = tf.reduce_sum((final_position - goal) ** 2)
@@ -71,9 +73,7 @@ def main(sess):
 
   sym = sim.gradients_sym(loss, variables = trainables)
 
-  goal_input = np.array(
-          [[0.7, 0.3]],
-    dtype=np.float32)
+  goal_input = np.array([[0.7, 0.3]], dtype=np.float32)
 
   for i in range(1000000):
     # if i > 10:
