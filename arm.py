@@ -12,6 +12,10 @@ import copy
 import pygmo as pg
 import pygmo_plugins_nonfree as ppnf
 
+
+def flatten_vectors(vectors):
+  return tf.concat([tf.squeeze(ly.flatten(vector)) for vector in vectors], 0)
+
 lr = 1.0
 
 
@@ -82,17 +86,19 @@ def main(sess):
                                1.0 / group_num_particles)
       pos = tf.reduce_sum(mask * state.position, axis=2, keepdims=False)
       vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
+      accel = tf.reduce_sum(mask * state.acceleration, axis=2, keepdims=False)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
       controller_inputs.append(goal)
+      controller_inputs.append(accel)
     # Batch, dim
     controller_inputs = tf.concat(controller_inputs, axis=1)
-    assert controller_inputs.shape == (batch_size, 6 * num_groups), controller_inputs.shape
+    assert controller_inputs.shape == (batch_size, 8 * num_groups), controller_inputs.shape
     controller_inputs = controller_inputs[:, :, None]
-    assert controller_inputs.shape == (batch_size, 6 * num_groups, 1)
+    assert controller_inputs.shape == (batch_size, 8 * num_groups, 1)
 
     actuation = tf.expand_dims(actuation_seq[0, state.step_count // (num_steps // num_acts), :], 0)
-    debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation}
+    debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation, 'acceleration': state.acceleration, 'velocity' : state.velocity}
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
     for i, group in enumerate(actuations):
@@ -125,17 +131,28 @@ def main(sess):
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
-  s = head * 6
+  final_acceleration = sim.initial_state['debug']['acceleration']
+  final_velocity_all = sim.initial_state['debug']['velocity']
+  s = head * 8
   
   final_position = final_state[:, s:s+2]
   final_velocity = final_state[:, s + 2: s + 4]
+  final_accel = final_state[:, s + 6: s + 8]
   gamma = 0.0
   loss_position = tf.reduce_sum((final_position - goal) ** 2)
-  loss_velocity = tf.reduce_sum(final_velocity ** 2)
+  loss_velocity = tf.reduce_mean(final_velocity_all ** 2) / 10.0
   loss_act = tf.reduce_sum(actuation_seq ** 2.0)
   loss_zero = tf.Variable(0.0, trainable=False)
+  
+  #loss_accel = tf.reduce_mean(final_acceleration ** 2.0)
+  loss_accel = loss_zero
+  #IPython.embed()
+  
+  
+  
+  #acceleration_constraint = tf.reduce_sum(final_acceleration, axis=1)
 
-
+  
   initial_positions = [[] for _ in range(batch_size)]
   for b in range(batch_size):
     for i, offset in enumerate(group_offsets):
@@ -166,11 +183,20 @@ def main(sess):
   sym_vel = sim.gradients_sym(loss_velocity, variables=trainables)
   sym_act = sim.gradients_sym(loss_act, variables=trainables)
   sym_zero = sim.gradients_sym(loss_zero, variables=trainables)
+  sym_accel = sim.gradients_sym(loss_accel, variables=trainables)
+  
+  
+  #sym_acc = [sim.gradients_sym(acceleration, variables=trainables) for acceleration in acceleration_constraint]
+  #sym_acc = tf.map_fn(lambda x : sim.gradients_sym(x, variables=trainables), acceleration_constraint)
+  #acc_flat = flatten_vectors([final_acceleration])
+  #sym_acc = tf.map_fn((lambda x : sim.gradients_sym(x, variables=trainables)), acc_flat)
+  #IPython.embed()
   
   sim.add_point_visualization(pos=goal, color=(0, 1, 0), radius=3)
   sim.add_vector_visualization(pos=final_position, vector=final_velocity, color=(0, 0, 1), scale=50)
  
   sim.add_point_visualization(pos=final_position, color=(1, 0, 0), radius=3)
+  
 
 
   goal_input = np.array(
@@ -180,20 +206,22 @@ def main(sess):
  
   
 
-  def eval_sim(loss_tensor, sym_):
+  def eval_sim(loss_tensor, sym_, need_grad=True):
     memo = sim.run(
         initial_state=initial_state,
         num_steps=num_steps,
         iteration_feed_dict={goal: goal_input},
         loss=loss_tensor)
-    grad = sim.eval_gradients(sym=sym_, memo=memo)
+    if need_grad:
+      grad = sim.eval_gradients(sym=sym_, memo=memo)
+    else:
+      grad = None
     return memo.loss, grad, memo
   
   def flatten_trainables():
     return tf.concat([tf.squeeze(ly.flatten(trainable)) for trainable in trainables], 0)
     
-  def flatten_vectors(vectors):
-    return tf.concat([tf.squeeze(ly.flatten(vector)) for vector in vectors], 0)
+  
     
   def assignment_run(xs):
     sess.run([trainable.assign(x) for x, trainable in zip(xs, trainables)])
@@ -204,7 +232,7 @@ def main(sess):
   
   t = time.time()
     
-  loss_val, grad, memo = eval_sim(loss_position, sym_pos)
+  #loss_val, grad, memo = eval_sim(loss_position, sym_pos)
   
   #IPython.embed()
   
@@ -231,17 +259,19 @@ def main(sess):
     def fitness(self, x):      
       assignment_helper(x)
       if self.use_act:
-        loss_act_val, _, _ = eval_sim(loss_act, sym_act)
+        loss_act_val, _, _ = eval_sim(loss_act, sym_act, need_grad=False)
       else:
-        loss_act_val, _, _ = eval_sim(loss_zero, sym_zero)
-      loss_pos_val, _, _ = eval_sim(loss_position, sym_pos)
-      c1, _, memo = eval_sim(loss_velocity, sym_vel)        
+        loss_act_val, _, _ = eval_sim(loss_zero, sym_zero, need_grad=False)
+      loss_pos_val, _, _ = eval_sim(loss_position, sym_pos, need_grad=False)
+      loss_accel_val, _, _ = eval_sim(loss_accel, sym_accel, need_grad=False)
+      c1, _, memo = eval_sim(loss_velocity, sym_vel, need_grad=False)        
       sim.visualize(memo)
-      return [loss_act_val.astype(np.float64), loss_pos_val.astype(np.float64) - self.goal_ball, c1.astype(np.float64) - self.goal_ball]
+      #IPython.embed()
+      return [loss_act_val.astype(np.float64), loss_pos_val.astype(np.float64) - self.goal_ball, c1.astype(np.float64) - self.goal_ball, loss_accel_val.astype(np.float64) - self.goal_ball]
       
 
     def get_nic(self):
-      return 2
+      return 3
     def get_nec(self):
       return 0
       
@@ -249,13 +279,15 @@ def main(sess):
       assignment_helper(x)
       _, grad_position, _ = eval_sim(loss_position, sym_pos)
       _, grad_velocity, _ = eval_sim(loss_velocity, sym_vel)
+      _, grad_accel, _ = eval_sim(loss_accel, sym_accel)
       if self.use_act:
         _, grad_act, _ = eval_sim(loss_act, sym_act)
       else:
         _, grad_act, _ = eval_sim(loss_zero, sym_zero)
       return np.concatenate([flatten_vectors(grad_act).eval().astype(np.float64),
                              flatten_vectors(grad_position).eval().astype(np.float64), 
-                             flatten_vectors(grad_velocity).eval().astype(np.float64)])
+                             flatten_vectors(grad_velocity).eval().astype(np.float64),
+                             flatten_vectors(grad_accel).eval().astype(np.float64)])
       #return flatten_vectors(grad).eval().astype(np.float64)
 
     def get_bounds(self):
@@ -263,8 +295,8 @@ def main(sess):
       lb = []
       ub = []
       acts = trainables[0]
-      lb += [-3 / num_links] * tf.size(acts).eval()
-      ub += [3 / num_links] * tf.size(acts).eval()
+      lb += [-1.0 / num_links] * tf.size(acts).eval()
+      ub += [1.0 / num_links] * tf.size(acts).eval()
       designs = trainables[1]
       lb += [9] * tf.size(designs).eval()
       ub += [11] * tf.size(designs).eval()
