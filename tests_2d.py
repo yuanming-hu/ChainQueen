@@ -290,7 +290,7 @@ class TestSimulator2D(unittest.TestCase):
   
     for b in range(batch_size):
       for i in range(N):
-        position_val[b, :, i] = (0.5, 0.5)
+        position_val[b, :, i] = (0.5 + i * dx * 0.3, 0.5)
   
     input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph, deformation_gradient=F_val)
   
@@ -306,7 +306,7 @@ class TestSimulator2D(unittest.TestCase):
     #sim.visualize(memo)
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
     grad = sim.eval_gradients(sym, memo)
-    delta = 1e-3
+    delta = 1e-4
     dim = 2
   
     for i in range(dim):
