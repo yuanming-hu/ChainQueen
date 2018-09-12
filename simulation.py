@@ -3,6 +3,7 @@ from vector_math import *
 import numpy as np
 from time_integration import InitialSimulationState, UpdatedSimulationState
 from memo import Memo
+import IPython
 
 try:
   import taichi as tc
@@ -126,16 +127,21 @@ class Simulation:
     for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0:
         continue
+
+
       pos = s[0][b] * self.inv_dx + 0.5
       pos = np.transpose(pos)
+      youngs = np.ndarray.flatten(s[6][b])
 
       scale = self.scale
 
       img = background.copy()
 
-      for p in pos:
+
+      
+      for young, p in zip(youngs, pos):
         x, y = tuple(map(lambda t: math.ceil(t * scale), p))
-        cv2.circle(img, (y, x), radius=1, color=(0.2, 0.2, 0.2), thickness=-1)
+        cv2.circle(img, (y, x), radius=1, color=(0.2 * young / 20.0, 0.2, 0.2), thickness=-1)
 
       for dot in points:
         coord, color, radius = dot
