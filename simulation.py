@@ -101,6 +101,7 @@ class Simulation:
     self.parameterized_initial_state = None
     self.point_visualization = []
     self.vector_visualization = []
+    self.frame_counter = 0
 
   def visualize_2d(self, memo, interval=1, batch=0, export=None, show=False):
     import math
@@ -165,15 +166,21 @@ class Simulation:
       export.wait()
 
   def visualize_3d(self, memo, interval=1, batch=0, export=None, show=False):
+    if export:
+      frame_count_delta = self.frame_counter
+    else:
+      frame_count_delta = 0
+    print("Warning: skipping the 0th frame..")
     for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
-      if i % interval != 0:
+      if i % interval != 0 or i == 0:
         continue
       pos = s[0][batch].copy()
       #print(np.mean(pos, axis=(0)))
       task = Task('write_partio_c')
       ptr = pos.ctypes.data_as(ctypes.c_void_p).value
       task.run(str(self.num_particles),
-               str(ptr), '{:04d}.bgeo'.format(i))
+               str(ptr), '{:04d}.bgeo'.format(i // interval + frame_count_delta))
+      self.frame_counter += 1
 
   def visualize(self, memo, interval=1, batch=0, export=None, show=False):
     if self.dim == 2:
