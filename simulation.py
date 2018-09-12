@@ -65,7 +65,8 @@ class Simulation:
       self.identity_matrix = identity_matrix
     else:
       self.identity_matrix = identity_matrix_3d
-      assert batch_size == 1, "In 3D only batch_size = 1 is supported."
+
+    assert batch_size == 1, "Only batch_size = 1 is supported."
 
     self.sess = sess
     self.num_particles = num_particles
