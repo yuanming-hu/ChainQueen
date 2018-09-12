@@ -23,6 +23,10 @@ __global__ void P2G(TState<dim> state) {
   real dt = state.dt;
 
   auto x = state.get_x(part_id);
+  for (int i = 0; i < dim; i++) {
+    x[i] = max(2 * state.dx, min(x[i], (state.res[i] - 2) * state.dx));
+  }
+  state.set_x(part_id, x);
   auto v = state.get_v(part_id);
   auto F = state.get_F(part_id);
   auto C = state.get_C(part_id);
@@ -30,6 +34,7 @@ __global__ void P2G(TState<dim> state) {
   TransferCommon<dim> tc(state, x);
 
   auto A = state.get_A(part_id);
+
 
   // Fixed corotated
   auto P = PK1(state.mu, state.lambda, F) + F * A;
@@ -77,6 +82,10 @@ __global__ void grid_forward(TState<dim> state) {
       v_i = inv_m * v_i;
       for (int i = 0; i < dim; i++) {
         v_i[i] += state.gravity[i] * state.dt;
+      }
+      auto grid_backup = state.grid_star_node(id);
+      for (int i = 0; i < dim; i++) {
+        grid_backup[i] = v_i[i];
       }
       auto bc = state.grid_node_bc(id);
       auto normal = Vector(bc);

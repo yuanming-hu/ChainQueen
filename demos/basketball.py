@@ -13,7 +13,7 @@ batch_size = 1
 gravity = (0, -1)
 N = 10
 num_particles = N * N
-steps = 150
+steps = 2
 dt = 1e-2
 goal_range = 0.15
 res = (30, 30)
@@ -34,7 +34,7 @@ def main(sess):
       sess=sess)
   position = np.zeros(shape=(batch_size, num_particles, 2))
 
-  velocity_ph = tf.Variable([0.2, 0.3], trainable = True)
+  velocity_ph = tf.Variable([-0.2, 0.3], trainable = True)
   velocity = velocity_ph[None, :, None] + tf.zeros(
       shape=[batch_size, 2, num_particles], dtype=tf.float32)
   for b in range(batch_size):
@@ -74,8 +74,9 @@ def main(sess):
         num_steps = steps,
         iteration_feed_dict = {goal: goal_input},
         loss = loss)
-  
-    sim.visualize(memo)
+
+    if i % 10 == 9:
+      sim.visualize(memo)
     grad = sim.eval_gradients(sym, memo)
     gradient_descent = [
         v.assign(v - lr * g) for v, g in zip(trainables, grad)

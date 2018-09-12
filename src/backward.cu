@@ -86,51 +86,43 @@ __global__ void grid_backward(TState<dim> state) {
       real inv_m = 1.0f / m;  // TODO: guard?
 
       auto grad_v_i = TVector<real, dim>(state.grad_grid_node(id));
-      auto v_i = TVector<real, dim>(state.grid_node(id));
+      auto v_i = TVector<real, dim>(state.grid_star_node(id));
 
-      if (false) {
-        auto bc = state.grid_node_bc(id);
-        auto normal = Vector(bc);
+      auto bc = state.grid_node_bc(id);
+      auto normal = Vector(bc);
 
-        if (normal.length2() > 0) {
-          real coeff = bc[dim];
-          auto v_i_star = TVector<real, dim>(state.grid_star_node(id));
-          auto grad_v_i_star = grad_v_i;
+      if (normal.length2() > 0) {
+        real coeff = bc[dim];
+        auto lin = v_i.dot(normal);
+        auto vit = v_i - lin * normal;
+        auto lit = sqrt(vit.length2()) + 1e-20;
+        auto vithat = (1 / lit) * vit;
+        auto R = lit + coeff * min(lin, 0.0f);
+        auto litstar = max(R, 0.0f);
 
-          auto lin = v_i.dot(normal);
-          auto vit = v_i - lin * normal;
-          auto lit = (sqrt(vit.length2()) + 1e-20);
-          auto vithat = (1 / lit) * vit;
-          auto R = abs(lit) + coeff * min(lin, 0.0f);
-          auto litstar = sgn(lit) * max(R, 0.0f);
-          auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
+        auto v_i_star = Vector(state.grid_node(id));
+        auto grad_v_i_star = grad_v_i;
 
-          auto grad_litstar = 0.0f;
-          for (int i = 0; i < dim; i++) {
-            grad_litstar += grad_v_i_star[i] * vithat[i];
-          }
-          Vector grad_vithat = grad_litstar * grad_v_i_star;
-
-          auto grad_lit = grad_litstar * H(R);
-          for (int i = 0; i < dim; i++) {
-            grad_vithat += -1 / (litstar * litstar) * grad_vithat[i];
-          }
-          auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
-          auto grad_lin =
-              grad_litstar * sgn(lit) * H(R) * coeff * H(-lin);
-
-          for (int i = 0; i < dim; i++) {
-            grad_lin -= grad_vit[i] * normal[i];
-          }
-
-          grad_v_i = grad_lin * normal + grad_vit;
+        auto grad_litstar = 0.0f;
+        for (int i = 0; i < dim; i++) {
+          grad_litstar += grad_v_i_star[i] * vithat[i];
         }
-      } else {
+        Vector grad_vithat = grad_litstar * grad_v_i_star;
+
+        auto grad_lit = grad_litstar * H(R);
+        for (int i = 0; i < dim; i++) {
+          grad_vithat += -1 / (litstar * litstar + 1e-30) * grad_vithat[i];
+        }
+        auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
+        auto grad_lin = grad_litstar * H(R) * coeff * H(-lin);
+
+        for (int i = 0; i < dim; i++) {
+          grad_lin -= grad_vit[i] * normal[i];
+        }
+        grad_v_i = grad_lin * normal + grad_vit;
       }
 
       auto grad_p = inv_m * grad_v_i;
-
-      auto p_i = m * v_i;
       // (E)
       real grad_m = 0;
       for (int alpha = 0; alpha < dim; alpha++) {

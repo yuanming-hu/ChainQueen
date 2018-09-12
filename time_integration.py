@@ -10,7 +10,7 @@ try:
   import mpm3d
 except:
   use_cuda = False
-  printf("Warning: NOT using CUDA")
+  print("Warning: NOT using CUDA")
 
 kernel_size = 3
 
