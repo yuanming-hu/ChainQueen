@@ -107,10 +107,11 @@ class TestSimulator2D(unittest.TestCase):
         num_particles=num_particles,
         gravity=gravity,
         dt=1e-3,
+        E=100,
+        nu=0.45,
         batch_size=batch_size,
         sess=sess)
     position = np.zeros(shape=(batch_size, 2, num_particles))
-    poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.45
     initial_velocity = tf.placeholder(shape=(2,), dtype=tf_precision)
     velocity = tf.broadcast_to(
         initial_velocity[None, :, None], shape=(batch_size, 2, num_particles))
@@ -122,8 +123,7 @@ class TestSimulator2D(unittest.TestCase):
     input_state = sim.get_initial_state(
         position=position,
         velocity=velocity,
-        poissons_ratio=poissons_ratio,
-        youngs_modulus=100)
+        )
 
     memo = sim.run(
         num_steps=1000,
