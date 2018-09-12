@@ -72,8 +72,7 @@ def main(sess):
       # First PK stress here
       act = make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
-      F = state['deformation_gradient']
-      total_actuation = total_actuation + matmatmul(F, matmatmul(act, transpose(F)))
+      total_actuation = total_actuation + act
     return total_actuation, 1
   
   res = (80, 40)

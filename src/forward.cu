@@ -29,8 +29,10 @@ __global__ void P2G(TState<dim> state) {
 
   TransferCommon<dim> tc(state, x);
 
+  auto A = state.get_A(part_id);
+
   // Fixed corotated
-  auto P = PK1(state.mu, state.lambda, F);
+  auto P = PK1(state.mu, state.lambda, F) + F * A;
   state.set_P(part_id, P);
   auto stress = -state.invD * dt * state.V_p * P * transposed(F);
 
@@ -56,13 +58,11 @@ __global__ void P2G(TState<dim> state) {
       atomicAdd(&node[p], contrib[p]);
     }
   }
-  /*
   for (int i = 0; i < dim; i++) {
     for (int j = 0; j < dim; j++) {
-      printf("forward m %d %d %f\n", i, j, F[i][j]);
+      //printf("forward A[%d][%d] %f\n", i, j, A[i][j]);
     }
   }
-  */
 }
 
 template <int dim>
@@ -175,7 +175,7 @@ void MPMKernelLauncher(int dim_,
     constexpr int dim = 3;
     auto instate =
         new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                        (real *)inv, (real *)inF, (real *)inC, (real *)inA, outP, outgrid);
+                        (real *)inv, (real *)inF, (real *)inC, (real *)inA,outP,  outgrid);
     instate->set(V_p, m_p, E, nu);
     auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
                                     outv, outF, outC, nullptr, nullptr, nullptr);
@@ -185,7 +185,7 @@ void MPMKernelLauncher(int dim_,
     constexpr int dim = 2;
     auto instate =
         new TState<dim>(res, num_particles, dx, dt, gravity, (real *)inx,
-                        (real *)inv, (real *)inF, (real *)inC, (real *)inA, outP, outgrid);
+                        (real *)inv, (real *)inF, (real *)inC,(real *)inA, outP,  outgrid);
     instate->set(V_p, m_p, E, nu);
     auto outstate = new TState<dim>(res, num_particles, dx, dt, gravity, outx,
                                     outv, outF, outC, nullptr, nullptr, nullptr);

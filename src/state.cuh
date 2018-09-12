@@ -61,8 +61,8 @@ struct TState : public TStateBase<dim_> {
   using Base::dx;
   using Base::grad_C_storage;
   using Base::grad_F_storage;
-  using Base::grad_P_storage;
   using Base::grad_A_storage;
+  using Base::grad_P_storage;
   using Base::grad_grid_storage;
   using Base::grad_v_storage;
   using Base::grad_x_storage;
@@ -242,8 +242,8 @@ struct TState : public TStateBase<dim_> {
          real *v_storage,
          real *F_storage,
          real *C_storage,
-         real *P_storage,
          real *A_storage,
+         real *P_storage,
          real *grid_storage)
       : Base() {
     this->num_cells = 1;
@@ -262,8 +262,8 @@ struct TState : public TStateBase<dim_> {
     this->v_storage = v_storage;
     this->F_storage = F_storage;
     this->C_storage = C_storage;
-    this->P_storage = P_storage;
     this->A_storage = A_storage;
+    this->P_storage = P_storage;
     this->grid_storage = grid_storage;
   }
 
@@ -283,8 +283,8 @@ struct TState : public TStateBase<dim_> {
          real *grad_v_storage,
          real *grad_F_storage,
          real *grad_C_storage,
-         real *grad_P_storage,
          real *grad_A_storage,
+         real *grad_P_storage,
          real *grad_grid_storage)
       : TState(res,
                num_particles,
@@ -295,15 +295,15 @@ struct TState : public TStateBase<dim_> {
                v_storage,
                F_storage,
                C_storage,
-               P_storage,
                A_storage,
+               P_storage,
                grid_storage) {
     this->grad_x_storage = grad_x_storage;
     this->grad_v_storage = grad_v_storage;
     this->grad_F_storage = grad_F_storage;
     this->grad_C_storage = grad_C_storage;
-    this->grad_P_storage = grad_P_storage;
     this->grad_A_storage = grad_A_storage;
+    this->grad_P_storage = grad_P_storage;
     this->grad_grid_storage = grad_grid_storage;
     // cudaMalloc(&this->grad_P_storage, sizeof(real) * dim * dim *
     // num_particles);

@@ -149,6 +149,7 @@ class UpdatedSimulationState(SimulationState):
       self.actuation, self.debug = controller(self)
     else:
       self.actuation = np.zeros(shape=(self.sim.batch_size, self.dim, self.dim, self.sim.num_particles))
+    print(self.actuation[:, 1, 1, :])
 
     self.step_count = previous_state.step_count + 1
 

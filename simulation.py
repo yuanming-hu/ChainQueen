@@ -95,7 +95,7 @@ class Simulation:
     self.m_p = m_p
     self.V_p = V_p
     self.inv_dx = 1.0 / dx
-    self.updated_state = self.UpdatedSimulationState(self, self.initial_state)
+    self.updated_state = self.UpdatedSimulationState(self, previous_state=self.initial_state, controller=controller)
     self.controller = controller
     self.parameterized_initial_state = None
     self.point_visualization = []
