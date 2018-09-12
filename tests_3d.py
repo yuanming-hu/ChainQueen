@@ -275,7 +275,7 @@ class TestSimulator3D(unittest.TestCase):
         self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=5e-2)
 
   def test_gradients2(self):
-    gravity = (0, -10, 0)
+    gravity = (0, -0, 0)
     batch_size = 1
     dx = 0.03
     N = 2
@@ -283,12 +283,13 @@ class TestSimulator3D(unittest.TestCase):
     steps = 4
     dt = 1e-2
     sim = Simulation(
-      grid_res=(100, 100, 100),
+      grid_res=(30, 30, 30),
       dx=dx,
       num_particles=num_particles,
       gravity=gravity,
       dt=dt,
       batch_size=batch_size,
+      E=0.01,
       sess=sess)
 
     position_ph = tf.placeholder(shape=(batch_size, 3, num_particles), dtype=tf.float32)

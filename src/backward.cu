@@ -296,13 +296,13 @@ void backward(TState<dim> &state, TState<dim> &next) {
   int num_blocks_grid = state.grid_size();
   P2G_backward<dim><<<num_blocks, particle_block_dim>>>(state, next);
   auto err = cudaThreadSynchronize();
+  grid_backward<dim>
+      <<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(state);
+  G2P_backward<dim><<<num_blocks, particle_block_dim>>>(state, next);
   if (err) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  grid_backward<dim>
-      <<<state.num_cells / grid_block_dim + 1, grid_block_dim>>>(state);
-  G2P_backward<dim><<<num_blocks, particle_block_dim>>>(state, next);
 }
 
 void MPMGradKernelLauncher(int dim,

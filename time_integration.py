@@ -4,6 +4,7 @@ from vector_math import *
 
 
 use_cuda = True
+use_apic = True
 
 try:
   import mpm3d
@@ -348,6 +349,8 @@ class UpdatedSimulationState(SimulationState):
 
     self.affine *= 4 * sim.inv_dx * sim.inv_dx
     dg_change = identity_matrix + self.sim.dt * self.affine
+    if not use_apic:
+      self.affine *= 0
     #print(dg_change.shape)
     #print(previous_state.deformation_gradient)
     self.deformation_gradient = matmatmul(dg_change,

@@ -19,7 +19,7 @@ goal_range = 0.15
 res = (100, 100)
 bc = get_bounding_box_bc(res)
 
-lr = 2e-1
+lr = 5e-1
 
 def main(sess):
   
@@ -76,10 +76,6 @@ def main(sess):
   goal_input = np.array([[0.7, 0.3]], dtype=np.float32)
 
   for i in range(1000000):
-    # if i > 10:
-    #     lr = 1e-1
-    # elif i > 20:
-    #     lr = 1e-2
     t = time.time()
     memo = sim.run(
         initial_state = initial_state, 
@@ -87,6 +83,7 @@ def main(sess):
         iteration_feed_dict = {goal: goal_input},
         loss = loss)
     grad = sim.eval_gradients(sym, memo)
+    print('grad', grad)
     gradient_descent = [
         v.assign(v - lr * g) for v, g in zip(trainables, grad)
     ]

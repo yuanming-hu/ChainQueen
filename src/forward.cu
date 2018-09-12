@@ -138,15 +138,15 @@ void advance(TState<dim> &state, TState<dim> &new_state) {
       (state.num_particles + particle_block_dim - 1) / particle_block_dim;
   P2G<dim><<<num_blocks, particle_block_dim>>>(state);
 
+  normalize_grid<dim>
+      <<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
+         grid_block_dim>>>(state);
+  G2P<dim><<<num_blocks, particle_block_dim>>>(state, new_state);
   auto err = cudaThreadSynchronize();
   if (err) {
     printf("Launch: %s\n", cudaGetErrorString(err));
     exit(-1);
   }
-  normalize_grid<dim>
-      <<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
-         grid_block_dim>>>(state);
-  G2P<dim><<<num_blocks, particle_block_dim>>>(state, new_state);
 }
 
 // compability
