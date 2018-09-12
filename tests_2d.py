@@ -297,7 +297,7 @@ class TestSimulator2D(unittest.TestCase):
   
     input_state = sim.get_initial_state(position=position_ph, velocity=velocity_ph, deformation_gradient=F_val)
   
-    loss = sim.initial_state.position[:, 0, 0]
+    loss = sim.initial_state.position[:, 1, 0]
   
     sim.set_initial_state(input_state)
     sym = sim.gradients_sym(loss=loss, variables=[position_ph, velocity_ph])

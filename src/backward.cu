@@ -184,7 +184,7 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
     for (int i = 0; i < dim; i++) {
       for (int j = 0; j < dim; j++) {
         auto inc = F, dec = F;
-        real delta = 1e-3f;
+        real delta = 1e-4f;
         inc[i][j] += delta;
         dec[i][j] -= delta;
         auto diff = (1 / (2 * delta)) * (PK1(state.mu, state.lambda, inc) -
