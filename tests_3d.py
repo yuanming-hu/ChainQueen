@@ -47,6 +47,7 @@ class TestSimulator3D(unittest.TestCase):
     for i in range(4):
       diff = np.abs(output_p2g2p[i] - output_mpm[i])
       self.assertAlmostEqualFloat32(diff.max(), 0)
+  '''
 
 
   def test_p2g(self):
@@ -54,12 +55,19 @@ class TestSimulator3D(unittest.TestCase):
     x = tf.placeholder(tf.float32, shape=(1, 3, 1))
     v = tf.placeholder(tf.float32, shape=(1, 3, 1))
     C = tf.constant(np.zeros([1, 3, 3, 1]).astype(np.float32))
+    A = tf.constant(np.zeros([1, 3, 3, 1]).astype(np.float32))
     f = np.zeros([1, 3, 3, 1]).astype(np.float32)
     f[0, 0, 0, 0] = 1
     f[0, 1, 1, 0] = 1
     f[0, 2, 2, 0] = 1
     F = tf.constant(f)
-    P, G = mpm3d.p2g(x, v, F, C)
+
+    dt = 1e-2
+    dx = 3e-2
+    gravity = [0, -1, 0]
+    res = [100, 100, 100]
+
+    P, G = mpm3d.p2g(position = x, velocity = v, affine = F, deformation = C, actuation = A, dt = dt, dx = dx, gravity = gravity, resolution = res)
     feed_dict = {
         x: np.array([[[0.5], [0.5], [0.5]]]).astype(np.float32),
         v: np.array([[[0.1], [0.1], [0.1]]]).astype(np.float32)
@@ -68,7 +76,7 @@ class TestSimulator3D(unittest.TestCase):
     gravity = [0.] * 3
     dt = 1e-2
     G_p2g = mpm3d.normalize_grid(G, res, gravity, dt)
-    mpm_output = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C, gravity = gravity)
+    mpm_output = mpm3d.mpm(position = x, velocity = v, affine = F, deformation = C, actuation = A, dt = dt, dx = dx, gravity = gravity, resolution = res)
     G_mpm = mpm_output[5]
     G1 = sess.run(G_p2g, feed_dict=feed_dict)
     G2 = sess.run(G_mpm, feed_dict=feed_dict)
@@ -77,7 +85,6 @@ class TestSimulator3D(unittest.TestCase):
       for j in range(G1.shape[1]):
         for k in range(G1.shape[2]):
           self.assertAlmostEqualFloat32(G1[i, j, k], G2[i, j, k])
-  '''
 
   def test_forward(self):
     # print('\n==============\ntest_forward start')
