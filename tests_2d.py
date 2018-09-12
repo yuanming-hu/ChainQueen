@@ -18,7 +18,7 @@ class TestSimulator2D(unittest.TestCase):
                   gravity=(0, -10),
                   initial_velocity=(0, 0),
                   batch_size=1,
-                  dx=1,
+                  dx=1.0,
                   num_steps=10):
     # Zero gravity, 1-batched, translating block
     num_particles = 100

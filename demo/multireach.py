@@ -11,15 +11,15 @@ import tensorflow.contrib.layers as ly
 from vector_math import *
 import export 
 
-lr = 1
+lr = 2
 gamma = 0.0
 
-sample_density = 20
+sample_density = 30
 group_num_particles = sample_density**2
 goal_pos = np.array([0.5, 0.6])
 goal_range = np.array([0.15, 0.15])
 batch_size = 100
-actuation_strength = 8
+actuation_strength = 14
 
 config = 'B'
 
@@ -82,10 +82,10 @@ def main(sess):
     controller_inputs = []
     for i in range(num_groups):
       mask = particle_mask(i * group_num_particles,
-                           (i + 1) * group_num_particles)[:, :, None] * (
+                           (i + 1) * group_num_particles)[:, None, :] * (
                                1.0 / group_num_particles)
-      pos = tf.reduce_sum(mask * state.position, axis=1, keepdims=False)
-      vel = tf.reduce_sum(mask * state.velocity, axis=1, keepdims=False)
+      pos = tf.reduce_sum(mask * state.position, axis=2, keepdims=False)
+      vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
       controller_inputs.append((goal - goal_pos) / goal_range)
@@ -114,11 +114,11 @@ def main(sess):
       # First PK stress here
       act = make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
-      total_actuation = total_actuation + matmatmul(
-        act, transpose(state['deformation_gradient']))
+      total_actuation = total_actuation + matmatmul(state['deformation_gradient'], matmatmul(
+        act, transpose(state['deformation_gradient'])))
     return total_actuation, debug
   
-  res = (25, 25)
+  res = (40, 40)
   bc = get_bounding_box_bc(res)
   
   if config == 'B':
@@ -126,7 +126,7 @@ def main(sess):
     bc[1][:, :, :5] = 0 # Sticky
 
   sim = Simulation(
-      dt=0.01,
+      dt=0.005,
       num_particles=num_particles,
       grid_res=res,
       gravity=gravity,
@@ -158,6 +158,7 @@ def main(sess):
               ) * scale + 0.1
           initial_positions[b].append([u, v])
   assert len(initial_positions[0]) == num_particles
+  initial_positions = np.array(initial_positions).swapaxes(1, 2)
 
   sess.run(tf.global_variables_initializer())
 
@@ -200,7 +201,7 @@ def main(sess):
     for it, goal_input in enumerate(goal_train):
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=50,
+          num_steps=80,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       grad = sim.eval_gradients(sym=sym, memo=memo)
@@ -223,7 +224,7 @@ def main(sess):
     for goal_input in goal_valid:
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=50,
+          num_steps=80,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('time {:.3f} loss {:.4f}'.format(
@@ -233,7 +234,6 @@ def main(sess):
         for b in vis_id:
           sim.visualize(memo, batch = b, export = exp)
         exp.export()
-        exit(0)
 
     print('valid loss {}'.format(loss_cal / len(goal_valid)))
     print('==============================================')
