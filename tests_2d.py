@@ -348,10 +348,10 @@ class TestSimulator2D(unittest.TestCase):
 
   def test_bc_gradients(self):
     batch_size = 1
-    gravity = (0, 0)
+    gravity = (0, -1)
     N = 10
     num_particles = N * N
-    steps = 50
+    steps = 40
     dt = 1e-2
     res = (30, 30)
 
@@ -375,7 +375,7 @@ class TestSimulator2D(unittest.TestCase):
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):
-          position[b, i * N + j] = ((i * 0.5 + 3) / 30,
+          position[b, i * N + j] = ((i * 0.5 + 5) / 30,
                                     (j * 0.5 + 12.75) / 30)
     position = np.array(position).swapaxes(1, 2)
 
@@ -404,7 +404,7 @@ class TestSimulator2D(unittest.TestCase):
         loss = loss)
       return memo.loss
       
-    in_v = [-0.2, 0.0]
+    in_v = [0.0, -1]
     memo = sim.run(
       initial_state=initial_state,
       num_steps = steps,
