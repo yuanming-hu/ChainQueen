@@ -317,7 +317,7 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
     auto n = state.grid_node(grid_coord);
     auto mi = state.get_grid_mass(grid_coord);
     // printf(" m m %f %f\n", mi, n[dim]);
-    auto vi = state.get_grid_star_velocity(grid_coord);
+    auto vi = state.get_grid_velocity(grid_coord);
     auto vi_projected = state.get_grid_velocity(grid_coord);
     if (fabs(vi[0] - vi_projected[0]) > 1e-5f) {
       printf("vi  %f %f, vip %f %f\n", vi[0], vi[1], vi_projected[0], vi_projected[1]);
