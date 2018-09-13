@@ -150,7 +150,6 @@ __global__ void grid_backward(TState<dim> state) {
       }
        */
 
-
       auto grad_p = inv_m * grad_v_i;
       // (E)
       real grad_m = 0;
@@ -368,6 +367,84 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   state.set_grad_C(part_id, grad_C);
 }
 
+__device__ real rand_real(int i) {
+  real t = sinf(i) * 100.0;
+  return t - floor(t);
+}
+
+__global__ void check2d(int i_) {
+  constexpr int dim = 2;
+  int i = i_;
+  auto rand = [&]() { return rand_real(i++); };
+  using Vector = TVector<real, 2>;
+  auto grad_v_i = Vector(1, 0);
+  auto v_i = Vector(rand(), rand());
+
+  auto angle = rand() * 2 * 3.14f;
+  auto normal = Vector(sinf(angle), cosf(angle));
+  auto lin = v_i.dot(normal);
+  //auto coeff = rand();
+  auto coeff = 0;
+
+  auto forward = [&](Vector v_i) {
+    auto vit = v_i - lin * normal;
+    auto lit = sqrt(vit.length2() + 1e-7);
+    auto vithat = (1.0f / lit) * vit;
+    auto R = lit + coeff * min(lin, 0.0f);
+    auto litstar = max(R, 0.0f);
+    auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
+    return vistar.dot(grad_v_i);
+  };
+
+  auto vit = v_i - lin * normal;
+  auto lit = sqrt(vit.length2() + 1e-7);
+  auto vithat = (1.0f / lit) * vit;
+  auto R = lit + coeff * min(lin, 0.0f);
+  auto litstar = max(R, 0.0f);
+  auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
+
+  auto grad_v_i_star = grad_v_i;
+
+  auto grad_litstar = 0.0f;
+  for (int i = 0; i < dim; i++) {
+    grad_litstar += grad_v_i_star[i] * vithat[i];
+  }
+  Vector grad_vithat = litstar * grad_v_i_star;
+
+  auto grad_lit = grad_litstar * H(R);
+  for (int i = 0; i < dim; i++) {
+    grad_lit += -1 / (lit * lit) * vit[i] * grad_vithat[i];
+  }
+  auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
+  auto grad_lin = grad_litstar * H(R) * coeff * H(-lin);
+  /*
+  printf("lit %f\n", lit);
+  for (int i = 0; i < dim; i++) {
+    printf("gradlitstar %f\n", grad_litstar);
+  }
+  printf("gradlin %f\n", grad_lin);
+  */
+
+  for (int i = 0; i < dim; i++) {
+    // printf("normal [%d] %f\n", i, normal[i]);
+    grad_lin -= grad_vit[i] * normal[i];
+    grad_lin += H(lin) * normal[i] * grad_v_i_star[i];
+  }
+  auto new_grad_v_i = grad_lin * normal + grad_vit;
+
+  real dx = 1e-3f;
+  for (int d = 0; d < dim; d++) {
+    Vector delta;
+    delta[d] = dx;
+    real grad = (forward(v_i + delta) - forward(v_i - delta)) / (2 * dx);
+    if (fabs(grad - new_grad_v_i[d]) > 1e-4f) {
+      printf("%f %f\n", grad, new_grad_v_i[d]);
+    } else {
+      printf("pass\n");
+    }
+  }
+}
+
 template <int dim>
 void backward(TState<dim> &state, TState<dim> &next) {
   state.clear_gradients();
@@ -422,6 +499,9 @@ void MPMGradKernelLauncher(int dim,
                            const real *grad_outgrid,
                            const real *grad_outgrid_star) {
   if (dim == 2) {
+    for (int i = 0; i < 10000; i++) {
+      check2d<<<1, 1>>>(i);
+    }
     constexpr int dim = 2;
     auto current = new TState<dim>(
         res, num_particles, dx, dt, gravity, (real *)inx, (real *)inv,
