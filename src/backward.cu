@@ -83,9 +83,9 @@ __global__ void grid_backward(TState<dim> state) {
       // Convert grad_v to grad_p
       // grad_p = grad_v / m
       auto m = node[dim];
-      real inv_m = 1.0f / m;  // TODO: guard?
+      real inv_m = 1.0f / m;
 
-      auto grad_v_i = Vector(state.grad_grid_node(id));
+      auto grad_v_i = Vector(grad_node);
       auto v_i = Vector(state.grid_star_node(id));
       auto v_i_star = Vector(state.grid_node(id));
 
@@ -102,12 +102,11 @@ __global__ void grid_backward(TState<dim> state) {
         auto litstar = max(R, 0.0f);
         auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
 
-        /*
         auto r = vistar - v_i_star;
         for (int i = 0; i < dim; i++) {
-          printf("r %f\n", r[i]);
+          if (fabs(r[i]) > 1e-6)
+            printf("r %f\n", r[i]);
         }
-        */
 
         auto grad_v_i_star = grad_v_i;
 
@@ -122,7 +121,8 @@ __global__ void grid_backward(TState<dim> state) {
           grad_lit += -1 / (lit * lit) * vit[i] * grad_vithat[i];
         }
         auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
-        auto grad_lin = grad_litstar * H(R) * coeff * H(-lin);
+        auto grad_lin = grad_litstar * H(R) * coeff;
+
         /*
         printf("lit %f\n", lit);
         for (int i = 0; i < dim; i++) {
@@ -150,7 +150,7 @@ __global__ void grid_backward(TState<dim> state) {
       for (int i = 0; i < dim; i++) {
         printf("%f\n", grad_v_i[i]);
       }
-       */
+      */
 
       auto grad_p = inv_m * grad_v_i;
       // (E)
@@ -317,7 +317,11 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
     auto n = state.grid_node(grid_coord);
     auto mi = state.get_grid_mass(grid_coord);
     // printf(" m m %f %f\n", mi, n[dim]);
-    auto vi = state.get_grid_velocity(grid_coord);
+    auto vi = state.get_grid_star_velocity(grid_coord);
+    auto vi_projected = state.get_grid_velocity(grid_coord);
+    if (fabs(vi[0] - vi_projected[0]) > 1e-5f) {
+      printf("vi  %f %f, vip %f %f\n", vi[0], vi[1], vi_projected[0], vi_projected[1]);
+    }
     auto grad_mi = state.grad_grid_node(grid_coord)[dim];
 
     // printf("%.10f\n", grad_p[0]);
@@ -379,15 +383,15 @@ __global__ void check2d(int k_) {
   int k = k_;
   auto rand = [&]() { return rand_real(k++); };
   using Vector = TVector<real, 2>;
-  auto grad_v_i = Vector(1, 0);
+  auto grad_v_i = Vector(rand(), rand());
   auto v_i = Vector(rand() * 2 - 1, rand() * 2 - 1);
-  //auto v_i = Vector(-0.5, 0.0);
+  // auto v_i = Vector(-0.5, 0.0);
 
   auto angle = rand() * 2 * 3.14f;
   auto normal = Vector(sinf(angle), cosf(angle));
-  //auto normal = Vector(1, 0);
+  // auto normal = Vector(1, 0);
   auto coeff = rand();
-  //auto coeff = 0;
+  // auto coeff = 0;
 
   auto forward = [&](Vector v_i) {
     auto lin = v_i.dot(normal);
@@ -444,11 +448,11 @@ __global__ void check2d(int k_) {
     real f0 = forward(v_i + delta);
     real f1 = forward(v_i - delta);
     real grad = (f0 - f1) / (2 * dx);
-    //printf("f0, 1 = %f %f\n", f0, f1);
+    // printf("f0, 1 = %f %f\n", f0, f1);
     if (fabs(grad - new_grad_v_i[d]) > 1e-3f) {
       printf("errr %d   %f %f\n", d, grad, new_grad_v_i[d]);
     } else {
-      //printf("pass %d   %f %f\n", d, grad, new_grad_v_i[d]);
+      // printf("pass %d   %f %f\n", d, grad, new_grad_v_i[d]);
     }
   }
 }
