@@ -21,7 +21,7 @@ group_num_particles = sample_density**2
 goal_pos = np.array([1.4, 0.4])
 goal_range = np.array([0.0, 0.00])
 batch_size = 1
-actuation_strength = 4
+actuation_strength = 3
 
 config = 'B'
 
