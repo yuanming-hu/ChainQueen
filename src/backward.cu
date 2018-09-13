@@ -83,19 +83,18 @@ __global__ void grid_backward(TState<dim> state) {
       // Convert grad_v to grad_p
       // grad_p = grad_v / m
       auto m = node[dim];
-      real inv_m = 1.0f / m;  // TODO: guard?
+      real inv_m = 1.0f / m;
 
-      auto grad_v_i = Vector(state.grad_grid_node(id));
+      auto grad_v_i = Vector(grad_node);
       auto v_i = Vector(state.grid_star_node(id));
       auto v_i_star = Vector(state.grid_node(id));
 
       auto bc = state.grid_node_bc(id);
       auto normal = Vector(bc);
+      auto lin = v_i.dot(normal);
 
-      if (normal.length2() > 0) {
+      if (lin < 0) {
         real coeff = bc[dim];
-        auto lin = v_i.dot(normal);
-
         auto vit = v_i - lin * normal;
         auto lit = sqrt(vit.length2() + 1e-7);
         auto vithat = (1.0f / lit) * vit;
@@ -103,12 +102,11 @@ __global__ void grid_backward(TState<dim> state) {
         auto litstar = max(R, 0.0f);
         auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
 
-        /*
         auto r = vistar - v_i_star;
         for (int i = 0; i < dim; i++) {
-          printf("r %f\n", r[i]);
+          if (fabs(r[i]) > 1e-6)
+            printf("r %f\n", r[i]);
         }
-        */
 
         auto grad_v_i_star = grad_v_i;
 
@@ -123,7 +121,8 @@ __global__ void grid_backward(TState<dim> state) {
           grad_lit += -1 / (lit * lit) * vit[i] * grad_vithat[i];
         }
         auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
-        auto grad_lin = grad_litstar * H(R) * coeff * H(-lin);
+        auto grad_lin = grad_litstar * H(R) * coeff;
+
         /*
         printf("lit %f\n", lit);
         for (int i = 0; i < dim; i++) {
@@ -137,13 +136,21 @@ __global__ void grid_backward(TState<dim> state) {
           grad_lin -= grad_vit[i] * normal[i];
           grad_lin += H(lin) * normal[i] * grad_v_i_star[i];
         }
-        grad_v_i = grad_lin * normal + grad_vit;
+        auto new_grad_v_i = grad_lin * normal + grad_vit;
+        /*
+        for (int i = 0; i < dim; i++) {
+          if (abs(grad_v_i[i]) < abs(new_grad_v_i[i])) {
+            printf("error... %f %f\n", grad_v_i[i], new_grad_v_i[i]);
+          }
+        }
+        */
+        grad_v_i = new_grad_v_i;
       }
       /*
       for (int i = 0; i < dim; i++) {
         printf("%f\n", grad_v_i[i]);
       }
-       */
+      */
 
       auto grad_p = inv_m * grad_v_i;
       // (E)
@@ -311,6 +318,10 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
     auto mi = state.get_grid_mass(grid_coord);
     // printf(" m m %f %f\n", mi, n[dim]);
     auto vi = state.get_grid_velocity(grid_coord);
+    auto vi_projected = state.get_grid_velocity(grid_coord);
+    if (fabs(vi[0] - vi_projected[0]) > 1e-5f) {
+      printf("vi  %f %f, vip %f %f\n", vi[0], vi[1], vi_projected[0], vi_projected[1]);
+    }
     auto grad_mi = state.grad_grid_node(grid_coord)[dim];
 
     // printf("%.10f\n", grad_p[0]);
@@ -360,6 +371,90 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   if (mpm_enalbe_force)
     state.set_grad_F(part_id, grad_F);
   state.set_grad_C(part_id, grad_C);
+}
+
+__device__ real rand_real(int i) {
+  real t = sinf(i) * 100.0;
+  return t - floor(t);
+}
+
+__global__ void check2d(int k_) {
+  constexpr int dim = 2;
+  int k = k_;
+  auto rand = [&]() { return rand_real(k++); };
+  using Vector = TVector<real, 2>;
+  auto grad_v_i = Vector(rand(), rand());
+  auto v_i = Vector(rand() * 2 - 1, rand() * 2 - 1);
+  // auto v_i = Vector(-0.5, 0.0);
+
+  auto angle = rand() * 2 * 3.14f;
+  auto normal = Vector(sinf(angle), cosf(angle));
+  // auto normal = Vector(1, 0);
+  auto coeff = rand();
+  // auto coeff = 0;
+
+  auto forward = [&](Vector v_i) {
+    auto lin = v_i.dot(normal);
+    auto vit = v_i - lin * normal;
+    auto lit = sqrt(vit.length2() + 1e-7);
+    auto vithat = (1.0f / lit) * vit;
+    auto R = lit + coeff * min(lin, 0.0f);
+    auto litstar = max(R, 0.0f);
+    auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
+    return vistar.dot(grad_v_i);
+  };
+
+  auto lin = v_i.dot(normal);
+  auto vit = v_i - lin * normal;
+  auto lit = sqrt(vit.length2() + 1e-7);
+  auto vithat = (1.0f / lit) * vit;
+  auto R = lit + coeff * min(lin, 0.0f);
+  auto litstar = max(R, 0.0f);
+  auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
+
+  auto grad_v_i_star = grad_v_i;
+
+  auto grad_litstar = 0.0f;
+  for (int i = 0; i < dim; i++) {
+    grad_litstar += grad_v_i_star[i] * vithat[i];
+  }
+  Vector grad_vithat = litstar * grad_v_i_star;
+
+  auto grad_lit = grad_litstar * H(R);
+  for (int i = 0; i < dim; i++) {
+    grad_lit += -1 / (lit * lit) * vit[i] * grad_vithat[i];
+  }
+  auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
+  auto grad_lin = grad_litstar * H(R) * coeff * H(-lin);
+  /*
+  printf("lit %f\n", lit);
+  for (int i = 0; i < dim; i++) {
+    printf("gradlitstar %f\n", grad_litstar);
+  }
+  printf("gradlin %f\n", grad_lin);
+  */
+
+  for (int i = 0; i < dim; i++) {
+    // printf("normal [%d] %f\n", i, normal[i]);
+    grad_lin -= grad_vit[i] * normal[i];
+    grad_lin += H(lin) * normal[i] * grad_v_i_star[i];
+  }
+  auto new_grad_v_i = grad_lin * normal + grad_vit;
+
+  real dx = 1e-4f;
+  for (int d = 0; d < dim; d++) {
+    Vector delta;
+    delta[d] = dx;
+    real f0 = forward(v_i + delta);
+    real f1 = forward(v_i - delta);
+    real grad = (f0 - f1) / (2 * dx);
+    // printf("f0, 1 = %f %f\n", f0, f1);
+    if (fabs(grad - new_grad_v_i[d]) > 1e-3f) {
+      printf("errr %d   %f %f\n", d, grad, new_grad_v_i[d]);
+    } else {
+      // printf("pass %d   %f %f\n", d, grad, new_grad_v_i[d]);
+    }
+  }
 }
 
 template <int dim>
@@ -416,6 +511,12 @@ void MPMGradKernelLauncher(int dim,
                            const real *grad_outgrid,
                            const real *grad_outgrid_star) {
   if (dim == 2) {
+    /*
+    for (int i = 0; i < 10000; i++) {
+      check2d<<<1, 1>>>(i * 100);
+    }
+    exit(-1);
+    */
     constexpr int dim = 2;
     auto current = new TState<dim>(
         res, num_particles, dx, dt, gravity, (real *)inx, (real *)inv,

@@ -180,6 +180,10 @@ struct TState : public TStateBase<dim_> {
     return Vector(g);
   }
 
+  TC_FORCE_INLINE __device__ Vector get_grid_star_velocity(VectorI i) {
+    return Vector(grid_star_node(linearized_offset(i)));
+  }
+
   TC_FORCE_INLINE __device__ Vector get_grad_grid_velocity(VectorI i) {
     auto g = grad_grid_node(i);
     return Vector(g);
