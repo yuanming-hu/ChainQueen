@@ -348,14 +348,12 @@ class TestSimulator2D(unittest.TestCase):
 
   def test_bc_gradients(self):
     batch_size = 1
-    gravity = (0, -1)
+    gravity = (0, 0)
     N = 10
     num_particles = N * N
-    steps = 150
+    steps = 50
     dt = 1e-2
     res = (30, 30)
-
-    lr = 1e-2
 
     goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
 
@@ -366,7 +364,7 @@ class TestSimulator2D(unittest.TestCase):
       gravity=gravity,
       m_p=1,
       V_p=1,
-      E = 10,
+      E = 0,
       nu = 0.3,
       sess=sess)
     
@@ -391,7 +389,6 @@ class TestSimulator2D(unittest.TestCase):
     sim.add_point_visualization(pos = final_position, color = (1, 0, 0), radius = 3)
     sim.add_point_visualization(pos = goal, color = (0, 1, 0), radius = 3)
 
-    trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
     sim.set_initial_state(initial_state = initial_state)
 
     sym = sim.gradients_sym(loss, variables = [velocity_ph])
@@ -407,7 +404,7 @@ class TestSimulator2D(unittest.TestCase):
         loss = loss)
       return memo.loss
       
-    in_v = [0.2, 0.3]
+    in_v = [-0.2, 0.0]
     memo = sim.run(
       initial_state=initial_state,
       num_steps = steps,
@@ -416,6 +413,7 @@ class TestSimulator2D(unittest.TestCase):
       loss = loss)
 
     grad = sim.eval_gradients(sym, memo)
+    sim.visualize(memo)
     print(grad)
     delta = 1e-4
     for i in range(2):
