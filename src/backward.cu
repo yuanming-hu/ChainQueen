@@ -91,11 +91,10 @@ __global__ void grid_backward(TState<dim> state) {
 
       auto bc = state.grid_node_bc(id);
       auto normal = Vector(bc);
+      auto lin = v_i.dot(normal);
 
-      if (normal.length2() > 0) {
+      if (lin < 0) {
         real coeff = bc[dim];
-        auto lin = v_i.dot(normal);
-
         auto vit = v_i - lin * normal;
         auto lit = sqrt(vit.length2() + 1e-7);
         auto vithat = (1.0f / lit) * vit;
@@ -137,13 +136,20 @@ __global__ void grid_backward(TState<dim> state) {
           grad_lin -= grad_vit[i] * normal[i];
           grad_lin += H(lin) * normal[i] * grad_v_i_star[i];
         }
-        grad_v_i = grad_lin * normal + grad_vit;
+        auto new_grad_v_i = grad_lin * normal + grad_vit;
+        for (int i = 0; i < dim; i++) {
+          if (abs(grad_v_i[i]) > abs(new_grad_v_i[i])) {
+            printf("error... %f %f\n", grad_v_i[i], new_grad_v_i[i]);
+          }
+        }
+        grad_v_i = new_grad_v_i;
       }
       /*
       for (int i = 0; i < dim; i++) {
         printf("%f\n", grad_v_i[i]);
       }
        */
+
 
       auto grad_p = inv_m * grad_v_i;
       // (E)
