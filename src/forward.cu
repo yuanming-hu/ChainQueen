@@ -80,12 +80,12 @@ __global__ void grid_forward(TState<dim> state) {
     if (node[dim] > 0) {
       real inv_m = 1.0f / node[dim];
       v_i = inv_m * v_i;
-      for (int i = 0; i < dim; i++) {
-        v_i[i] += state.gravity[i] * state.dt;
-      }
       auto grid_backup = state.grid_star_node(id);
       for (int i = 0; i < dim; i++) {
         grid_backup[i] = v_i[i];
+      }
+      for (int i = 0; i < dim; i++) {
+        v_i[i] += state.gravity[i] * state.dt;
       }
       auto bc = state.grid_node_bc(id);
       auto normal = Vector(bc);

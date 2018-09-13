@@ -351,7 +351,7 @@ class TestSimulator2D(unittest.TestCase):
     gravity = (0, -1)
     N = 10
     num_particles = N * N
-    steps = 40
+    steps = 70
     dt = 1e-2
     res = (30, 30)
 
@@ -364,7 +364,7 @@ class TestSimulator2D(unittest.TestCase):
       gravity=gravity,
       m_p=1,
       V_p=1,
-      E = 0,
+      E = 5,
       nu = 0.3,
       sess=sess)
     
@@ -404,7 +404,7 @@ class TestSimulator2D(unittest.TestCase):
         loss = loss)
       return memo.loss
       
-    in_v = [0.0, -1]
+    in_v = [0.2, -1]
     memo = sim.run(
       initial_state=initial_state,
       num_steps = steps,
