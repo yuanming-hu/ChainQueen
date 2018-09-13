@@ -269,7 +269,7 @@ class TestSimulator2D(unittest.TestCase):
     dx = 0.03
     N = 2
     num_particles = N * N
-    steps = 1
+    steps = 30
     dt = 1e-2
     sim = Simulation(
       grid_res=(30, 30),
@@ -311,8 +311,8 @@ class TestSimulator2D(unittest.TestCase):
       memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: vel, position_ph: pos}, loss=loss)
       return memo.loss[0]
   
-    #sim.visualize(memo)
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
+    sim.visualize(memo)
     grad = sim.eval_gradients(sym, memo)
     delta = 1e-3
     dim = 2
@@ -328,7 +328,7 @@ class TestSimulator2D(unittest.TestCase):
         position_val[0, i, j] += delta
       
         g = (v1 - v2) / (2 * delta)
-        # print(g, grad[0][0, i, j])
+        print(g, grad[0][0, i, j])
         self.assertAlmostEqualFloat32(g, grad[0][0, i, j], clip=1e-2, relative_tol=4e-2)
   
     for i in range(dim):
@@ -342,7 +342,7 @@ class TestSimulator2D(unittest.TestCase):
         velocity_val[0, i, j] += delta
       
         g = (v1 - v2) / (2 * delta)
-        # print(g, grad[1][0, i, j])
+        print(g, grad[1][0, i, j])
         self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=4e-2)
 
 
