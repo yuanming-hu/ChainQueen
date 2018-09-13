@@ -143,7 +143,8 @@ class Simulation:
       
       for young, p in zip(youngs, pos):
         x, y = tuple(map(lambda t: math.ceil(t * scale), p))
-        cv2.circle(img, (y, x), radius=1, color=(0.2 * young / 20.0, 0.2, 0.2), thickness=-1)
+        intensity = (young - 10.0) / 2.0
+        cv2.circle(img, (y, x), radius=1, color=(0.0, intensity, 1.0), thickness=-1)
 
       for dot in points:
         coord, color, radius = dot

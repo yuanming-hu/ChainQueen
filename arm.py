@@ -144,8 +144,8 @@ def main(sess):
   loss_act = tf.reduce_sum(actuation_seq ** 2.0)
   loss_zero = tf.Variable(0.0, trainable=False)
   
-  #loss_accel = tf.reduce_mean(final_acceleration ** 2.0)
-  loss_accel = loss_zero
+  loss_accel = tf.reduce_mean(final_acceleration ** 2.0) / 1000000.0
+  #loss_accel = loss_zero
   #IPython.embed()
   
   
@@ -310,7 +310,7 @@ def main(sess):
   algo = pg.algorithm(uda)
   #algo.extract(pg.nlopt).local_optimizer = pg.nlopt('lbfgs')
   
-  algo.extract(pg.nlopt).maxeval = 20
+  algo.extract(pg.nlopt).maxeval = 40
   algo.set_verbosity(1)
   udp = RobotProblem(False)
   bounds = udp.get_bounds()
@@ -319,7 +319,7 @@ def main(sess):
   prob = pg.problem(udp)
   pop = pg.population(prob, size = 1)   
   pop.set_x(0,np.random.normal(scale=0.1, loc=mean, size=(num_vars,)))
-  pop.problem.c_tol = [1e-4] * prob.get_nc()
+  pop.problem.c_tol = [1e-6] * prob.get_nc()
   #pop.problem.c_tol = [1e-4] * prob.get_nc()
   pop.problem.f_tol_rel = [100000.0]
   #IPython.embed()
@@ -332,7 +332,7 @@ def main(sess):
   prob = pg.problem(udp)
   pop = pg.population(prob, size = 1)   
   pop.set_x(0,old_x)
-  pop.problem.c_tol = [1e-4] * prob.get_nc()
+  pop.problem.c_tol = [1e-6] * prob.get_nc()
   #pop.problem.f_tol = [1e-6] 
   pop.problem.f_tol_rel = [1e-4]  
   pop = algo.evolve(pop)
