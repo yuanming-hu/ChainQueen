@@ -1,4 +1,5 @@
 import unittest
+import time
 from simulation import Simulation
 from time_integration import UpdatedSimulationState
 import tensorflow as tf
@@ -344,6 +345,86 @@ class TestSimulator2D(unittest.TestCase):
         # print(g, grad[1][0, i, j])
         self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=4e-2)
 
+
+  def test_bc_gradients(self):
+    batch_size = 1
+    gravity = (0, -1)
+    N = 10
+    num_particles = N * N
+    steps = 150
+    dt = 1e-2
+    res = (30, 30)
+
+    lr = 1e-2
+
+    goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
+
+    sim = Simulation(
+      dt=dt,
+      num_particles=num_particles,
+      grid_res=res,
+      gravity=gravity,
+      m_p=1,
+      V_p=1,
+      E = 10,
+      nu = 0.3,
+      sess=sess)
+    
+    position = np.zeros(shape=(batch_size, num_particles, 2))
+    velocity_ph = tf.placeholder(shape=(2,), dtype=tf.float32)
+    velocity = velocity_ph[None, :, None] + tf.zeros(
+      shape=[batch_size, 2, num_particles], dtype=tf.float32)
+    for b in range(batch_size):
+      for i in range(N):
+        for j in range(N):
+          position[b, i * N + j] = ((i * 0.5 + 3) / 30,
+                                    (j * 0.5 + 12.75) / 30)
+    position = np.array(position).swapaxes(1, 2)
+
+    sess.run(tf.global_variables_initializer())
+
+    initial_state = sim.get_initial_state(
+      position=position, velocity=velocity)
+
+    final_position = sim.initial_state.center_of_mass()
+    loss = tf.reduce_sum((final_position - goal) ** 2)
+    sim.add_point_visualization(pos = final_position, color = (1, 0, 0), radius = 3)
+    sim.add_point_visualization(pos = goal, color = (0, 1, 0), radius = 3)
+
+    trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+    sim.set_initial_state(initial_state = initial_state)
+
+    sym = sim.gradients_sym(loss, variables = [velocity_ph])
+
+    goal_input = np.array([[0.7, 0.3]], dtype=np.float32)
+
+    def forward(in_v):
+      memo = sim.run(
+        initial_state=initial_state,
+        num_steps = steps,
+        initial_feed_dict = {velocity_ph: in_v},
+        iteration_feed_dict = {goal: goal_input},
+        loss = loss)
+      return memo.loss
+      
+    in_v = [0.2, 0.3]
+    memo = sim.run(
+      initial_state=initial_state,
+      num_steps = steps,
+      initial_feed_dict = {velocity_ph: in_v},
+      iteration_feed_dict = {goal: goal_input},
+      loss = loss)
+
+    grad = sim.eval_gradients(sym, memo)
+    print(grad)
+    delta = 1e-4
+    for i in range(2):
+      in_v[i] += delta
+      f1 = forward(in_v)
+      in_v[i] -= 2 * delta
+      f2 = forward(in_v)
+      in_v[i] += delta
+      print((f1 - f2) / (2 * delta))
 
 if __name__ == '__main__':
   unittest.main()

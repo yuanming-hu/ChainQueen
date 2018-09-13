@@ -9,19 +9,19 @@ import tensorflow as tf
 import numpy as np
 from IPython import embed
 
-batch_size = 1
-gravity = (0, -1)
-N = 10
-num_particles = N * N
-steps = 150
-dt = 1e-2
-goal_range = 0.15
-res = (30, 30)
-bc = get_bounding_box_bc(res)
-
-lr = 1e-2
 
 def main(sess):
+  batch_size = 1
+  gravity = (0, -1)
+  N = 10
+  num_particles = N * N
+  steps = 150
+  dt = 1e-2
+  goal_range = 0.15
+  res = (30, 30)
+  bc = get_bounding_box_bc(res)
+
+  lr = 1e-2
   
   goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
 
@@ -31,6 +31,10 @@ def main(sess):
       grid_res=res,
       bc=bc,
       gravity=gravity,
+      m_p=1,
+      V_p=1,
+      E = 10,
+      nu = 0.3,
       sess=sess)
   position = np.zeros(shape=(batch_size, num_particles, 2))
 
@@ -50,7 +54,7 @@ def main(sess):
       position=position, velocity=velocity)
 
   final_position = sim.initial_state.center_of_mass()
-  loss = tf.reduce_sum(tf.abs(final_position - goal))
+  loss = tf.reduce_sum((final_position - goal) ** 2)
   sim.add_point_visualization(pos = final_position, color = (1, 0, 0), radius = 3)
   sim.add_point_visualization(pos = goal, color = (0, 1, 0), radius = 3)
 
@@ -59,9 +63,8 @@ def main(sess):
 
   sym = sim.gradients_sym(loss, variables = trainables)
 
-  goal_input = np.array(
-          [[0.7, 0.3]],
-    dtype=np.float32)
+  goal_input = np.array([[0.7, 0.3]], dtype=np.float32)
+  
 
   for i in range(100):
     # if i > 10:
@@ -75,8 +78,9 @@ def main(sess):
         iteration_feed_dict = {goal: goal_input},
         loss = loss)
 
-    if i % 10 == 9:
-      sim.visualize(memo)
+
+    #if i % 1 == 0:
+    #  sim.visualize(memo)
     grad = sim.eval_gradients(sym, memo)
     gradient_descent = [
         v.assign(v - lr * g) for v, g in zip(trainables, grad)
