@@ -11,44 +11,44 @@ class TVector {
  public:
   static constexpr int dim = dim_;
 
-  real d[dim];
+  T d[dim];
 
-  TC_FORCE_INLINE __device__ TVector(real *val) {
+  TC_FORCE_INLINE __device__ TVector(T *val) {
     for (int i = 0; i < dim; i++) {
       d[i] = val[i];
     }
   }
 
-  TC_FORCE_INLINE __device__ __host__ real *data() {
+  TC_FORCE_INLINE __device__ __host__ T *data() {
     return &d[0];
   }
 
   template <int dim__ = dim_>
-  TC_FORCE_INLINE __device__ TVector(real x, real y) {
+  TC_FORCE_INLINE __device__ TVector(T x, T y) {
     static_assert(dim__ == 2, "");
     d[0] = x;
     d[1] = y;
   }
 
   template <int dim__ = dim_>
-  TC_FORCE_INLINE __device__ TVector(real x, real y, real z) {
+  TC_FORCE_INLINE __device__ TVector(T x, T y, T z) {
     static_assert(dim__ == 3, "");
     d[0] = x;
     d[1] = y;
     d[2] = z;
   }
 
-  TC_FORCE_INLINE __device__ TVector(real x = 0) {
+  TC_FORCE_INLINE __device__ TVector(T x = 0) {
     for (int i = 0; i < dim; i++) {
       d[i] = x;
     }
   }
 
-  TC_FORCE_INLINE __host__ __device__ real operator[](int i) const {
+  TC_FORCE_INLINE __host__ __device__ T operator[](int i) const {
     return d[i];
   }
 
-  TC_FORCE_INLINE __host__ __device__ real &operator[](int i) {
+  TC_FORCE_INLINE __host__ __device__ T &operator[](int i) {
     return d[i];
   }
 
