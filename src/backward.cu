@@ -85,46 +85,65 @@ __global__ void grid_backward(TState<dim> state) {
       auto m = node[dim];
       real inv_m = 1.0f / m;  // TODO: guard?
 
-      auto grad_v_i = TVector<real, dim>(state.grad_grid_node(id));
-      auto v_i = TVector<real, dim>(state.grid_star_node(id));
+      auto grad_v_i = Vector(state.grad_grid_node(id));
+      auto v_i = Vector(state.grid_star_node(id));
+      auto v_i_star = Vector(state.grid_node(id));
 
       auto bc = state.grid_node_bc(id);
       auto normal = Vector(bc);
 
-      if (normal.length2() > 0 && true) {
+      if (normal.length2() > 0) {
         real coeff = bc[dim];
         auto lin = v_i.dot(normal);
+
         auto vit = v_i - lin * normal;
-        auto lit = sqrt(vit.length2()) + 1e-20;
-        auto vithat = (1 / lit) * vit;
+        auto lit = sqrt(vit.length2() + 1e-7);
+        auto vithat = (1.0f / lit) * vit;
         auto R = lit + coeff * min(lin, 0.0f);
         auto litstar = max(R, 0.0f);
+        auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
 
-        auto v_i_star = Vector(state.grid_node(id));
+        /*
+        auto r = vistar - v_i_star;
+        for (int i = 0; i < dim; i++) {
+          printf("r %f\n", r[i]);
+        }
+        */
+
         auto grad_v_i_star = grad_v_i;
 
         auto grad_litstar = 0.0f;
         for (int i = 0; i < dim; i++) {
           grad_litstar += grad_v_i_star[i] * vithat[i];
         }
-        Vector grad_vithat = grad_litstar * grad_v_i_star;
+        Vector grad_vithat = litstar * grad_v_i_star;
 
         auto grad_lit = grad_litstar * H(R);
         for (int i = 0; i < dim; i++) {
-          grad_vithat += -1 / (litstar * litstar + 1e-30) * grad_vithat[i];
+          grad_lit += -1 / (lit * lit) * vit[i] * grad_vithat[i];
         }
         auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
         auto grad_lin = grad_litstar * H(R) * coeff * H(-lin);
-        // printf("%f\n", lin);
+        /*
+        printf("lit %f\n", lit);
+        for (int i = 0; i < dim; i++) {
+          printf("gradlitstar %f\n", grad_litstar);
+        }
+        printf("gradlin %f\n", grad_lin);
+        */
 
         for (int i = 0; i < dim; i++) {
+          // printf("normal [%d] %f\n", i, normal[i]);
           grad_lin -= grad_vit[i] * normal[i];
+          grad_lin += H(lin) * normal[i] * grad_v_i_star[i];
         }
         grad_v_i = grad_lin * normal + grad_vit;
       }
+      /*
       for (int i = 0; i < dim; i++) {
         printf("%f\n", grad_v_i[i]);
       }
+       */
 
       auto grad_p = inv_m * grad_v_i;
       // (E)

@@ -343,7 +343,7 @@ class Simulation:
     feed_dict.update(memo.iteration_feed_dict)
     last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict=feed_dict)
     for i in reversed(range(1, len(memo.steps))):
-      print('backward step ', i)
+      #print('backward step ', i)
       if any(v is not None for v in step_grad_variables):
         feed_dict = {
             self.initial_state.to_tuple(): memo.steps[i - 1],

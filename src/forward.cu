@@ -93,9 +93,9 @@ __global__ void grid_forward(TState<dim> state) {
       if (normal.length2() > 0) {
         auto lin = v_i.dot(normal);
         auto vit = v_i - lin * normal;
-        auto lit = (sqrt(vit.length2()) + 1e-20);
+        auto lit = sqrt(vit.length2() + 1e-7);
         auto vithat = (1 / lit) * vit;
-        auto litstar = sgn(lit) * max(abs(lit) + coeff * min(lin, 0.0f), 0.0f);
+        auto litstar = max(lit + coeff * min(lin, 0.0f), 0.0f);
         auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
         v_i = vistar;
       }

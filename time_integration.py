@@ -169,7 +169,8 @@ class UpdatedSimulationState(SimulationState):
     num_cells = 1
     for i in range(self.dim):
       num_cells *= sim.grid_res[i]
-    bc = np.concatenate([self.sim.bc_normal, self.sim.bc_parameter], axis=self.dim + 1).reshape(1, num_cells, self.dim + 1)
+    bc_normal = self.sim.bc_normal / (np.linalg.norm(self.sim.bc_normal, axis=self.dim + 1, keepdims=True) + 1e-10)
+    bc = np.concatenate([bc_normal, self.sim.bc_parameter], axis=self.dim + 1).reshape(1, num_cells, self.dim + 1)
     bc = tf.constant(bc, dtype=tf.float32)
 
     self.position, self.velocity, self.deformation_gradient, self.affine, _, _, _ = \
@@ -315,10 +316,8 @@ class UpdatedSimulationState(SimulationState):
     perpendicular_component = self.grid_velocity - self.sim.bc_normal * normal_component_length
     perpendicular_component_length = tf.sqrt(
         tf.reduce_sum(perpendicular_component**2, axis=3, keepdims=True) + 1e-7)
-    normalized_perpendicular_component = perpendicular_component / tf.maximum(
-        perpendicular_component_length, 1e-7)
-    perpendicular_component_length = tf.sign(perpendicular_component_length) * \
-                                     tf.maximum(tf.abs(perpendicular_component_length) +
+    normalized_perpendicular_component = perpendicular_component / perpendicular_component_length
+    perpendicular_component_length = tf.maximum(perpendicular_component_length +
                                                 tf.minimum(normal_component_length, 0) * self.sim.bc_parameter, 0)
     projected_velocity = sim.bc_normal * tf.maximum(
         normal_component_length,

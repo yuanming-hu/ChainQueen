@@ -13,7 +13,7 @@ batch_size = 1
 gravity = (0, -1)
 N = 10
 num_particles = N * N
-steps = 2
+steps = 150
 dt = 1e-2
 goal_range = 0.15
 res = (30, 30)
@@ -34,7 +34,7 @@ def main(sess):
       sess=sess)
   position = np.zeros(shape=(batch_size, num_particles, 2))
 
-  velocity_ph = tf.Variable([-0.2, 0.3], trainable = True)
+  velocity_ph = tf.Variable([0.2, 0.3], trainable = True)
   velocity = velocity_ph[None, :, None] + tf.zeros(
       shape=[batch_size, 2, num_particles], dtype=tf.float32)
   for b in range(batch_size):
@@ -63,7 +63,7 @@ def main(sess):
           [[0.7, 0.3]],
     dtype=np.float32)
 
-  for i in range(2):
+  for i in range(100):
     # if i > 10:
     #     lr = 1e-1
     # elif i > 20:
