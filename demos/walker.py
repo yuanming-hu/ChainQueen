@@ -25,7 +25,7 @@ actuation_strength = 3
 
 config = 'B'
 
-exp = export.Export('walker')
+exp = export.Export('walker_2d')
 
 # Robot B
 num_groups = 7
@@ -98,8 +98,7 @@ def main(sess):
       act = make_matrix2d(zeros, zeros, zeros, act)
       # Convert to Kirchhoff stress
       F = state['deformation_gradient']
-      total_actuation = total_actuation + matmatmul(F, matmatmul(
-        act, transpose(F)))
+      total_actuation = total_actuation + act
     return total_actuation, debug
   
   res = (80, 40)

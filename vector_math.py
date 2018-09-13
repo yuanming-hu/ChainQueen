@@ -33,6 +33,16 @@ def make_matrix2d(m00, m01, m10, m11):
   return tf.stack([row0, row1], axis=1)
 
 
+def make_matrix3d(m00, m01, m02, m10, m11, m12, m20, m21, m22):
+  assert len(m00.shape) == 2  # Batch, particles
+  assert len(m01.shape) == 2  # Batch, particles
+  assert len(m10.shape) == 2  # Batch, particles
+  assert len(m11.shape) == 2  # Batch, particles
+  row0 = tf.stack([m00, m01, m02], axis=1)
+  row1 = tf.stack([m10, m11, m12], axis=1)
+  row2 = tf.stack([m20, m21, m22], axis=1)
+  return tf.stack([row0, row1, row2], axis=1)
+
 def polar_decomposition(m):
   # Reference: http://www.cs.cornell.edu/courses/cs4620/2014fa/lectures/polarnotes.pdf
   assert len(m.shape) == 4  # Batch, row, column, particles
