@@ -13,28 +13,88 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 0.2
+lr = 0.1
 gamma = 0.0
 
-sample_density = 15
+sample_density = 8
 group_num_particles = sample_density**3
-goal_pos = np.array([1.4, 0.4, 0.5])
+goal_pos = np.array([5.0, 2.5, 1.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
-actuation_strength = 3
+actuation_strength = 1.6
 
-config = 'B'
+config = 'C'
 
 exp = export.Export('walker3d')
 
 # Robot B
-num_groups = 7
-group_offsets = [(0, 0, 0), (0.5, 0, 0), (0, 1, 0), (1, 1, 0), (2, 1, 0), (2, 0, 0), (2.5, 0, 0)]
-group_sizes = [(0.5, 1, 1), (0.5, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1), (0.5, 1, 1), (0.5, 1, 1)]
-actuations = [0, 1, 5, 6]
-fixed_groups = []
-head = 3
-gravity = (0, -2, 0)
+if config == 'B':
+  num_groups = 7
+  group_offsets = [(0, 0, 0), (0.5, 0, 0), (0, 1, 0), (1, 1, 0), (2, 1, 0), (2, 0, 0), (2.5, 0, 0)]
+  group_sizes = [(0.5, 1, 1), (0.5, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1), (0.5, 1, 1), (0.5, 1, 1)]
+  actuations = [0, 1, 5, 6]
+  fixed_groups = []
+  head = 3
+  gravity = (0, -2, 0)
+
+
+
+#TODO: N-Ped
+#Robot C
+else:
+
+  num_leg_pairs = 3
+
+  act_x = 0.5
+  act_y = 1.0
+  act_z = 0.5
+
+  x = 5
+  z = 3
+  thick = 0.5
+
+
+  group_offsets = []
+  for x_i in np.linspace(0, x - 2*act_x, num_leg_pairs):
+    
+    group_offsets += [(x_i, 0, 0)]
+    group_offsets += [(x_i + act_x, 0, 0)]
+    group_offsets += [(x_i, 0, act_z)]
+    group_offsets += [(x_i + act_x, 0, act_z)]
+
+    group_offsets += [(x_i + act_x, 0, z - act_z)]
+    group_offsets += [(x_i, 0, z - 2 * act_z)]
+    group_offsets += [(x_i + act_x, 0, z - 2 * act_z)]
+    group_offsets += [(x_i, 0, z - act_z)]
+
+  '''
+  group_offsets += [(x - 2 * act_x, 0, 0)]
+  group_offsets += [(x - act_x, 0, 0)]
+  group_offsets += [(x - 2 * act_x, 0, act_z)]
+  group_offsets += [(x - act_x, 0, act_z)]
+
+  group_offsets += [(x - 2 * act_x, 0, z - act_z)]
+  group_offsets += [(x - act_x, 0, z - 2 * act_z)]
+  group_offsets += [(x - 2 * act_x, 0, z - 2 * act_z)]
+  group_offsets += [(x - act_x, 0, z - act_z)]
+  '''
+
+
+  
+  for i in range(int(z)):
+    for j in range(int(x)):
+      group_offsets += [(j, act_y, i)]
+  num_groups = len(group_offsets)
+      
+  #group_offsets += [(0.0, 1.0, 0.0)]
+  num_particles = group_num_particles * num_groups
+  group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 1.0, 1.0)] * int(x) * int(z)
+  actuations = list(range(16))
+  fixed_groups = []
+  head = int(16 + x / 2 * z + z/2)
+  gravity = (0, -2, 0)
+
+#IPython.embed()
 
 num_particles = group_num_particles * num_groups
 
@@ -144,7 +204,7 @@ def main(sess):
   sess.run(tf.global_variables_initializer())
 
   initial_state = sim.get_initial_state(
-      position=np.array(initial_positions), youngs_modulus=10)
+      position=np.array(initial_positions), youngs_modulus=30)
 
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
@@ -174,7 +234,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=400,
+          num_steps=1600,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
