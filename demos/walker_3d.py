@@ -13,7 +13,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 0.2
+lr = 0.1
 gamma = 0.0
 
 sample_density = 15
@@ -21,7 +21,7 @@ group_num_particles = sample_density**3
 goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
-actuation_strength = 6
+actuation_strength = 1.3
 
 config = 'B'
 
@@ -184,7 +184,9 @@ def main(sess):
 
       for i, g in enumerate(grad):
         print(i, np.mean(np.abs(g)))
-      
+      grad = [np.clip(g, -1, 1) for g in grad]
+
+
       gradient_descent = [
           v.assign(v - lr * g) for v, g in zip(trainables, grad)
       ]
