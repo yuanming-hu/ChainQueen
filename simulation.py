@@ -16,7 +16,7 @@ def get_bounding_box_bc(res, boundary_thickness=3):
   if len(res) == 2:
     bc_parameter = np.zeros(
       shape=(1,) + res + (1,), dtype=np.float32)
-    bc_parameter += 0.0  # Coefficient of friction
+    bc_parameter += 0.5  # Coefficient of friction
     bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np.float32)
     bc_normal[:, :boundary_thickness] = (1, 0)
     bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0)

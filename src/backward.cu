@@ -87,15 +87,19 @@ __global__ void grid_backward(TState<dim> state) {
 
       auto grad_v_i = Vector(grad_node);
       auto v_i = Vector(state.grid_star_node(id));
+      auto v_i_with_g = v_i;
+      for (int i = 0; i < dim; i++) {
+        v_i_with_g[i] += state.gravity[i] * state.dt;
+      }
       auto v_i_star = Vector(state.grid_node(id));
 
       auto bc = state.grid_node_bc(id);
       auto normal = Vector(bc);
-      auto lin = v_i.dot(normal);
+      auto lin = v_i_with_g.dot(normal);
 
-      if (lin < 0) {
+      if (normal.length2() > 0) {
         real coeff = bc[dim];
-        auto vit = v_i - lin * normal;
+        auto vit = v_i_with_g - lin * normal;
         auto lit = sqrt(vit.length2() + 1e-7);
         auto vithat = (1.0f / lit) * vit;
         auto R = lit + coeff * min(lin, 0.0f);
@@ -105,9 +109,8 @@ __global__ void grid_backward(TState<dim> state) {
         auto r = vistar - v_i_star;
         for (int i = 0; i < dim; i++) {
           if (fabs(r[i]) > 1e-6)
-            printf("r %f\n", r[i]);
+            printf("mismatch r %f\n", r[i]);
         }
-
         auto grad_v_i_star = grad_v_i;
 
         auto grad_litstar = 0.0f;

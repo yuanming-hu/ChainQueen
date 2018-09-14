@@ -1,4 +1,17 @@
 # Differentiable MPM for TensorFlow / PyTorch
+## Installing CUDA solver
+
+- Install `taichi` by executing:
+  ```
+  wget https://raw.githubusercontent.com/yuanming-hu/taichi/master/install.py
+  python3 install.py
+  ```
+- Put this repo in `taichi/projects/`
+- Add `export TC_WITH_TF=1` to your `~/.bashrc`
+- ```source ~/.bashrc```
+- ```ti build```
+- Email Yuanming when you run into any problems!
+
 
 ## 88-Line MLS-MPM Reference [[Download](https://github.com/yuanming-hu/taichi_mpm/releases/download/SIGGRAPH2018/mls-mpm88.zip)]
 ``` C++
