@@ -35,7 +35,6 @@ __global__ void P2G(TState<dim> state) {
 
   auto A = state.get_A(part_id);
 
-
   // Fixed corotated
   auto P = PK1(state.mu, state.lambda, F) + F * A;
   state.set_P(part_id, P);
@@ -143,9 +142,8 @@ void advance(TState<dim> &state, TState<dim> &new_state) {
       (state.num_particles + particle_block_dim - 1) / particle_block_dim;
   P2G<dim><<<num_blocks, particle_block_dim>>>(state);
 
-  grid_forward<dim>
-      <<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
-         grid_block_dim>>>(state);
+  grid_forward<dim><<<(state.grid_size() + grid_block_dim - 1) / grid_block_dim,
+                      grid_block_dim>>>(state);
   G2P<dim><<<num_blocks, particle_block_dim>>>(state, new_state);
   auto err = cudaThreadSynchronize();
   if (err) {

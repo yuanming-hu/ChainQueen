@@ -10,7 +10,8 @@ void initialize_mpm_state(int *,
                           void *&,
                           float dx,
                           float dt,
-                          float *initial_positions);
+                          float *initial_positions
+                          );
 
 template <int dim>
 void forward_mpm_state(void *, void *);
@@ -19,3 +20,6 @@ template <int dim>
 void backward_mpm_state(void *, void *);
 
 void set_grad_loss(void *);
+
+template <int dim>
+void set_mpm_bc(void *state_, float *bc);
