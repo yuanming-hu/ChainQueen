@@ -21,7 +21,7 @@ group_num_particles = sample_density**3
 goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
-actuation_strength = 3
+actuation_strength = 6
 
 config = 'B'
 
@@ -30,7 +30,7 @@ exp = export.Export('walker3d')
 # Robot B
 num_groups = 7
 group_offsets = [(0, 0, 0), (0.5, 0, 0), (0, 1, 0), (1, 1, 0), (2, 1, 0), (2, 0, 0), (2.5, 0, 0)]
-group_sizes = [(0.5, 1, 1), (0.5, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1), (0.5, 1, 1), (0.5, 1, 1)]
+group_sizes = [(0.5, 1, 2), (0.5, 1, 2), (1, 1, 2), (1, 1, 2), (1, 1, 2), (0.5, 1, 2), (0.5, 1, 2)]
 actuations = [0, 1, 5, 6]
 fixed_groups = []
 head = 3
@@ -174,7 +174,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=400,
+          num_steps=800,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
@@ -193,7 +193,7 @@ def main(sess):
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
       sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                    show=True, interval=8)
+                    show=True, interval=16)
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
