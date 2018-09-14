@@ -45,7 +45,7 @@ if config == 'B':
 #Robot C
 else:
 
-  num_leg_pairs = 3
+  num_leg_pairs = 2
 
   act_x = 0.5
   act_y = 1.0
@@ -165,7 +165,7 @@ def main(sess):
   bc = get_bounding_box_bc(res)
   
   sim = Simulation(
-      dt=0.005,
+      dt=0.0025,
       num_particles=num_particles,
       grid_res=res,
       dx=1.0 / res[1],
@@ -207,7 +207,7 @@ def main(sess):
   sess.run(tf.global_variables_initializer())
 
   initial_state = sim.get_initial_state(
-      position=np.array(initial_positions), youngs_modulus=30)
+      position=np.array(initial_positions), youngs_modulus=10)
 
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
@@ -237,7 +237,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=800,
+          num_steps=1600,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
