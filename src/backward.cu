@@ -126,34 +126,13 @@ __global__ void grid_backward(TState<dim> state) {
         auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
         auto grad_lin = grad_litstar * H(R) * coeff * H(-lin);
 
-        /*
-        printf("lit %f\n", lit);
         for (int i = 0; i < dim; i++) {
-          printf("gradlitstar %f\n", grad_litstar);
-        }
-        printf("gradlin %f\n", grad_lin);
-        */
-
-        for (int i = 0; i < dim; i++) {
-          // printf("normal [%d] %f\n", i, normal[i]);
           grad_lin -= grad_vit[i] * normal[i];
           grad_lin += H(lin) * normal[i] * grad_v_i_star[i];
         }
         auto new_grad_v_i = grad_lin * normal + grad_vit;
-        /*
-        for (int i = 0; i < dim; i++) {
-          if (abs(grad_v_i[i]) < abs(new_grad_v_i[i])) {
-            printf("error... %f %f\n", grad_v_i[i], new_grad_v_i[i]);
-          }
-        }
-        */
         grad_v_i = new_grad_v_i;
       }
-      /*
-      for (int i = 0; i < dim; i++) {
-        printf("%f\n", grad_v_i[i]);
-      }
-      */
 
       auto grad_p = inv_m * grad_v_i;
       // (E)
