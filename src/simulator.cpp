@@ -162,6 +162,98 @@ auto gpu_mpm3d = []() {
 
 TC_REGISTER_TASK(gpu_mpm3d);
 
+auto gpu_mpm3d_falling_leg = []() {
+  constexpr int dim = 3;
+  // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
+  int n = 20;
+  real dx = 0.2;
+  real sample_density = 0.1;
+  Vector3 corner(2, 5 + 2 * dx, 2);
+  int num_particles = n * n * n;
+  std::vector<real> initial_positions;
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
+        initial_positions.push_back(i * sample_density + corner[0]);
+      }
+    }
+  }
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
+        initial_positions.push_back(j * sample_density + corner[1]);
+      }
+    }
+  }
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+      for (int k = 0; k < n; k++) {
+        initial_positions.push_back(k * sample_density + corner[2]);
+      }
+    }
+  }
+  std::vector<real> initial_F;
+  for (int a = 0; a < 3; a++) {
+    for (int b = 0; b < 3; b++) {
+      for (int i = 0; i < num_particles; i++) {
+        initial_F.push_back(real(a == b) * 1.1);
+      }
+    }
+  }
+  int num_frames = 300;
+  Vector3i res(100, 120, 100);
+  Array3D<Vector4f> bc(res);
+  TC_WARN("Should run without APIC.");
+  for (int i = 0; i < res[0]; i++) {
+    for (int j = 0; j < 20; j++) {
+      for (int k = 0; k < res[2]; k++) {
+        bc[i][j][k] = Vector4(0, 1, 0, 0.5);
+      }
+    }
+  }
+  Vector3 gravity(0, -10, 0);
+  TStateBase<dim> *state;
+  TStateBase<dim> *state2;
+  int substep = 3;
+  real dt = 1.0_f / 60 / substep;
+  initialize_mpm_state<3>(&res[0], num_particles, &gravity[0], (void *&)state,
+                          dx, dt, initial_positions.data());
+  set_mpm_bc<3>(state, &bc[0][0][0][0]);
+  reinterpret_cast<TStateBase<3> *>(state)->set(10, 100, 500, 0.3);
+  initialize_mpm_state<3>(&res[0], num_particles, &gravity[0], (void *&)state2,
+                          dx, dt, initial_positions.data());
+  set_mpm_bc<3>(state2, &bc[0][0][0][0]);
+  reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 500, 0.3);
+
+  for (int i = 0; i < num_frames; i++) {
+    TC_INFO("forward step {}", i);
+    auto x = state->fetch_x();
+    auto fn = fmt::format("{:04d}.bgeo", i);
+    TC_INFO(fn);
+    std::vector<Vector3> parts;
+    for (int p = 0; p < (int)initial_positions.size() / 3; p++) {
+      auto pos = Vector3(x[p], x[p + num_particles], x[p + 2 * num_particles]);
+      parts.push_back(pos);
+    }
+    write_partio(parts, fn);
+
+    {
+      TC_PROFILER("simulate one frame");
+      for (int j = 0; j < substep; j++)
+        forward_mpm_state<dim>(state, state);
+    }
+    //taichi::print_profile_info();
+  }
+  while (true) {
+    TC_PROFILER("backward");
+    for (int j = 0; j < substep; j++)
+      backward_mpm_state<dim>(state2, state);
+    //taichi::print_profile_info();
+  }
+};
+
+TC_REGISTER_TASK(gpu_mpm3d_falling_leg);
+
 auto gpu_mpm3d_falling_cube = []() {
   constexpr int dim = 3;
   // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10

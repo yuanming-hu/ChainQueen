@@ -115,3 +115,13 @@ template void TStateBase<3>::set_initial_F(float *);
 template void TStateBase<2>::set_initial_v(float *);
 template void TStateBase<3>::set_initial_v(float *);
 
+template <int dim>
+void set_mpm_bc(void *state_, float *bc) {
+  auto state = reinterpret_cast<TState<dim> *>(state_);
+  cudaMemcpy(state->grid_bc, bc,
+             sizeof(TVector<real, dim + 1>) * state->num_cells,
+             cudaMemcpyHostToDevice);
+}
+
+template void set_mpm_bc<2>(void *state_, float *bc);
+template void set_mpm_bc<3>(void *state_, float *bc);

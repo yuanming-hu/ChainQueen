@@ -346,6 +346,7 @@ struct TState : public TStateBase<dim_> {
     cudaMalloc(&A_storage, sizeof(real) * dim * dim * num_particles);
     cudaMalloc(&grid_storage, sizeof(real) * (dim + 1) * num_cells);
     cudaMalloc(&grid_star_storage, sizeof(real) * (dim + 1) * num_cells);
+    cudaMalloc(&grid_bc, sizeof(real) * (dim + 1) * num_cells);
 
     cudaMalloc(&grad_x_storage, sizeof(real) * dim * num_particles);
     cudaMalloc(&grad_v_storage, sizeof(real) * dim * num_particles);
@@ -368,6 +369,13 @@ struct TState : public TStateBase<dim_> {
     }
     cudaMemcpy(F_storage, F_initial.data(), sizeof(Matrix) * num_particles,
                cudaMemcpyHostToDevice);
+
+    cudaMemset(x_storage, 0, sizeof(real) * dim * num_particles);
+    cudaMemset(v_storage, 0, sizeof(real) * dim * num_particles);
+    cudaMemset(C_storage, 0, sizeof(real) * dim * dim * num_particles);
+    cudaMemset(P_storage, 0, sizeof(real) * dim * dim * num_particles);
+    cudaMemset(A_storage, 0, sizeof(real) * dim * dim * num_particles);
+    cudaMemset(grid_bc, 0, num_cells * (dim + 1) * sizeof(real));
   }
 
   void clear_gradients() {
@@ -462,3 +470,4 @@ struct TransferCommon {
     return dx * (fx + offset_from_scalar_f<dim>(i));
   }
 };
+
