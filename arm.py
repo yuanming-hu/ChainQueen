@@ -27,7 +27,7 @@ actuation_strength = 8
 use_pygmo = True
 
 
-num_steps = 400
+num_steps = 800
 
 
 # Finger
@@ -120,7 +120,7 @@ def main(sess):
   bc[1][:, :, :5] = 0 # Sticky
 
   sim = Simulation(
-      dt=0.005,
+      dt=0.0025,
       num_particles=num_particles,
       grid_res=res,
       gravity=gravity,
@@ -144,8 +144,8 @@ def main(sess):
   loss_act = tf.reduce_sum(actuation_seq ** 2.0)
   loss_zero = tf.Variable(0.0, trainable=False)
   
-  loss_accel = tf.reduce_mean(final_acceleration ** 2.0) / 1000000.0
-  #loss_accel = loss_zero
+  loss_accel = tf.reduce_mean(final_acceleration ** 2.0) / 10000.0
+  loss_accel = loss_zero
   #IPython.embed()
   
   
@@ -266,6 +266,9 @@ def main(sess):
       loss_accel_val, _, _ = eval_sim(loss_accel, sym_accel, need_grad=False)
       c1, _, memo = eval_sim(loss_velocity, sym_vel, need_grad=False)        
       sim.visualize(memo)
+      print('loss pos', loss_pos_val)
+      print('loss vel', c1)
+      print('loss accel', loss_accel_val)
       #IPython.embed()
       return [loss_act_val.astype(np.float64), loss_pos_val.astype(np.float64) - self.goal_ball, c1.astype(np.float64) - self.goal_ball, loss_accel_val.astype(np.float64) - self.goal_ball]
       
@@ -298,8 +301,8 @@ def main(sess):
       lb += [-1.0 / num_links] * tf.size(acts).eval()
       ub += [1.0 / num_links] * tf.size(acts).eval()
       designs = trainables[1]
-      lb += [9] * tf.size(designs).eval()
-      ub += [11] * tf.size(designs).eval()
+      lb += [3] * tf.size(designs).eval()
+      ub += [40] * tf.size(designs).eval()
   
       return (lb, ub)
       
@@ -318,7 +321,22 @@ def main(sess):
   num_vars = len(mean)
   prob = pg.problem(udp)
   pop = pg.population(prob, size = 1)   
-  pop.set_x(0,np.random.normal(scale=0.1, loc=mean, size=(num_vars,)))
+  
+  #TODO: initialize both parts different here
+  acts = trainables[0]
+  designs = trainables[1]
+  
+  std_act = np.ones(tf.size(acts).eval()) * 0.1
+  std_young = np.ones(tf.size(designs).eval()) * 0.0
+  #IPython.embed()
+  std = np.concatenate([std_act, std_young])
+  #act_part =  np.random.normal(scale=0.1, loc=mean, size=(tf.size(acts).eval(),))
+  #young_part = 10.0 * tf.size(designs).eval()
+  
+  
+  pop.set_x(0,np.random.normal(scale=std, loc=mean, size=(num_vars,)))
+  IPython.embed()
+  
   pop.problem.c_tol = [1e-6] * prob.get_nc()
   #pop.problem.c_tol = [1e-4] * prob.get_nc()
   pop.problem.f_tol_rel = [100000.0]
