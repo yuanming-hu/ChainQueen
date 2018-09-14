@@ -349,7 +349,7 @@ class TestSimulator2D(unittest.TestCase):
   def test_bc_gradients(self):
     batch_size = 1
     gravity = (0, -0)
-    N = 10
+    N = 2
     num_particles = N * N
     steps = 70
     dt = 1e-2
@@ -370,15 +370,25 @@ class TestSimulator2D(unittest.TestCase):
       sess=sess)
     
     position = np.zeros(shape=(batch_size, num_particles, 2))
+
     velocity_ph = tf.placeholder(shape=(2,), dtype=tf.float32)
     velocity = velocity_ph[None, :, None] + tf.zeros(
       shape=[batch_size, 2, num_particles], dtype=tf.float32)
+
+    part_size = N * N // 2
+    velocity_part = tf.placeholder(shape = (2, ), dtype = tf.float32)
+    velocity_p = velocity_part[None, :, None] + tf.zeros(shape = (batch_size, 2, part_size), dtype = tf.float32)
+    velocity_2 = tf.concat([velocity_p,
+                           tf.zeros(shape = (batch_size, 2, num_particles - part_size), dtype = tf.float32)],
+                           axis = 2)
+    velocity = velocity + velocity_2
+
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):
           position[b, i * N + j] = ((i * 0.5 + 5) / 30,
                                     (j * 0.5 + 12.75) / 30)
-          velocity_delta[b, :, i * N + j] = (float(j) / N - 0.5, 0.5 - float(i) / N)
+          # velocity_delta[b, :, i * N + j] = (float(j) / N - 0.5, 0.5 - float(i) / N)
           
     velocity = velocity + velocity_delta
     position = np.array(position).swapaxes(1, 2)
@@ -388,31 +398,32 @@ class TestSimulator2D(unittest.TestCase):
     initial_state = sim.get_initial_state(
       position=position, velocity=velocity)
 
-    final_position = sim.initial_state.center_of_mass(right = N * N // 2)
+    final_position = sim.initial_state.center_of_mass()
     loss = tf.reduce_sum((final_position - goal) ** 2)
     sim.add_point_visualization(pos = final_position, color = (1, 0, 0), radius = 3)
     sim.add_point_visualization(pos = goal, color = (0, 1, 0), radius = 3)
 
     sim.set_initial_state(initial_state = initial_state)
 
-    sym = sim.gradients_sym(loss, variables = [velocity_ph])
+    sym = sim.gradients_sym(loss, variables = [velocity_part])
 
     goal_input = np.array([[0.7, 0.3]], dtype=np.float32)
 
-    def forward(in_v):
+    def forward(in_v, d_v):
       memo = sim.run(
         initial_state=initial_state,
         num_steps = steps,
-        initial_feed_dict = {velocity_ph: in_v},
+        initial_feed_dict = {velocity_ph: in_v, velocity_part : d_v},
         iteration_feed_dict = {goal: goal_input},
         loss = loss)
       return memo.loss
       
     in_v = [0.2, -1]
+    d_v = [0, 0]
     memo = sim.run(
       initial_state=initial_state,
       num_steps = steps,
-      initial_feed_dict = {velocity_ph: in_v},
+      initial_feed_dict = {velocity_ph: in_v, velocity_part : d_v},
       iteration_feed_dict = {goal: goal_input},
       loss = loss)
 
@@ -421,11 +432,11 @@ class TestSimulator2D(unittest.TestCase):
     print(grad)
     delta = 1e-4
     for i in range(2):
-      in_v[i] += delta
-      f1 = forward(in_v)
-      in_v[i] -= 2 * delta
-      f2 = forward(in_v)
-      in_v[i] += delta
+      d_v[i] += delta
+      f1 = forward(in_v, d_v)
+      d_v[i] -= 2 * delta
+      f2 = forward(in_v, d_v)
+      d_v[i] += delta
       print((f1 - f2) / (2 * delta))
 
 if __name__ == '__main__':
