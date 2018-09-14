@@ -124,7 +124,7 @@ __global__ void grid_backward(TState<dim> state) {
           grad_lit += -1 / (lit * lit) * vit[i] * grad_vithat[i];
         }
         auto grad_vit = (1 / lit) * (grad_lit * vit + grad_vithat);
-        auto grad_lin = grad_litstar * H(R) * coeff;
+        auto grad_lin = grad_litstar * H(R) * coeff * H(-lin);
 
         /*
         printf("lit %f\n", lit);
