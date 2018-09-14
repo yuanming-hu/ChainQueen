@@ -13,7 +13,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 2
+lr = 5
 gamma = 0.0
 
 sample_density = 15
@@ -22,7 +22,7 @@ goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
 
-actuation_strength = 2
+actuation_strength = 10
 
 
 config = 'C'
@@ -174,8 +174,7 @@ def main(sess):
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      scale=20,
-      E=15)
+      E=40)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
