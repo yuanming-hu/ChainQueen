@@ -14,12 +14,12 @@ import export
 lr = 2
 gamma = 0.0
 
-sample_density = 30
+sample_density = 20
 group_num_particles = sample_density**2
-goal_pos = np.array([0.5, 0.6])
-goal_range = np.array([0.15, 0.15])
-batch_size = 100
-actuation_strength = 14
+goal_pos = np.array([1.4, 0.4])
+goal_range = np.array([0.0, 0.00])
+batch_size = 1
+actuation_strength = 4
 
 config = 'B'
 
