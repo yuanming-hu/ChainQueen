@@ -13,19 +13,19 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 0.1
+lr = 2
 gamma = 0.0
 
-sample_density = 8
+sample_density = 15
 group_num_particles = sample_density**3
-goal_pos = np.array([5.0, 2.5, 1.5])
+goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
 
-actuation_strength = 1.3
+actuation_strength = 1
 
 
-config = 'C'
+config = 'B'
 
 exp = export.Export('walker3d')
 
@@ -165,7 +165,7 @@ def main(sess):
   bc = get_bounding_box_bc(res)
   
   sim = Simulation(
-      dt=0.0025,
+      dt=0.005,
       num_particles=num_particles,
       grid_res=res,
       dx=1.0 / res[1],
@@ -174,7 +174,8 @@ def main(sess):
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      scale=20)
+      scale=20,
+      E=10)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
@@ -237,7 +238,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=1600,
+          num_steps=400,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
