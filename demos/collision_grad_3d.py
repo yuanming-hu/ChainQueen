@@ -14,7 +14,7 @@ N = 15
 group_particles = N * N * N
 num_balls = 2
 num_particles = group_particles * num_balls
-steps = 100
+steps = 200
 dt = 5e-3
 res = (100, 100, 100)
 bc = get_bounding_box_bc(res)
@@ -63,7 +63,7 @@ def main(sess):
         x, y, z = random.random(), random.random(), random.random()
       position[b, :, i] = ((x * 2 - 1) / 30 + 0.2,
                         (y * 2 - 1) / 30 + 0.4, (z * 2 - 1) / 30 + 0.4)
-      # velocity_delta[b, :, i] = (y - 0.5, -x + 0.5, 0)
+      velocity_delta[b, :, i] = (y - 0.5, -x + 0.5, 0)
 
     if num_balls > 1:
       for i in range(group_particles):
@@ -92,7 +92,7 @@ def main(sess):
   sym = sim.gradients_sym(loss, variables = [velocity_ph])
 
   goal_input = np.array([[0.6, 0.43, 0.4]], dtype=np.float32)
-  v = np.array([[0.5, 0, 0]], dtype=np.float32)
+  v = np.array([[0.5, 0.05, -0.05]], dtype=np.float32)
 
   delta = 1e-4
   for i in range(1000000):

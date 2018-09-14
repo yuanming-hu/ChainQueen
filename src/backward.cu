@@ -271,10 +271,8 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   for (int alpha = 0; alpha < dim; alpha++) {
     for (int beta = 0; beta < dim; beta++) {
       for (int gamma = 0; gamma < dim; gamma++) {
-        for (int eta = 0; eta < dim; eta++) {
-          grad_A[alpha][beta] +=
-              grad_P[gamma][alpha] * F[gamma][alpha] * F[eta][beta];
-        }
+        grad_A[alpha][beta] +=
+            grad_P[gamma][beta] * F[gamma][beta];
       }
     }
   }
