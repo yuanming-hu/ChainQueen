@@ -348,7 +348,7 @@ class TestSimulator2D(unittest.TestCase):
 
   def test_bc_gradients(self):
     batch_size = 1
-    gravity = (0, -1)
+    gravity = (0, -0)
     N = 10
     num_particles = N * N
     steps = 70
@@ -356,6 +356,7 @@ class TestSimulator2D(unittest.TestCase):
     res = (30, 30)
 
     goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
+    velocity_delta = np.zeros([batch_size, 2, num_particles])
 
     sim = Simulation(
       dt=dt,
@@ -377,6 +378,9 @@ class TestSimulator2D(unittest.TestCase):
         for j in range(N):
           position[b, i * N + j] = ((i * 0.5 + 5) / 30,
                                     (j * 0.5 + 12.75) / 30)
+          velocity_delta[b, :, i * N + j] = (float(j) / N - 0.5, 0.5 - float(i) / N)
+          
+    velocity = velocity + velocity_delta
     position = np.array(position).swapaxes(1, 2)
 
     sess.run(tf.global_variables_initializer())
@@ -384,7 +388,7 @@ class TestSimulator2D(unittest.TestCase):
     initial_state = sim.get_initial_state(
       position=position, velocity=velocity)
 
-    final_position = sim.initial_state.center_of_mass()
+    final_position = sim.initial_state.center_of_mass(right = N * N // 2)
     loss = tf.reduce_sum((final_position - goal) ** 2)
     sim.add_point_visualization(pos = final_position, color = (1, 0, 0), radius = 3)
     sim.add_point_visualization(pos = goal, color = (0, 1, 0), radius = 3)

@@ -13,7 +13,7 @@ gravity = (0, 0)
 N = 10
 group_particles = N * N * 2
 num_particles = group_particles * 2
-steps = 1000
+steps = 200
 dt = 5e-3
 goal_range = 0.15
 res = (100, 100)
@@ -23,7 +23,7 @@ lr = 5e-1
 
 def main(sess):
 
-  random.seed(123)
+  random.seed(100)
 
   goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
 
@@ -38,6 +38,7 @@ def main(sess):
     V_p=1,
     sess=sess)
   position = np.zeros(shape=(batch_size, 2, num_particles))
+  velocity_delta = np.zeros(shape=(batch_size, 2, num_particles))
 
   # velocity_ph = tf.Variable([0.4, 0.05], trainable = True)
   velocity_ph = tf.placeholder(dtype = tf.float32, shape = [batch_size, 2], name = 'velocity')
@@ -53,6 +54,7 @@ def main(sess):
         x, y = random.random(), random.random()
       position[b, :, i] = ((x * 2 + 3) / 30,
                            (y * 2 + 12.75) / 30)
+      velocity_delta[b, :, i] = (y - 0.5, -x + 0.5)
 
     for i in range(group_particles):
       x, y = 0, 0
@@ -60,6 +62,9 @@ def main(sess):
         x, y = random.random(), random.random()
       position[b, :, i + group_particles] = ((x * 2 + 10) / 30,
                                              (y * 2 + 12.75) / 30)
+
+
+  velocity += velocity_delta
 
   sess.run(tf.global_variables_initializer())
 
