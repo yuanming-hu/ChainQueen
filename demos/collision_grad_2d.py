@@ -13,7 +13,7 @@ gravity = (0, 0)
 N = 10
 group_particles = N * N * 2
 num_particles = group_particles * 2
-steps = 100
+steps = 1000
 dt = 5e-3
 goal_range = 0.15
 res = (100, 100)
@@ -87,7 +87,7 @@ def main(sess):
       initial_feed_dict = {velocity_ph: v},
       iteration_feed_dict = {goal: goal_input},
       loss = loss)
-    sim.visualize(memo)
+    sim.visualize(memo, interval=10)
     grad = sim.eval_gradients(sym, memo)
     print('grad', grad)
     for d in range(2):
