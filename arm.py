@@ -97,7 +97,7 @@ def main(sess):
     controller_inputs = controller_inputs[:, :, None]
     assert controller_inputs.shape == (batch_size, 8 * num_groups, 1)
 
-    actuation = tf.expand_dims(actuation_seq[0, state.step_count // (num_steps // num_acts), :], 0)
+    actuation = tf.expand_dims(actuation_seq[0, (state.step_count - 1) // (num_steps // num_acts), :], 0)
     debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation, 'acceleration': state.acceleration, 'velocity' : state.velocity}
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
