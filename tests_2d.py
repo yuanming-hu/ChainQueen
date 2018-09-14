@@ -269,7 +269,7 @@ class TestSimulator2D(unittest.TestCase):
     dx = 0.03
     N = 2
     num_particles = N * N
-    steps = 1
+    steps = 30
     dt = 1e-2
     sim = Simulation(
       grid_res=(30, 30),
@@ -311,8 +311,8 @@ class TestSimulator2D(unittest.TestCase):
       memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: vel, position_ph: pos}, loss=loss)
       return memo.loss[0]
   
-    #sim.visualize(memo)
     memo = sim.run(steps, input_state, initial_feed_dict={velocity_ph: velocity_val, position_ph: position_val})
+    sim.visualize(memo)
     grad = sim.eval_gradients(sym, memo)
     delta = 1e-3
     dim = 2
@@ -328,7 +328,7 @@ class TestSimulator2D(unittest.TestCase):
         position_val[0, i, j] += delta
       
         g = (v1 - v2) / (2 * delta)
-        # print(g, grad[0][0, i, j])
+        print(g, grad[0][0, i, j])
         self.assertAlmostEqualFloat32(g, grad[0][0, i, j], clip=1e-2, relative_tol=4e-2)
   
     for i in range(dim):
@@ -342,20 +342,21 @@ class TestSimulator2D(unittest.TestCase):
         velocity_val[0, i, j] += delta
       
         g = (v1 - v2) / (2 * delta)
-        # print(g, grad[1][0, i, j])
+        print(g, grad[1][0, i, j])
         self.assertAlmostEqualFloat32(g, grad[1][0, i, j], clip=1e-2, relative_tol=4e-2)
 
 
   def test_bc_gradients(self):
     batch_size = 1
-    gravity = (0, -1)
-    N = 10
+    gravity = (0, -0)
+    N = 2
     num_particles = N * N
     steps = 70
     dt = 1e-2
     res = (30, 30)
 
     goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
+    velocity_delta = np.zeros([batch_size, 2, num_particles])
 
     sim = Simulation(
       dt=dt,
@@ -369,14 +370,27 @@ class TestSimulator2D(unittest.TestCase):
       sess=sess)
     
     position = np.zeros(shape=(batch_size, num_particles, 2))
+
     velocity_ph = tf.placeholder(shape=(2,), dtype=tf.float32)
     velocity = velocity_ph[None, :, None] + tf.zeros(
       shape=[batch_size, 2, num_particles], dtype=tf.float32)
+
+    part_size = N * N // 2
+    velocity_part = tf.placeholder(shape = (2, ), dtype = tf.float32)
+    velocity_p = velocity_part[None, :, None] + tf.zeros(shape = (batch_size, 2, part_size), dtype = tf.float32)
+    velocity_2 = tf.concat([velocity_p,
+                           tf.zeros(shape = (batch_size, 2, num_particles - part_size), dtype = tf.float32)],
+                           axis = 2)
+    velocity = velocity + velocity_2
+
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):
           position[b, i * N + j] = ((i * 0.5 + 5) / 30,
                                     (j * 0.5 + 12.75) / 30)
+          # velocity_delta[b, :, i * N + j] = (float(j) / N - 0.5, 0.5 - float(i) / N)
+          
+    velocity = velocity + velocity_delta
     position = np.array(position).swapaxes(1, 2)
 
     sess.run(tf.global_variables_initializer())
@@ -391,24 +405,25 @@ class TestSimulator2D(unittest.TestCase):
 
     sim.set_initial_state(initial_state = initial_state)
 
-    sym = sim.gradients_sym(loss, variables = [velocity_ph])
+    sym = sim.gradients_sym(loss, variables = [velocity_part])
 
     goal_input = np.array([[0.7, 0.3]], dtype=np.float32)
 
-    def forward(in_v):
+    def forward(in_v, d_v):
       memo = sim.run(
         initial_state=initial_state,
         num_steps = steps,
-        initial_feed_dict = {velocity_ph: in_v},
+        initial_feed_dict = {velocity_ph: in_v, velocity_part : d_v},
         iteration_feed_dict = {goal: goal_input},
         loss = loss)
       return memo.loss
       
     in_v = [0.2, -1]
+    d_v = [0, 0]
     memo = sim.run(
       initial_state=initial_state,
       num_steps = steps,
-      initial_feed_dict = {velocity_ph: in_v},
+      initial_feed_dict = {velocity_ph: in_v, velocity_part : d_v},
       iteration_feed_dict = {goal: goal_input},
       loss = loss)
 
@@ -417,11 +432,11 @@ class TestSimulator2D(unittest.TestCase):
     print(grad)
     delta = 1e-4
     for i in range(2):
-      in_v[i] += delta
-      f1 = forward(in_v)
-      in_v[i] -= 2 * delta
-      f2 = forward(in_v)
-      in_v[i] += delta
+      d_v[i] += delta
+      f1 = forward(in_v, d_v)
+      d_v[i] -= 2 * delta
+      f2 = forward(in_v, d_v)
+      d_v[i] += delta
       print((f1 - f2) / (2 * delta))
 
 if __name__ == '__main__':

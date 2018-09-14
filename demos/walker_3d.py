@@ -21,7 +21,9 @@ group_num_particles = sample_density**3
 goal_pos = np.array([5.0, 2.5, 1.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
-actuation_strength = 1.6
+
+actuation_strength = 1.3
+
 
 config = 'C'
 
@@ -95,6 +97,7 @@ else:
   gravity = (0, -2, 0)
 
 #IPython.embed()
+
 
 num_particles = group_num_particles * num_groups
 
@@ -234,7 +237,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=1600,
+          num_steps=800,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
@@ -244,7 +247,9 @@ def main(sess):
 
       for i, g in enumerate(grad):
         print(i, np.mean(np.abs(g)))
-      
+      grad = [np.clip(g, -1, 1) for g in grad]
+
+
       gradient_descent = [
           v.assign(v - lr * g) for v, g in zip(trainables, grad)
       ]
@@ -253,7 +258,7 @@ def main(sess):
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
       sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                    show=True, interval=8)
+                    show=True, interval=16)
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     

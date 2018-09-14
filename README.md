@@ -8,6 +8,7 @@
   ```
 - Put this repo in `taichi/projects/`
 - Add `export TC_WITH_TF=1` to your `~/.bashrc`
+- Add `export CUDA_ARCH=61` to your `~/.bashrc`
 - ```source ~/.bashrc```
 - ```ti build```
 - Email Yuanming when you run into any problems!
