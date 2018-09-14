@@ -165,6 +165,7 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
   auto F = state.get_F(part_id);
   auto C = state.get_C(part_id);
   auto P = state.get_P(part_id);
+  auto A = state.get_A(part_id);
 
   auto grad_F_next = next_state.get_grad_F(part_id);
   auto grad_C_next = next_state.get_grad_C(part_id);
@@ -262,7 +263,8 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
       for (int gamma = 0; gamma < dim; gamma++) {
         grad_F[alpha][beta] +=
             grad_F_next[gamma][beta] *
-            (real(gamma == alpha) + state.dt * C_next[gamma][alpha]);
+            (real(gamma == alpha) + state.dt * C_next[gamma][alpha]) +
+            grad_P[alpha][gamma] * A[beta][gamma];
       }
     }
   }
