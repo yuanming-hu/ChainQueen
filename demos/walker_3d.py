@@ -22,10 +22,10 @@ goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
 
-actuation_strength = 1
+actuation_strength = 2
 
 
-config = 'B'
+config = 'C'
 
 exp = export.Export('walker3d')
 
@@ -51,7 +51,7 @@ else:
   act_y = 1.0
   act_z = 0.5
 
-  x = 5
+  x = 3
   z = 3
   thick = 0.5
 
@@ -175,7 +175,7 @@ def main(sess):
       bc=bc,
       sess=sess,
       scale=20,
-      E=10)
+      E=15)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']

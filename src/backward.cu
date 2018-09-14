@@ -97,8 +97,12 @@ __global__ void grid_backward(TState<dim> state) {
       auto normal = Vector(bc);
       auto lin = v_i_with_g.dot(normal);
 
-      if (normal.length2() > 0) {
-        real coeff = bc[dim];
+      real coeff = bc[dim];
+
+      if (coeff == -1) {
+        // sticky
+        grad_v_i = Vector(0.0f);
+      } else if (normal.length2() > 0) {
         auto vit = v_i_with_g - lin * normal;
         auto lit = sqrt(vit.length2() + 1e-7);
         auto vithat = (1.0f / lit) * vit;
@@ -302,7 +306,8 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
     auto vi = state.get_grid_velocity(grid_coord);
     auto vi_projected = state.get_grid_velocity(grid_coord);
     if (fabs(vi[0] - vi_projected[0]) > 1e-5f) {
-      printf("vi  %f %f, vip %f %f\n", vi[0], vi[1], vi_projected[0], vi_projected[1]);
+      printf("vi  %f %f, vip %f %f\n", vi[0], vi[1], vi_projected[0],
+             vi_projected[1]);
     }
     auto grad_mi = state.grad_grid_node(grid_coord)[dim];
 
@@ -329,11 +334,12 @@ __global__ void G2P_backward(TState<dim> state, TState<dim> next_state) {
         // (J), term 3
         auto tmp = -grad_C_next[beta][alpha] * N * vi[beta];
         for (int gamma = 0; gamma < dim; gamma++) {
-          tmp += grad_C_next[beta][gamma] * grad_N[alpha] * vi[beta] * dpos[gamma];
+          tmp +=
+              grad_C_next[beta][gamma] * grad_N[alpha] * vi[beta] * dpos[gamma];
         }
         grad_x[alpha] += state.invD * tmp;
-        //auto tmp = grad_N[alpha] * vi[beta] * dpos[alpha] - N * vi[beta];
-        //grad_x[alpha] += state.invD * grad_C_next[beta][alpha] * tmp;
+        // auto tmp = grad_N[alpha] * vi[beta] * dpos[alpha] - N * vi[beta];
+        // grad_x[alpha] += state.invD * grad_C_next[beta][alpha] * tmp;
         // (J), term 4
         grad_x[alpha] +=
             grad_p[beta] *

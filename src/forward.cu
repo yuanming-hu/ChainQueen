@@ -89,7 +89,9 @@ __global__ void grid_forward(TState<dim> state) {
       auto bc = state.grid_node_bc(id);
       auto normal = Vector(bc);
       real coeff = bc[dim];
-      if (normal.length2() > 0) {
+      if (coeff == -1) {
+        v_i = Vector(0.0f);
+      } else if (normal.length2() > 0) {
         auto lin = v_i.dot(normal);
         auto vit = v_i - lin * normal;
         auto lit = sqrt(vit.length2() + 1e-7);
@@ -98,6 +100,7 @@ __global__ void grid_forward(TState<dim> state) {
         auto vistar = litstar * vithat + max(lin, 0.0f) * normal;
         v_i = vistar;
       }
+
       for (int i = 0; i < dim; i++) {
         node[i] = v_i[i];
       }

@@ -194,8 +194,9 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                    show=True, interval=4)
+      if i % 5 == 0:
+        sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
+                      show=True, interval=4)
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
