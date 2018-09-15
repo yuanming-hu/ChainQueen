@@ -23,3 +23,6 @@ void set_grad_loss(void *);
 
 template <int dim>
 void set_mpm_bc(void *state_, float *bc);
+
+template <int dim>
+void set_mpm_actuation(void *state_, float *act);
