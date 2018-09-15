@@ -183,7 +183,7 @@ auto gpu_mpm3d_falling_leg = []() {
     }
   };
 
-  Vector chamber_size(2, 14, 2);
+  Vector chamber_size(2, 14.5, 2);
   add_cube(corner + chamber_size * Vector(1, 0, 0), chamber_size);
   add_cube(corner + chamber_size * Vector(0, 0, 1), chamber_size);
   add_cube(corner + chamber_size * Vector(1, 0, 1), chamber_size);
@@ -200,7 +200,7 @@ auto gpu_mpm3d_falling_leg = []() {
         particle_positions[i].z;
   }
 
-  int num_frames = 1500;
+  int num_frames = 300;
   Vector3i res(100, 120, 100);
   Array3D<Vector4f> bc(res);
   TC_WARN("Should run without APIC.");
@@ -211,11 +211,11 @@ auto gpu_mpm3d_falling_leg = []() {
       }
     }
   }
-  Vector3 gravity(0, -10, 0);
+  Vector3 gravity(0, -100, 0);
   TStateBase<dim> *state;
   TStateBase<dim> *state2;
   int substep = 30;
-  real dt = 1.0_f / 60 / substep;
+  real dt = 1.0_f / 120 / substep;
   initialize_mpm_state<3>(&res[0], num_particles, &gravity[0], (void *&)state,
                           dx, dt, initial_positions.data());
   set_mpm_bc<3>(state, &bc[0][0][0][0]);
