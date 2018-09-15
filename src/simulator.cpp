@@ -169,7 +169,7 @@ auto gpu_mpm3d_falling_leg = []() {
   // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
   int n = 20;
   real dx = 0.4;
-  real sample_density = 0.2;
+  real sample_density = 0.1;
   Vector3 corner(20, 15 * (!actuation) + 20 * dx, 20);
 
   using Vector = Vector3;
@@ -213,13 +213,13 @@ auto gpu_mpm3d_falling_leg = []() {
         particle_positions[i].z;
   }
 
-  int num_frames = 300;
+  int num_frames = 200;
   Vector3i res(200, 120, 200);
   Array3D<Vector4f> bc(res);
   TC_WARN("Should run without APIC.");
   TC_WARN("Should use damping 2e-4 on grid.");
   for (int i = 0; i < res[0]; i++) {
-    for (int j = 0; j < 20; j++) {
+    for (int j = 0; j < 22; j++) {
       for (int k = 0; k < res[2]; k++) {
         bc[i][j][k] = Vector4(0, 1, 0, -1);
       }
@@ -256,7 +256,7 @@ auto gpu_mpm3d_falling_leg = []() {
 
     if (actuation) {
       for (int j = 0; j < actuator_indices.size(); j++) {
-        real alpha = 100000;
+        real alpha = 500000;
         A[j + 0 * num_particles] = alpha * i;
         A[j + 4 * num_particles] = alpha * i;
         A[j + 8 * num_particles] = alpha * i;
