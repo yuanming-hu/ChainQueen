@@ -27,13 +27,13 @@ actuation_strength = 2.4
 
 
 config = 'C'
-num_leg_pairs = 2
+num_leg_pairs = 1
 
 act_x = 0.5
 act_y = 0.7
 act_z = 0.5
 
-x = 5
+x = 3
 z = 3
 thick = 0.5
 
@@ -62,7 +62,7 @@ num_particles = group_num_particles * num_groups
 group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 1.0, 1.0)] * int(x) * int(z)
 actuations = list(range(8 * num_leg_pairs))
 fixed_groups = []
-head = int(16 + x / 2 * z + z/2)
+head = int(8 * num_leg_pairs + x / 2 * z + z/2)
 gravity = (0, -2, 0)
 
 #IPython.embed()
