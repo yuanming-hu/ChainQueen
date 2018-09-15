@@ -30,12 +30,11 @@ config = 'C'
 num_leg_pairs = 1
 
 act_x = 0.5
-act_y = 0.7
+act_y = 1
 act_z = 0.5
 
-x = 3
-z = 3
-thick = 0.5
+x = 1
+z = 1
 
 
 group_offsets = []
@@ -46,10 +45,10 @@ for x_i in np.linspace(0, x - 2 * act_x, num_leg_pairs):
   group_offsets += [(x_i, 0, act_z)]
   group_offsets += [(x_i + act_x, 0, act_z)]
 
-  group_offsets += [(x_i + act_x, 0, z - act_z)]
-  group_offsets += [(x_i, 0, z - 2 * act_z)]
-  group_offsets += [(x_i + act_x, 0, z - 2 * act_z)]
-  group_offsets += [(x_i, 0, z - act_z)]
+  group_offsets += [(x_i + act_x, act_y * 2, z - act_z)]
+  group_offsets += [(x_i, act_y * 2, z - 2 * act_z)]
+  group_offsets += [(x_i + act_x, act_y * 2, z - 2 * act_z)]
+  group_offsets += [(x_i, act_y * 2, z - act_z)]
 
 
 for i in range(int(z)):
@@ -57,15 +56,12 @@ for i in range(int(z)):
     group_offsets += [(j, act_y, i)]
 num_groups = len(group_offsets)
 
-#group_offsets += [(0.0, 1.0, 0.0)]
 num_particles = group_num_particles * num_groups
-group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 1.0, 1.0)] * int(x) * int(z)
+group_sizes = [(act_x, act_y, act_z)] * 8 * num_leg_pairs
+group_sizes += [(1, 1, 1)]
 actuations = list(range(8 * num_leg_pairs))
-fixed_groups = []
-head = int(8 * num_leg_pairs + x / 2 * z + z/2)
 gravity = (0, -2, 0)
-
-#IPython.embed()
+head = len(group_offsets) - 1
 
 
 num_particles = group_num_particles * num_groups
