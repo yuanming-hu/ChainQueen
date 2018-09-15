@@ -13,7 +13,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 2
+lr = 1
 gamma = 0.0
 
 sample_density = 15
@@ -48,7 +48,7 @@ else:
   num_leg_pairs = 2
 
   act_x = 0.5
-  act_y = 1.0
+  act_y = 0.7
   act_z = 0.5
 
   x = 3
@@ -165,7 +165,7 @@ def main(sess):
   bc = get_bounding_box_bc(res)
   
   sim = Simulation(
-      dt=0.005,
+      dt=0.007,
       num_particles=num_particles,
       grid_res=res,
       dx=1.0 / res[1],
@@ -174,7 +174,6 @@ def main(sess):
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      scale=20,
       E=15)
   print("Building time: {:.4f}s".format(time.time() - t))
 
@@ -258,8 +257,8 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                    show=True, interval=16)
+      sim.visualize(memo, batch=random.randrange(batch_size), export=None,
+                    show=True, interval=2)
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     

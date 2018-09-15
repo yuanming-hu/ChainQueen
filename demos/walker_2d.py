@@ -14,7 +14,7 @@ import export
 import IPython
 
 lr = 0.1
-gamma = 0.0
+gamma = 1.0
 
 sample_density = 20
 group_num_particles = sample_density**2
@@ -176,7 +176,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=600,
+          num_steps=300,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
@@ -194,9 +194,9 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      if i % 5 == 0:
+      if it % 5 == 0:
         sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                      show=True, interval=4)
+                        show=True, interval=10)
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
