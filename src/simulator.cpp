@@ -204,6 +204,7 @@ auto gpu_mpm3d_falling_leg = []() {
   Vector3i res(200, 120, 200);
   Array3D<Vector4f> bc(res);
   TC_WARN("Should run without APIC.");
+  TC_WARN("Should use damping 2e-4 on grid.");
   for (int i = 0; i < res[0]; i++) {
     for (int j = 0; j < 20; j++) {
       for (int k = 0; k < res[2]; k++) {
