@@ -28,7 +28,11 @@ void saxpy_cuda(int N, real alpha, real *x, real *y) {
   cudaFree(d_y);
 }
 
-__global__ void test_svd(int n, Matrix3 *A, Matrix3 *U, Matrix3 *sig, Matrix3 *V) {
+__global__ void test_svd(int n,
+                         Matrix3 *A,
+                         Matrix3 *U,
+                         Matrix3 *sig,
+                         Matrix3 *V) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   if (id < n) {
     svd(A[id], U[id], sig[id], V[id]);
@@ -125,3 +129,14 @@ void set_mpm_bc(void *state_, float *bc) {
 
 template void set_mpm_bc<2>(void *state_, float *bc);
 template void set_mpm_bc<3>(void *state_, float *bc);
+
+template <int dim>
+void set_mpm_actuation(void *state_, float *act) {
+  auto state = reinterpret_cast<TState<dim> *>(state_);
+  cudaMemcpy(state->A_storage, act,
+             sizeof(real) * dim * dim * state->num_particles,
+             cudaMemcpyHostToDevice);
+}
+
+template void set_mpm_actuation<2>(void *state_, float *);
+template void set_mpm_actuation<3>(void *state_, float *);

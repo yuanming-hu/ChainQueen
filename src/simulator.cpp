@@ -163,23 +163,36 @@ auto gpu_mpm3d = []() {
 TC_REGISTER_TASK(gpu_mpm3d);
 
 auto gpu_mpm3d_falling_leg = []() {
+  // Actuation or falling test?
+  bool actuation = true;
   constexpr int dim = 3;
   // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
   int n = 20;
   real dx = 0.4;
   real sample_density = 0.2;
-  Vector3 corner(20, 15 + 20 * dx, 20);
+  Vector3 corner(20, 15 * (!actuation) + 20 * dx, 20);
 
   using Vector = Vector3;
 
   std::vector<Vector3> particle_positions;
 
+  std::vector<int> actuator_indices;
+
   auto add_cube = [&](Vector corner, Vector size) {
+    actuator_indices.clear();
     real d = sample_density;
     auto sizeI = (size / sample_density).template cast<int>();
+    int padding = 3;
+    int counter = 0;
     for (auto i : TRegion<3>(Vector3i(0), sizeI)) {
+      counter++;
       particle_positions.push_back(Vector(
           corner[0] + d * i.i, corner[1] + d * i.j, corner[2] + d * i.k));
+      if (padding <= i.i && padding <= i.j && padding <= i.k &&
+          i.i + padding < sizeI[0] && i.j + padding < sizeI[1] &&
+          i.k + padding < sizeI[2]) {
+        actuator_indices.push_back(counter);
+      }
     }
   };
 
@@ -227,6 +240,8 @@ auto gpu_mpm3d_falling_leg = []() {
   set_mpm_bc<3>(state2, &bc[0][0][0][0]);
   reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 50000000, 0.3);
 
+  std::vector<real> A(num_particles * 9);
+
   for (int i = 0; i < num_frames; i++) {
     TC_INFO("forward step {}", i);
     auto x = state->fetch_x();
@@ -238,6 +253,16 @@ auto gpu_mpm3d_falling_leg = []() {
       parts.push_back(pos);
     }
     write_partio(parts, fn);
+
+    if (actuation) {
+      for (int j = 0; j < actuator_indices.size(); j++) {
+        real alpha = 100000;
+        A[j + 0 * num_particles] = alpha * i;
+        A[j + 4 * num_particles] = alpha * i;
+        A[j + 8 * num_particles] = alpha * i;
+      }
+      set_mpm_actuation<dim>(state, A.data());
+    }
 
     {
       TC_PROFILER("simulate one frame");
