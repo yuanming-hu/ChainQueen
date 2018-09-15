@@ -3,7 +3,7 @@ import tensorflow as tf
 from vector_math import *
 
 
-use_cuda = True
+use_cuda = False
 use_apic = True
 
 try:

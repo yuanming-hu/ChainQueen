@@ -11,13 +11,14 @@ import copy
 
 import pygmo as pg
 import pygmo_plugins_nonfree as ppnf
+import export 
 
 
 def flatten_vectors(vectors):
   return tf.concat([tf.squeeze(ly.flatten(vector)) for vector in vectors], 0)
 
 lr = 1.0
-
+exp = export.Export('arm3d')
 
 goal_range = 0.0
 batch_size = 1
@@ -33,21 +34,23 @@ num_steps = 800
 # Finger
 num_links = 2
 num_acts = int(num_steps // num_links) #TBH this is just to keep the number of variables tame
-sample_density = int(20 // (np.sqrt(num_links)))
-group_num_particles = sample_density**2
+sample_density = int(12 // (np.sqrt(num_links)))
+group_num_particles = sample_density**3
 group_sizes = []
 group_offsets = []
 actuations = []
-group_size = [(0.5, 2.0 / num_links), (0.5, 2.0 / num_links), (1, 1.0 / num_links)]
+group_size = [(0.5, 2.0 / num_links, 0.5), (0.5, 2.0 / num_links, 0.5), (0.5, 2.0 / num_links, 0.5), (0.5, 2.0 / num_links, 0.5), (1, 1.0 / num_links, 1)]
 for i in range(num_links):
-  group_offsets += [(1, (group_size[0][1] + group_size[2][1])*i ), (1.5, (group_size[1][1] + group_size[2][1])*i), (1, (group_size[0][1] + group_size[2][1])*i + group_size[0][1] )]
+  group_offsets += [(1, (group_size[0][1] + group_size[4][1])*i, 1 ), (1.5, (group_size[1][1] + group_size[4][1])*i, 1), 
+                    (1, (group_size[2][1] + group_size[4][1])*i, 1.5 ), (1.5, (group_size[3][1] + group_size[4][1])*i, 1.5), 
+                    (1, (group_size[0][1] + group_size[4][1])*i + group_size[0][1], 1 )]
   group_sizes += copy.deepcopy(group_size)
-  actuations += [0  + 3*i, 1 + 3*i]
+  actuations += [0  + 5*i, 1 + 5*i, 2 + 5*i, 3 + 5*i]
 num_groups = len(group_sizes)
 
 
 head = num_groups - 1
-gravity = (0, 0)
+gravity = (0, 2, 0)
 
 
 num_particles = group_num_particles * num_groups
@@ -66,8 +69,7 @@ def particle_mask_from_group(g):
 
 actuation_seq = tf.Variable(1.0 * tf.random_normal(shape=(1, num_acts, num_actuators), dtype=np.float32), trainable=True)
 
-def step_callback(dec_vec):
-  pass
+
 
 
 
@@ -75,8 +77,9 @@ def step_callback(dec_vec):
 def main(sess):
   t = time.time()
 
-  goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
+  goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 3], name='goal')
 
+  '''
   # Define your controller here
   def controller(state):    
     controller_inputs = []
@@ -93,9 +96,9 @@ def main(sess):
       controller_inputs.append(accel)
     # Batch, dim
     controller_inputs = tf.concat(controller_inputs, axis=1)
-    assert controller_inputs.shape == (batch_size, 8 * num_groups), controller_inputs.shape
+    assert controller_inputs.shape == (batch_size, 12 * num_groups), controller_inputs.shape
     controller_inputs = controller_inputs[:, :, None]
-    assert controller_inputs.shape == (batch_size, 8 * num_groups, 1)
+    assert controller_inputs.shape == (batch_size, 12 * num_groups, 1)
 
     actuation = tf.expand_dims(actuation_seq[0, (state.step_count - 1) // (num_steps // num_acts), :], 0)
     debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation, 'acceleration': state.acceleration, 'velocity' : state.velocity}
@@ -111,8 +114,43 @@ def main(sess):
       # Convert to Kirchhoff stress
       total_actuation = total_actuation + act
     return total_actuation, debug
+  '''
+    
+  def controller(state):
+    controller_inputs = []
+    for i in range(num_groups):
+      mask = particle_mask(i * group_num_particles,
+                           (i + 1) * group_num_particles)[:, None, :] * (
+                               1.0 / group_num_particles)
+      pos = tf.reduce_sum(mask * state.position, axis=2, keepdims=False)
+      vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
+      accel = tf.reduce_sum(mask * state.acceleration, axis=2, keepdims=False)
+      controller_inputs.append(pos)
+      controller_inputs.append(vel)
+      controller_inputs.append(goal)
+      controller_inputs.append(accel)
+    # Batch, dim
+    controller_inputs = tf.concat(controller_inputs, axis=1)
+    assert controller_inputs.shape == (batch_size, 12 * num_groups), controller_inputs.shape
+    controller_inputs = controller_inputs[:, :, None]
+    assert controller_inputs.shape == (batch_size, 12 * num_groups, 1)
+    
+    
+    actuation = tf.expand_dims(actuation_seq[0, (state.step_count - 1) // (num_steps // num_acts), :], 0)
+    
+    debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation, 'acceleration': state.acceleration, 'velocity' : state.velocity}
+    total_actuation = 0
+    zeros = tf.zeros(shape=(batch_size, num_particles))
+    for i, group in enumerate(actuations):
+      act = actuation[:, i:i+1]
+      assert len(act.shape) == 2
+      mask = particle_mask_from_group(group)
+      act = act * mask
+      act = make_matrix3d(zeros, zeros, zeros, zeros, act, zeros, zeros, zeros, zeros)
+      total_actuation = total_actuation + act
+    return total_actuation, debug
   
-  res = (30, 30)
+  res = (30, 30, 30)
   bc = get_bounding_box_bc(res)
   
 
@@ -133,11 +171,11 @@ def main(sess):
   final_state = sim.initial_state['debug']['controller_inputs']
   final_acceleration = sim.initial_state['debug']['acceleration']
   final_velocity_all = sim.initial_state['debug']['velocity']
-  s = head * 8
+  s = head * 12
   
-  final_position = final_state[:, s:s+2]
-  final_velocity = final_state[:, s + 2: s + 4]
-  final_accel = final_state[:, s + 6: s + 8]
+  final_position = final_state[:, s:s+3]
+  final_velocity = final_state[:, s + 3: s + 6]
+  final_accel = final_state[:, s + 9: s + 12]
   gamma = 0.0
   loss_position = tf.reduce_sum((final_position - goal) ** 2)
   loss_velocity = tf.reduce_mean(final_velocity_all ** 2) / 10.0
@@ -154,16 +192,20 @@ def main(sess):
 
   
   initial_positions = [[] for _ in range(batch_size)]
+  
   for b in range(batch_size):
     for i, offset in enumerate(group_offsets):
       for x in range(sample_density):
         for y in range(sample_density):
-          scale = 0.2
-          u = ((x +0.5) / sample_density * group_sizes[i][0] + offset[0]
-              ) * scale + 0.2
-          v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
-              ) * scale + 0.1
-          initial_positions[b].append([u, v])
+          for z in range(sample_density):
+            scale = 0.2
+            u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]
+                ) * scale + 0.2
+            v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
+                ) * scale + 0.1
+            w = ((z + 0.5) / sample_density * group_sizes[i][2] + offset[2]
+                 ) * scale + 0.1
+            initial_positions[b].append([u, v, w])
   assert len(initial_positions[0]) == num_particles
   initial_positions = np.array(initial_positions).swapaxes(1, 2)
 
@@ -200,10 +242,12 @@ def main(sess):
 
 
   goal_input = np.array(
-  [[0.7 + (random.random() - 0.5) * goal_range * 2,
-    0.5 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
+  [[0.6 + (random.random() - 0.5) * goal_range * 2,
+    0.5 + (random.random() - 0.5) * goal_range,
+    0.6 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
   dtype=np.float32)
  
+  
   
 
   def eval_sim(loss_tensor, sym_, need_grad=True):
@@ -229,7 +273,7 @@ def main(sess):
   
         
   
-  
+  IPython.embed()
   t = time.time()
     
   #loss_val, grad, memo = eval_sim(loss_position, sym_pos)
@@ -265,7 +309,7 @@ def main(sess):
       loss_pos_val, _, _ = eval_sim(loss_position, sym_pos, need_grad=False)
       loss_accel_val, _, _ = eval_sim(loss_accel, sym_accel, need_grad=False)
       c1, _, memo = eval_sim(loss_velocity, sym_vel, need_grad=False)        
-      sim.visualize(memo)
+      sim.visualize(memo, export=exp,show=True)
       print('loss pos', loss_pos_val)
       print('loss vel', c1)
       print('loss accel', loss_accel_val)
@@ -359,7 +403,7 @@ def main(sess):
   
   
   _, _, memo = eval_sim(loss)
-  sim.visualize(memo)
+  #sim.visualize(memo)
 
 
 
