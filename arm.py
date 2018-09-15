@@ -302,8 +302,8 @@ def main(sess):
       lb += [-1.0 / num_links] * tf.size(acts).eval()
       ub += [1.0 / num_links] * tf.size(acts).eval()
       designs = trainables[1]
-      lb += [10] * tf.size(designs).eval()
-      ub += [10] * tf.size(designs).eval()
+      lb += [3] * tf.size(designs).eval()
+      ub += [40] * tf.size(designs).eval()
   
       return (lb, ub)
       
@@ -316,7 +316,7 @@ def main(sess):
   
   algo.extract(pg.nlopt).maxeval = 50
   algo.set_verbosity(1)
-  udp = RobotProblem(False)
+  udp = RobotProblem(True)
   bounds = udp.get_bounds()
   mean = (np.array(bounds[0]) + np.array(bounds[1])) / 2.0
   num_vars = len(mean)

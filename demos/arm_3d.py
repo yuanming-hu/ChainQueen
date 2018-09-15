@@ -10,7 +10,7 @@ import IPython
 import copy
 
 import pygmo as pg
-import pygmo_plugins_nonfree as ppnf
+#import pygmo_plugins_nonfree as ppnf
 import export 
 
 
