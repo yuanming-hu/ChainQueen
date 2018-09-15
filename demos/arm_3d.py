@@ -28,13 +28,13 @@ actuation_strength = 8
 use_pygmo = True
 
 
-num_steps = 800
+num_steps = 600
 
 
 # Finger
 num_links = 2
-num_acts = int(num_steps // num_links) #TBH this is just to keep the number of variables tame
-sample_density = int(12 // (np.sqrt(num_links)))
+num_acts = int(num_steps // num_links // 10) #TBH this is just to keep the number of variables tame
+sample_density = int(10 // (np.sqrt(num_links)))
 group_num_particles = sample_density**3
 group_sizes = []
 group_offsets = []
@@ -182,8 +182,8 @@ def main(sess):
   loss_act = tf.reduce_sum(actuation_seq ** 2.0) / 10000.0
   loss_zero = tf.Variable(0.0, trainable=False)
   
-  loss_accel = tf.reduce_mean(final_acceleration ** 2.0) / 10000.0
-  #loss_accel = loss_zero
+  #loss_accel = tf.reduce_mean(final_acceleration ** 2.0) / 10000.0
+  loss_accel = loss_zero
   #IPython.embed()
   
   
@@ -242,9 +242,9 @@ def main(sess):
 
 
   goal_input = np.array(
-  [[0.6 + (random.random() - 0.5) * goal_range * 2,
+  [[0.65 + (random.random() - 0.5) * goal_range * 2,
     0.5 + (random.random() - 0.5) * goal_range,
-    0.6 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
+    0.65 + (random.random() - 0.5) * goal_range] for _ in range(batch_size)],
   dtype=np.float32)
  
   

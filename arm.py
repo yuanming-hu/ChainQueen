@@ -12,6 +12,7 @@ import copy
 import pygmo as pg
 import pygmo_plugins_nonfree as ppnf
 
+np.random.seed(326)
 
 def flatten_vectors(vectors):
   return tf.concat([tf.squeeze(ly.flatten(vector)) for vector in vectors], 0)
@@ -144,8 +145,8 @@ def main(sess):
   loss_act = tf.reduce_sum(actuation_seq ** 2.0) / 10000.0
   loss_zero = tf.Variable(0.0, trainable=False)
   
-  loss_accel = tf.reduce_mean(final_acceleration ** 2.0) / 10000.0
-  #loss_accel = loss_zero
+  #loss_accel = tf.reduce_mean(final_acceleration ** 2.0) / 10000.0
+  loss_accel = loss_zero
   #IPython.embed()
   
   
@@ -301,8 +302,8 @@ def main(sess):
       lb += [-1.0 / num_links] * tf.size(acts).eval()
       ub += [1.0 / num_links] * tf.size(acts).eval()
       designs = trainables[1]
-      lb += [3] * tf.size(designs).eval()
-      ub += [40] * tf.size(designs).eval()
+      lb += [10] * tf.size(designs).eval()
+      ub += [10] * tf.size(designs).eval()
   
       return (lb, ub)
       
