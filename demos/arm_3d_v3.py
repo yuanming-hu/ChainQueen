@@ -24,8 +24,9 @@ batch_size = 1
 
 actuation_strength = 2.4
 
-config = 'C'
 
+
+config = 'C'
 num_leg_pairs = 2
 
 act_x = 0.5
@@ -45,19 +46,30 @@ for x_i in np.linspace(0, x - 2 * act_x, num_leg_pairs):
   group_offsets += [(x_i, 0, act_z)]
   group_offsets += [(x_i + act_x, 0, act_z)]
 
+  group_offsets += [(x_i + act_x, 0, z - act_z)]
+  group_offsets += [(x_i, 0, z - 2 * act_z)]
+  group_offsets += [(x_i + act_x, 0, z - 2 * act_z)]
+  group_offsets += [(x_i, 0, z - act_z)]
+
+
 for i in range(int(z)):
   for j in range(int(x)):
     group_offsets += [(j, act_y, i)]
 num_groups = len(group_offsets)
 
+#group_offsets += [(0.0, 1.0, 0.0)]
 num_particles = group_num_particles * num_groups
 group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 1.0, 1.0)] * int(x) * int(z)
 actuations = list(range(8 * num_leg_pairs))
 fixed_groups = []
-head = int(4 + x / 2 * z + z/2)
+head = int(16 + x / 2 * z + z/2)
 gravity = (0, -2, 0)
 
+#IPython.embed()
+
+
 num_particles = group_num_particles * num_groups
+
 
 def particle_mask(start, end):
   r = tf.range(0, num_particles)
@@ -194,7 +206,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=40,
+          num_steps=20,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
