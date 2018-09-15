@@ -102,7 +102,7 @@ __global__ void grid_forward(TState<dim> state) {
       }
 
       for (int i = 0; i < dim; i++) {
-        node[i] = v_i[i];
+        node[i] = v_i[i] * (1 - 2e-4f);
       }
     }
   }

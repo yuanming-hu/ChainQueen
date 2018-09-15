@@ -167,8 +167,8 @@ auto gpu_mpm3d_falling_leg = []() {
   // The cube has size 2 * 2 * 2, with height 5m, falling time = 1s, g=-10
   int n = 20;
   real dx = 0.4;
-  real sample_density = 0.1;
-  Vector3 corner(2, 15 + 20 * dx, 2);
+  real sample_density = 0.2;
+  Vector3 corner(20, 15 + 20 * dx, 20);
 
   using Vector = Vector3;
 
@@ -201,29 +201,30 @@ auto gpu_mpm3d_falling_leg = []() {
   }
 
   int num_frames = 300;
-  Vector3i res(100, 120, 100);
+  Vector3i res(200, 120, 200);
   Array3D<Vector4f> bc(res);
   TC_WARN("Should run without APIC.");
   for (int i = 0; i < res[0]; i++) {
     for (int j = 0; j < 20; j++) {
       for (int k = 0; k < res[2]; k++) {
-        bc[i][j][k] = Vector4(0, 1, 0, 0.3);
+        bc[i][j][k] = Vector4(0, 1, 0, -1);
       }
     }
   }
-  Vector3 gravity(0, -100, 0);
+  // cm/s^2
+  Vector3 gravity(0, -980.0, 0);
   TStateBase<dim> *state;
   TStateBase<dim> *state2;
-  int substep = 30;
+  int substep = 160;
   real dt = 1.0_f / 120 / substep;
   initialize_mpm_state<3>(&res[0], num_particles, &gravity[0], (void *&)state,
                           dx, dt, initial_positions.data());
   set_mpm_bc<3>(state, &bc[0][0][0][0]);
-  reinterpret_cast<TStateBase<3> *>(state)->set(10, 100, 50000, 0.3);
+  reinterpret_cast<TStateBase<3> *>(state)->set(10, 100, 50000000, 0.3);
   initialize_mpm_state<3>(&res[0], num_particles, &gravity[0], (void *&)state2,
                           dx, dt, initial_positions.data());
   set_mpm_bc<3>(state2, &bc[0][0][0][0]);
-  reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 50000, 0.3);
+  reinterpret_cast<TStateBase<3> *>(state2)->set(10, 100, 50000000, 0.3);
 
   for (int i = 0; i < num_frames; i++) {
     TC_INFO("forward step {}", i);
