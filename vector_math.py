@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-use_float64 = False
+use_float64 = True
 
 if not use_float64:
   np_precision = np.float32
