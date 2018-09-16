@@ -14,26 +14,20 @@ import export
 lr = 2
 gamma = 0.0
 
-sample_density = 20
+sample_density = 40
+multi_target = True
 group_num_particles = sample_density**2
 goal_pos = np.array([0.5, 0.6])
-goal_range = np.array([0.1, 0.1])
+goal_range = np.array([0.15, 0.15])
+if not multi_target:
+    goal_pos = np.array([0.6, 0.6])
+    goal_range = np.zeros((2,), dtype = np.float32)
 batch_size = 1
-actuation_strength = 3
+actuation_strength = 4
 
 config = 'B'
 
-exp = export.Export('multireach')
-
-if config == 'A':
-  # Robot A
-  num_groups = 5
-  group_offsets = [(0, 0), (0, 1), (1, 1), (2, 1), (2, 0)]
-  group_sizes = [(1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
-  actuations = [0, 4]
-  head = 2
-  gravity = (0, -2)
-elif config == 'B':
+if config == 'B':
   # Finger
   num_groups = 3
   group_offsets = [(1, 0), (1.5, 0), (1, 2)]
@@ -41,15 +35,6 @@ elif config == 'B':
   actuations = [0, 1]
   head = 2
   gravity = (0, 0)
-elif config == 'C':
-  # Robot B
-  num_groups = 7
-  group_offsets = [(0, 0), (0.5, 0), (0, 1), (1, 1), (2, 1), (2, 0), (2.5, 0)]
-  group_sizes = [(0.5, 1), (0.5, 1), (1, 1), (1, 1), (1, 1), (0.5, 1), (0.5, 1)]
-  actuations = [0, 1, 5, 6]
-  fixed_groups = []
-  head = 3
-  gravity = (0, -2)
 else:
   print('Unknown config {}'.format(config))
 
@@ -88,7 +73,10 @@ def main(sess):
       vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
-      controller_inputs.append((goal - goal_pos) / goal_range)
+      if multi_target:
+        controller_inputs.append((goal - goal_pos) / goal_range)
+      else:
+        controller_inputs.append(goal)
     # Batch, dim
     controller_inputs = tf.concat(controller_inputs, axis=1)
     assert controller_inputs.shape == (batch_size, 6 * num_groups), controller_inputs.shape
@@ -173,46 +161,60 @@ def main(sess):
  
   sim.add_point_visualization(pos=final_position, color=(1, 0, 0), radius=3)
 
-  gx, gy = goal_range
-  pos_x, pos_y = goal_pos
-
-  vis_id = list(range(batch_size))
-  random.shuffle(vis_id)
-  vis_id = vis_id[:20]
+  if multi_target:
+    fout = open('multi_target_{}.log'.format(lr), 'w')
+  else:
+    fout = open('single_target_{}.log'.format(lr), 'w')
 
   # Optimization loop
-  for i in range(100000):
+  for it in range(100000):
     t = time.time()
-    print('Epoch {:5d}, learning rate {}'.format(i, lr))
-    
-    goal_train = [np.array(
-      [[pos_x + (random.random() - 0.5) * gx,
-        pos_y + (random.random() - 0.5) * gy] for _ in range(batch_size)],
-      dtype=np.float32) for __ in range(10)]
 
+    goal_input = ((np.random.random([batch_size, 2]) - 0.5) * goal_range + goal_pos)
 
-    loss_cal = 0.
     print('train...')
-    for it, goal_input in enumerate(goal_train):
+    memo = sim.run(
+        initial_state=initial_state,
+        num_steps=150,
+        iteration_feed_dict={goal: goal_input},
+        loss=loss)
+    grad = sim.eval_gradients(sym=sym, memo=memo)
+    gradient_descent = [
+        v.assign(v - lr * g) for v, g in zip(trainables, grad)
+    ]
+    sess.run(gradient_descent)
+    print('Iter {:5d} time {:.3f} loss {}'.format(
+        it, time.time() - t, memo.loss))
+    loss_cal = memo.loss
+    if False: #i % 5 == 0:
+      sim.visualize(memo, batch = 0, interval = 5)
+      # sim.visualize(memo, batch = 1)
+
+    print('L2:', loss_cal ** 0.5)
+    print(it, 'L2 distance: ', loss_cal ** 0.5, file = fout)
+    
+    '''
+    print('valid...')
+     
+    loss_cal = 0
+    for goal_input in goal_valid:
       memo = sim.run(
           initial_state=initial_state,
           num_steps=80,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
-      grad = sim.eval_gradients(sym=sym, memo=memo)
-      gradient_descent = [
-          v.assign(v - lr * g) for v, g in zip(trainables, grad)
-      ]
-      sess.run(gradient_descent)
-      print('Iter {:5d} time {:.3f} loss {}'.format(
-          it, time.time() - t, memo.loss))
+      print('time {:.3f} loss {:.4f}'.format(
+          time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      if it % 5 == 0:
-        sim.visualize(memo, batch = 0)
-        # sim.visualize(memo, batch = 1)
+      if i == 0:# memo.loss < 1e-4:
+        for b in vis_id:
+          sim.visualize(memo, batch = b, export = exp)
+        exp.export()
 
-    print('train loss {}'.format(loss_cal / len(goal_train)))
-    
+    print('valid loss {}'.format(loss_cal / len(goal_valid)))
+    print('==============================================')
+    '''
+
 
 if __name__ == '__main__':
   sess_config = tf.ConfigProto(allow_soft_placement=True)
