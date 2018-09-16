@@ -19,9 +19,6 @@ dt = 1e-4
 res = (100, 100, 100)
 bc = get_bounding_box_bc(res)
 
-lr = 1e3
-
-
 def main(sess):
   
   goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 3], name='goal')
@@ -32,7 +29,7 @@ def main(sess):
       grid_res=res,
       bc=bc,
       gravity=gravity,
-      E=1,
+      E=100,
       sess=sess)
   position = np.zeros(shape=(batch_size, 3, num_particles))
   velocity_delta = np.zeros(shape=(batch_size, 3, num_particles))
@@ -43,7 +40,8 @@ def main(sess):
   F[:, 1, 1, :] = scale
   F[:, 2, 2, :] = scale
 
-  velocity_ph = tf.Variable([0.4, 0.00, 0.0], trainable = True)
+  v = 3
+  velocity_ph = tf.Variable([v, -v * 2, 0.0], trainable = True)
   delta = np.zeros(shape=(batch_size, 3, group_particles), dtype=np.float32)
   #delta[:, 0, :] = 0.2
   #velocity_ph = tf.Variable(delta, trainable=True)
@@ -101,7 +99,7 @@ def main(sess):
   grad_gt = dt * steps
   print(grad, grad_gt)
   print('grad error relative: ', (grad_gt - grad) / grad_gt)
-  sim.visualize(memo, interval=3, export=False)
+  sim.visualize(memo, interval=30, export=False)
     
 if __name__ == '__main__':
   sess_config = tf.ConfigProto(allow_soft_placement=True)
