@@ -4,28 +4,26 @@ sys.path.append('..')
 import random
 import time
 from simulation import Simulation, get_bounding_box_bc
-from time_integration import UpdatedSimulationState2D
+from time_integration import UpdatedSimulationState
 import tensorflow as tf
 import numpy as np
 from IPython import embed
 
 batch_size = 1
 gravity = (0, 0)
-N = 10
+N = 40
 group_particles = N * N
 num_particles = group_particles * 2
-steps = 100
-dt = 1e-2
+steps = 300
+dt = 3e-3
 goal_range = 0.15
-res = (30, 30)
+res = (100, 100)
 bc = get_bounding_box_bc(res)
 
 lr = 1
 
 def main(sess):
-  
   goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
-
   sim = Simulation(
       dt=dt,
       num_particles=num_particles,
@@ -34,19 +32,18 @@ def main(sess):
       gravity=gravity,
       sess=sess)
   position = np.zeros(shape=(batch_size, num_particles, 2))
-  youngs_modulus = np.zeros(shape=(batch_size, num_particles, 1))
 
   velocity_ph = tf.placeholder(shape = (2, ), dtype = tf.float32)
-  velocity_1 = velocity_ph[None, None, :] + tf.zeros(
-      shape=[batch_size, group_particles, 2], dtype=tf.float32)
-  velocity_2 = tf.zeros(shape=[batch_size, group_particles, 2], dtype=tf.float32)
-  velocity = tf.concat([velocity_1, velocity_2], axis = 1)
+  velocity_1 = velocity_ph[None, :, None] + tf.zeros(
+      shape=[batch_size, 2, group_particles], dtype=tf.float32)
+  velocity_2 = tf.zeros(shape=[batch_size, 2, group_particles], dtype=tf.float32)
+  velocity = tf.concat([velocity_1, velocity_2], axis = 2)
 
   mass_ph = tf.Variable([1.], trainable = True)
   mass_1 = mass_ph[None, None, :] + tf.zeros(
-      shape = [batch_size, group_particles, 1], dtype = tf.float32)
-  mass_2 = tf.ones(shape = [batch_size, group_particles, 1], dtype = tf.float32)
-  mass = tf.concat([mass_1, mass_2], axis = 1)
+      shape = [batch_size, 1, group_particles], dtype = tf.float32)
+  mass_2 = tf.ones(shape = [batch_size, 1, group_particles], dtype = tf.float32)
+  mass = tf.concat([mass_1, mass_2], axis = 2)
 
   for b in range(batch_size):
     for i in range(group_particles):
@@ -62,6 +59,7 @@ def main(sess):
         x, y = random.random(), random.random()
       position[b, i + group_particles] = ((x * 2 + 10) / 30,
                                           (y * 2 + 12.75) / 30)
+  position = np.array(position).swapaxes(1, 2)
 
   sess.run(tf.global_variables_initializer())
 
@@ -74,13 +72,13 @@ def main(sess):
   sim.add_point_visualization(pos = final_position, color = (1, 0, 0), radius = 3)
   sim.add_point_visualization(pos = goal, color = (0, 1, 0), radius = 3)
 
-  trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+  trainables = [mass_ph]
   sim.set_initial_state(initial_state = initial_state)
 
   sym = sim.gradients_sym(loss, variables = trainables)
 
   goal_input = np.array(
-          [[0.7, 0.5]],
+          [[0.68, 0.52]],
     dtype=np.float32)
 
   for i in range(1000000):
@@ -92,8 +90,8 @@ def main(sess):
         iteration_feed_dict = {goal: goal_input},
         loss = loss)
     grad = sim.eval_gradients(sym, memo)
-    if i % 5 == 0: # True: # memo.loss < 0.01: 
-      sim.visualize(memo)
+    sim.visualize(memo, interval=5)
+    print('mass', mass_ph.eval())
     gradient_descent = [
         v.assign(v - lr * g) for v, g in zip(trainables, grad)
     ]
