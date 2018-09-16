@@ -385,7 +385,7 @@ auto gpu_mpm2d_falling_cube = []() {
     }
   }
   std::vector<real> initial_F;
-  int num_frames = 300;
+  int num_frames = 3;
   Vector2i res(100, 120);
   Vector2 gravity(0, -10);
   TStateBase<dim> *state;

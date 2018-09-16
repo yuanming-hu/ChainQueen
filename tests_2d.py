@@ -134,7 +134,6 @@ class TestSimulator2D(unittest.TestCase):
     sim.visualize(memo, interval=5)
 
   def test_bouncing_cube_benchmark(self):
-    return
     gravity = (0, -10)
     batch_size = 1
     dx = 0.2
@@ -151,27 +150,35 @@ class TestSimulator2D(unittest.TestCase):
       sess=sess)
     position = np.zeros(shape=(batch_size, 2, num_particles))
     poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.3
-    initial_velocity = tf.placeholder(shape=(2,), dtype=tf_precision)
-    velocity = tf.broadcast_to(
-      initial_velocity[None, None, :], shape=(batch_size, 2, num_particles))
+    velocity_ph = tf.placeholder(shape=(2,), dtype=tf_precision)
     for b in range(batch_size):
       for i in range(N):
         for j in range(N):
           position[b, :, i * N + j] = (i * sample_density + 2, j * sample_density + 5 + 2 * dx)
           
+    
+    loss = tf.reduce_mean(sim.initial_state.center_of_mass()[:, 0])
+
+    velocity_ph = tf.placeholder(shape=(2,), dtype=tf_precision)
+    velocity = velocity_ph[None, :, None] + tf.zeros(
+      shape=[batch_size, 2, num_particles], dtype=tf_precision)
     input_state = sim.get_initial_state(
       position=position,
       velocity=velocity,
       poissons_ratio=poissons_ratio,
       youngs_modulus=1000)
-  
+    
+    sim.set_initial_state(initial_state=input_state)
     import time
-    t = time.time()
     memo = sim.run(
-      num_steps=1000,
+      num_steps=100,
       initial_state=input_state,
-      initial_feed_dict={initial_velocity: [1, 0]})
-    print((time.time() - t) / 1000 * 3)
+      initial_feed_dict={velocity_ph: [0, 0]})
+    sym = sim.gradients_sym(loss=loss, variables=[velocity_ph])
+    while True:
+      t = time.time()
+      grad = sim.eval_gradients(sym, memo)
+      print((time.time() - t) / 100 * 3)
     sim.visualize(memo, interval=5)
 
   def test_rotating_cube(self):

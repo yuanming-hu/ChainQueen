@@ -13,7 +13,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 0.1
+lr = 0.03
 gamma = 1.0
 
 sample_density = 20
@@ -122,8 +122,10 @@ def main(sess):
   
   final_position = final_state[:, s:s+2]
   final_velocity = final_state[:, s + 2: s + 4]
-  loss1 = tf.reduce_mean(tf.reduce_sum((final_position - goal) ** 2, axis = 1))
-  loss2 = tf.reduce_mean(tf.reduce_sum(final_velocity ** 2, axis = 1)) 
+  loss1 = tf.reduce_mean(tf.reduce_sum(-final_position[:, 0]))
+  loss2 = tf.reduce_mean(tf.reduce_sum(final_velocity ** 2, axis = 1))
+
+  saver = tf.train.Saver()
 
   loss = loss1 + gamma * loss2
 
@@ -150,7 +152,7 @@ def main(sess):
   sim.set_initial_state(initial_state=initial_state)
   
   sym = sim.gradients_sym(loss, variables=trainables)
-  sim.add_point_visualization(pos=goal, color=(0, 1, 0), radius=3)
+  #sim.add_point_visualization(pos=goal, color=(0, 1, 0), radius=3)
   sim.add_vector_visualization(pos=final_position, vector=final_velocity, color=(0, 0, 1), scale=50)
  
   sim.add_point_visualization(pos=final_position, color=(1, 0, 0), radius=3)
@@ -176,7 +178,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=300,
+          num_steps=600,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
@@ -195,9 +197,10 @@ def main(sess):
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
       if it % 5 == 0:
+        save_path = saver.save(sess, "./models/walker_2d.ckpt")
+        print("Model saved in path: %s" % save_path)
         sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                        show=True, interval=10)
-    #exp.export()
+                        show=True, interval=20)
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
 if __name__ == '__main__':

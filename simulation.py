@@ -126,11 +126,13 @@ class Simulation:
           background[i][j] *= 0.7
     background = cv2.resize(
       background, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+    
+    alpha = 0.15
+    last_image = background
 
     for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0:
         continue
-
 
       pos = s[0][b] * self.inv_dx + 0.5
       pos = np.transpose(pos)
@@ -139,13 +141,12 @@ class Simulation:
       scale = self.scale
 
       img = background.copy()
-
-
       
       for young, p in zip(youngs, pos):
         x, y = tuple(map(lambda t: math.ceil(t * scale), p))
         intensity = (young) / 50.0
-        cv2.circle(img, (y, x), radius=1, color=(0.0, intensity, 1.0), thickness=-1)
+        #img[x][y] = (0, 0, 0)
+        cv2.circle(img, (y, x), radius=3, color=(0.2, 0.2, 0.2), thickness=-1)
 
       for dot in points:
         coord, color, radius = dot
@@ -158,7 +159,11 @@ class Simulation:
         vec = vec * gamma + pos
         cv2.line(img, (pos[b][1], pos[b][0]), (vec[b][1], vec[b][0]), color = color, thickness = 1)
 
+      last_image = 1 - (1 - last_image) * (1 - alpha)
+      last_image = np.minimum(last_image, img)
+      img = last_image.copy()
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
+      
       if export is None or show:
         cv2.imshow('Differentiable MPM Simulator', img)
         cv2.waitKey(1)
