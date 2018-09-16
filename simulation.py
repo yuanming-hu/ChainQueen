@@ -2,6 +2,7 @@ import tensorflow as tf
 from vector_math import *
 import numpy as np
 from time_integration import InitialSimulationState, UpdatedSimulationState
+from time_integration import tf_precision, np_precision
 from memo import Memo
 import IPython
 
@@ -15,9 +16,9 @@ except:
 def get_bounding_box_bc(res, boundary_thickness=3):
   if len(res) == 2:
     bc_parameter = np.zeros(
-      shape=(1,) + res + (1,), dtype=np.float32)
+      shape=(1,) + res + (1,), dtype=np_precision)
     bc_parameter += 0.5  # Coefficient of friction
-    bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np.float32)
+    bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np_precision)
     bc_normal[:, :boundary_thickness] = (1, 0)
     bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0)
     bc_normal[:, :, :boundary_thickness] = (0, 1)
@@ -27,9 +28,9 @@ def get_bounding_box_bc(res, boundary_thickness=3):
   else:
     assert len(res) == 3
     bc_parameter = np.zeros(
-      shape=(1,) + res + (1,), dtype=np.float32)
+      shape=(1,) + res + (1,), dtype=np_precision)
     bc_parameter += 0.5  # Coefficient of friction
-    bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np.float32)
+    bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np_precision)
     bc_normal[:, :boundary_thickness] = (1, 0, 0)
     bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0, 0)
     bc_normal[:, :, :boundary_thickness] = (0, 1, 0)
@@ -114,7 +115,7 @@ class Simulation:
     b = batch
     # Pure-white background
     background = np.ones(
-      (self.grid_res[0], self.grid_res[1], 3), dtype=np.float)
+      (self.grid_res[0], self.grid_res[1], 3), dtype=np_precision)
 
     for i in range(self.grid_res[0]):
       for j in range(self.grid_res[1]):
@@ -148,7 +149,7 @@ class Simulation:
 
       for dot in points:
         coord, color, radius = dot
-        coord = (coord * self.inv_dx + 0.5) * scale
+        coord = np.int32((coord * self.inv_dx + 0.5) * scale)
         cv2.circle(img, (coord[b][1], coord[b][0]), color=color, radius=radius, thickness=-1)
 
       for line in vectors:
@@ -339,7 +340,7 @@ class Simulation:
     pick = sym['pick']
     variables = sym['variables']
 
-    grad = [np.zeros(shape=v.shape, dtype=np.float32) for v in variables]
+    grad = [np.zeros(shape=v.shape, dtype=np_precision) for v in variables]
     feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}
     feed_dict.update(memo.iteration_feed_dict)
     last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict=feed_dict)
@@ -383,37 +384,37 @@ class Simulation:
                         poissons_ratio=None,
                         deformation_gradient=None):
     acceleration = np.zeros(
-      shape=[self.batch_size, self.dim, self.num_particles])
+      shape=[self.batch_size, self.dim, self.num_particles], dtype = np_precision)
     if velocity is not None:
       initial_velocity = velocity
     else:
       initial_velocity = np.zeros(
-          shape=[self.batch_size, self.dim, self.num_particles])
+          shape=[self.batch_size, self.dim, self.num_particles], dtype = np_precision)
     if deformation_gradient is None:
       deformation_gradient = self.identity_matrix +\
-                             np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
+                             np.zeros(shape=(self.batch_size, 1, 1, self.num_particles), dtype = np_precision),
     affine = self.identity_matrix * 0 + \
-                           np.zeros(shape=(self.batch_size, 1, 1, self.num_particles)),
+                           np.zeros(shape=(self.batch_size, 1, 1, self.num_particles), dtype = np_precision),
     batch_size = self.batch_size
     num_particles = self.num_particles
 
     if particle_mass is None:
-      particle_mass = np.ones(shape=(batch_size, 1, num_particles)) * self.m_p
+      particle_mass = np.ones(shape=(batch_size, 1, num_particles), dtype = np_precision) * self.m_p
       self.m_p = 1
     if particle_volume is None:
-      particle_volume = np.ones(shape=(batch_size, 1, num_particles)) * self.V_p
+      particle_volume = np.ones(shape=(batch_size, 1, num_particles), dtype = np_precision) * self.V_p
       self.V_p = 1
     if youngs_modulus is None:
-      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * self.E
+      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles), dtype = np_precision) * self.E
     elif type(youngs_modulus) in [int, float]:
       self.E = youngs_modulus
-      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles)) * youngs_modulus
+      youngs_modulus = np.ones(shape=(batch_size, 1, num_particles), dtype = np_precision) * youngs_modulus
     else:
       self.E = youngs_modulus[0][0][0]
       print(self.E)
 
     if poissons_ratio is None:
-      poissons_ratio = np.ones(shape=(batch_size, 1, num_particles)) * 0.3
+      poissons_ratio = np.ones(shape=(batch_size, 1, num_particles), dtype = np_precision) * 0.3
 
     return (position, initial_velocity, deformation_gradient, affine,
             particle_mass, particle_volume, youngs_modulus, poissons_ratio, 0, acceleration)

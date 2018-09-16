@@ -4,6 +4,7 @@ sys.path.append('..')
 import random
 import time
 from simulation import Simulation, get_bounding_box_bc
+from simulation import tf_precision, np_precision
 import tensorflow as tf
 import numpy as np
 from IPython import embed
@@ -13,7 +14,7 @@ gravity = (0, 0)
 N = 10
 group_particles = N * N * 2
 num_particles = group_particles * 2
-steps = 200
+steps = 100
 dt = 5e-3
 goal_range = 0.15
 res = (100, 100)
@@ -25,7 +26,7 @@ def main(sess):
 
   random.seed(100)
 
-  goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
+  goal = tf.placeholder(dtype=tf_precision, shape=[batch_size, 2], name='goal')
 
   sim = Simulation(
     dt=dt,
@@ -37,14 +38,14 @@ def main(sess):
     m_p=1,
     V_p=1,
     sess=sess)
-  position = np.zeros(shape=(batch_size, 2, num_particles))
-  velocity_delta = np.zeros(shape=(batch_size, 2, num_particles))
+  position = np.zeros(shape=(batch_size, 2, num_particles), dtype = np_precision)
+  velocity_delta = np.zeros(shape=(batch_size, 2, num_particles), dtype = np_precision)
 
   # velocity_ph = tf.Variable([0.4, 0.05], trainable = True)
-  velocity_ph = tf.placeholder(dtype = tf.float32, shape = [batch_size, 2], name = 'velocity')
+  velocity_ph = tf.placeholder(dtype = tf_precision, shape = [batch_size, 2], name = 'velocity')
   velocity_1 = velocity_ph[:, :, None] + tf.zeros(
-    shape=[batch_size, 2, group_particles], dtype=tf.float32)
-  velocity_2 = tf.zeros(shape=[batch_size, 2, group_particles], dtype=tf.float32)
+    shape=[batch_size, 2, group_particles], dtype=tf_precision)
+  velocity_2 = tf.zeros(shape=[batch_size, 2, group_particles], dtype=tf_precision)
   velocity = tf.concat([velocity_1, velocity_2], axis = 2)
 
   for b in range(batch_size):
@@ -81,8 +82,8 @@ def main(sess):
 
   sym = sim.gradients_sym(loss, variables = [velocity_ph])
 
-  goal_input = np.array([[0.7, 0.3]], dtype=np.float32)
-  v = np.array([[0.4, 0.05]], dtype = np.float32)
+  goal_input = np.array([[0.7, 0.3]], dtype=np_precision)
+  v = np.array([[0.4, 0.05]], dtype = np_precision)
 
   delta = 1e-3
   for i in range(1000000):

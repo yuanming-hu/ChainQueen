@@ -17,12 +17,13 @@ import IPython
 lr = 0.03
 gamma = 0.0
 
-sample_density = 20
+sample_density = 40
 group_num_particles = sample_density**2
-goal_pos = np.array([0.7, 0.4])
-goal_range = np.array([0.0, 0.00])
+goal_pos = np.array([0.5, 0.6])
+goal_range = np.array([0.1, 0.1])
 batch_size = 1
 actuation_strength = 4
+multi_target = True
 
 config = 'B'
 
@@ -83,7 +84,10 @@ def generate_sim():
       vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
-      controller_inputs.append(goal)
+      in_goal = goal
+      if multi_target:
+        in_goal = (goal - goal_pos) / goal_range
+      controller_inputs.append((goal - 0.5))
     # Batch, dim
     controller_inputs = tf.concat(controller_inputs, axis=1)
     assert controller_inputs.shape == (batch_size, 6 * num_groups), controller_inputs.shape
@@ -109,8 +113,8 @@ def generate_sim():
   
   res = (40, 40)
   bc = get_bounding_box_bc(res)
-  bc[0][:, :, :5] = -1 # Sticky
-  bc[1][:, :, :5] = 0 # Sticky
+  bc[0][:, :, :7] = -1 # Sticky
+  bc[1][:, :, :7] = 0 # Sticky
   dt = 0.005  
 
   sim = Simulation(

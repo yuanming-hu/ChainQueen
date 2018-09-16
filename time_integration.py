@@ -6,11 +6,15 @@ from vector_math import *
 use_cuda = False
 use_apic = True
 
+if use_float64:
+  use_cuda = False
+
 try:
   import mpm3d
 except:
   use_cuda = False
-  print("Warning: NOT using CUDA")
+if not use_cuda:
+  print("***Warning: NOT using CUDA")
 
 kernel_size = 3
 
@@ -90,7 +94,7 @@ class SimulationState:
   def compute_kernels(self, positions):
     # (x, y, dim)
     grid_node_coord = [[(i, j) for j in range(3)] for i in range(3)]
-    grid_node_coord = np.array(grid_node_coord)[None, :, :, :, None]
+    grid_node_coord = np.array(grid_node_coord, dtype = np_precision)[None, :, :, :, None]
     frac = (positions - tf.floor(positions - 0.5))[:, None, None, :, :]
     assert frac.shape[3] == self.dim
     #print('frac', frac.shape)
@@ -171,7 +175,7 @@ class UpdatedSimulationState(SimulationState):
       num_cells *= sim.grid_res[i]
     bc_normal = self.sim.bc_normal / (np.linalg.norm(self.sim.bc_normal, axis=self.dim + 1, keepdims=True) + 1e-10)
     bc = np.concatenate([bc_normal, self.sim.bc_parameter], axis=self.dim + 1).reshape(1, num_cells, self.dim + 1)
-    bc = tf.constant(bc, dtype=tf.float32)
+    bc = tf.constant(bc, dtype=tf_precision)
 
     self.position, self.velocity, self.deformation_gradient, self.affine, _, _, _ = \
       mpm3d.mpm(previous_state.position, previous_state.velocity,
@@ -199,7 +203,7 @@ class UpdatedSimulationState(SimulationState):
     self.t = previous_state.t + self.sim.dt
     self.grid_velocity = tf.zeros(
         shape=(self.sim.batch_size, self.sim.grid_res[0], self.sim.grid_res[1],
-               dim))
+               dim), dtype = tf_precision)
     
     position = previous_state.position
     
@@ -227,7 +231,7 @@ class UpdatedSimulationState(SimulationState):
         axis=2)
 
     # print('base indices', base_indices.shape)
-    self.grid_mass = tf.zeros(shape=(batch_size, self.sim.grid_res[0],
+    self.grid_mass = tf.zeros(dtype = tf_precision, shape=(batch_size, self.sim.grid_res[0],
                                      self.sim.grid_res[1], 1))
 
     # Compute stress tensor (Kirchhoff stress instead of First Piola-Kirchhoff stress)
@@ -261,7 +265,7 @@ class UpdatedSimulationState(SimulationState):
     # ... and apply gravity
 
     self.grid_velocity = tf.zeros(shape=(batch_size, self.sim.grid_res[0],
-                                         self.sim.grid_res[1], dim))
+                                         self.sim.grid_res[1], dim), dtype = tf_precision)
 
     self.kernels = self.compute_kernels(position * sim.inv_dx)
     assert self.kernels.shape == (batch_size, kernel_size, kernel_size, 1, num_particles)
@@ -282,7 +286,7 @@ class UpdatedSimulationState(SimulationState):
             updates=tf.transpose((self.particle_mass * self.kernels[:, i, j, :, :]), perm=[0, 2, 1]))
 
         # (b, dim, p)
-        delta_node_position = np.array([i, j])[None, :, None]
+        delta_node_position = np.array([i, j], dtype = np_precision)[None, :, None]
         # xi - xp
         offset = (tf.floor(position * sim.inv_dx - 0.5) +
                   tf.cast(delta_node_position, tf_precision) -
@@ -302,8 +306,8 @@ class UpdatedSimulationState(SimulationState):
                                     1), 'shape={}'.format(self.grid_mass.shape)
 
     self.grid_velocity += self.grid_mass * np.array(
-        self.sim.gravity)[None, None, None, :] * self.sim.dt
-    self.grid_velocity = self.grid_velocity / tf.maximum(1e-30, self.grid_mass)
+        self.sim.gravity, dtype = np_precision)[None, None, None, :] * self.sim.dt
+    self.grid_velocity = self.grid_velocity / tf.maximum(np_precision(1e-30), self.grid_mass)
 
     sticky_mask = tf.cast(self.sim.bc_parameter == -1, tf_precision)
     self.grid_velocity *= (1 - sticky_mask)
@@ -341,7 +345,7 @@ class UpdatedSimulationState(SimulationState):
             indices=base_indices + delta_indices), perm=[0, 2, 1])
         self.velocity = self.velocity + grid_v * self.kernels[:, i, j, :]
 
-        delta_node_position = np.array([i, j])[None, :, None]
+        delta_node_position = np.array([i, j], dtype = np_precision)[None, :, None]
 
         # xi - xp
         offset = (tf.floor(position * sim.inv_dx - 0.5) +

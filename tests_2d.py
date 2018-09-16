@@ -349,7 +349,7 @@ class TestSimulator2D(unittest.TestCase):
   def test_bc_gradients(self):
     batch_size = 1
     gravity = (0, -0)
-    N = 2
+    N = 10
     num_particles = N * N
     steps = 70
     dt = 1e-2
@@ -388,7 +388,7 @@ class TestSimulator2D(unittest.TestCase):
         for j in range(N):
           position[b, i * N + j] = ((i * 0.5 + 5) / 30,
                                     (j * 0.5 + 12.75) / 30)
-          # velocity_delta[b, :, i * N + j] = (float(j) / N - 0.5, 0.5 - float(i) / N)
+          velocity_delta[b, :, i * N + j] = (float(j) / N - 0.5, 0.5 - float(i) / N)
           
     velocity = velocity + velocity_delta
     position = np.array(position).swapaxes(1, 2)
