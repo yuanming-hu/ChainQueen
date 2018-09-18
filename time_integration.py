@@ -3,7 +3,7 @@ import tensorflow as tf
 from vector_math import *
 
 
-use_cuda = False
+use_cuda = True
 use_apic = True
 
 if use_float64:
@@ -40,6 +40,7 @@ class SimulationState:
     self.step_count = None
     self.kernels = None
     self.debug = None
+    self.actuation = None
 
   def center_of_mass(self, left = None, right = None):
     return tf.reduce_sum(self.position[:, :, left:right] * self.particle_mass[:, :, left:right], axis=2) *\

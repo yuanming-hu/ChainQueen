@@ -5,6 +5,7 @@ from time_integration import InitialSimulationState, UpdatedSimulationState
 from time_integration import tf_precision, np_precision
 from memo import Memo
 import IPython
+import os
 
 try:
   import taichi as tc
@@ -105,7 +106,7 @@ class Simulation:
     self.vector_visualization = []
     self.frame_counter = 0
 
-  def visualize_2d(self, memo, interval=1, batch=0, export=None, show=False):
+  def visualize_2d(self, memo, interval=1, batch=0, export=None, show=False, folder=None):
     import math
     import cv2
     import numpy as np
@@ -130,10 +131,14 @@ class Simulation:
     alpha = 0.15
     last_image = background
 
-    for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
+    if folder:
+      os.makedirs(folder, exist_ok=True)
+
+    for i, (s, act, points, vectors) in enumerate(zip(memo.steps, memo.actuations, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0:
         continue
 
+      particles = []
       pos = s[0][b] * self.inv_dx + 0.5
       pos = np.transpose(pos)
       youngs = np.ndarray.flatten(s[6][b])
@@ -141,17 +146,23 @@ class Simulation:
       scale = self.scale
 
       img = background.copy()
-      
-      for young, p in zip(youngs, pos):
+      for j, (young, p) in enumerate(zip(youngs, pos)):
         x, y = tuple(map(lambda t: math.ceil(t * scale), p))
         intensity = (young) / 50.0
-        #img[x][y] = (0, 0, 0)
-        cv2.circle(img, (y, x), radius=3, color=(0.2, 0.2, 0.2), thickness=-1)
+        color = (0.2, 0.2, 0.2)
+        cv2.circle(img, (y, x), radius=3, color=color, thickness=-1)
+        if act is not None:
+          a = act[0, :, :, j]
+        else:
+          a = [[0, 0], [0, 0]]
+        particles.append((p[0], p[1]) + color + (a[0][0], a[0][1], a[1][0], a[1][1]))
 
+      dots = []
       for dot in points:
         coord, color, radius = dot
         coord = np.int32((coord * self.inv_dx + 0.5) * scale)
         cv2.circle(img, (coord[b][1], coord[b][0]), color=color, radius=radius, thickness=-1)
+        dots.append(tuple(coord[b]) + tuple(color))
 
       for line in vectors:
         pos, vec, color, gamma = line
@@ -170,10 +181,22 @@ class Simulation:
       if export is not None:
         export(img)
 
+      with open(os.path.join(folder, 'frame{:05d}.txt'.format(i)), 'w') as f:
+        for p in particles:
+          print('part ', end=' ', file=f)
+          for x in p:
+            print(x, end=' ', file=f)
+          print(file=f)
+        for d in dots:
+          print('vis ', end=' ', file=f)
+          for x in d:
+            print(x, end=' ', file=f)
+          print(file=f)
+
     if export is not None:
       export.wait()
 
-  def visualize_3d(self, memo, interval=1, batch=0, export=None, show=False):
+  def visualize_3d(self, memo, interval=1, batch=0, export=None, show=False, folder=None):
     if export:
       frame_count_delta = self.frame_counter
     else:
@@ -190,11 +213,11 @@ class Simulation:
                str(ptr), '{:04d}.bgeo'.format(i // interval + frame_count_delta))
       self.frame_counter += 1
 
-  def visualize(self, memo, interval=1, batch=0, export=None, show=False):
+  def visualize(self, memo, interval=1, batch=0, export=None, show=False, folder=None):
     if self.dim == 2:
-      self.visualize_2d(memo, interval, batch, export, show)
+      self.visualize_2d(memo, interval, batch, export, show, folder)
     else:
-      self.visualize_3d(memo, interval, batch, export, show)
+      self.visualize_3d(memo, interval, batch, export, show, folder)
 
 
   def initial_state_place_holder(self):
@@ -243,6 +266,7 @@ class Simulation:
         initial_evaluated.append(t)
 
     memo.steps = [initial_evaluated]
+    memo.actuations = [None]
     memo.point_visualization.append(self.evaluate_points(memo.steps[0], iteration_feed_dict))
     memo.vector_visualization.append(self.evaluate_vectors(memo.steps[0], iteration_feed_dict))
 
@@ -250,10 +274,16 @@ class Simulation:
       feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}
       feed_dict.update(iteration_feed_dict)
 
-      memo.steps.append(
-          self.sess.run(
-              self.updated_state.to_tuple(),
-              feed_dict=feed_dict))
+      if self.updated_state.actuation is not None:
+        ret_ph = [self.updated_state.to_tuple(), self.updated_state.actuation]
+      else:
+        ret_ph = [self.updated_state.to_tuple()]
+      ret  = self.sess.run(ret_ph, feed_dict=feed_dict)
+      memo.steps.append(ret[0])
+      if len(ret) >= 2:
+        memo.actuations.append(ret[1])
+      else:
+        memo.actuations.append(None)
       memo.point_visualization.append(self.evaluate_points(memo.steps[-1], iteration_feed_dict))
       memo.vector_visualization.append(self.evaluate_vectors(memo.steps[-1], iteration_feed_dict))
       
