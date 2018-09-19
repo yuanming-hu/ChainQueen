@@ -7,6 +7,8 @@ from memo import Memo
 import IPython
 import os
 
+output_bgeo = True
+
 try:
   import taichi as tc
   from taichi import Task
@@ -206,12 +208,16 @@ class Simulation:
       if i % interval != 0 or i == 0:
         continue
       pos = s[0][batch].copy()
+      if output_bgeo:
+        task = Task('write_partio_c')
+        suffix = 'bgeo'
+      else:
+        task = Task('write_tcb_c')
+        suffix = 'tcb'
       #print(np.mean(pos, axis=(0)))
-      #task = Task('write_partio_c')
-      task = Task('write_tcb_c')
       ptr = pos.ctypes.data_as(ctypes.c_void_p).value
       task.run(str(self.num_particles),
-               str(ptr), '{:04d}.tcb'.format(i // interval + frame_count_delta))
+               str(ptr), '{:04d}.{}'.format(i // interval + frame_count_delta, suffix))
       self.frame_counter += 1
 
   def visualize(self, memo, interval=1, batch=0, export=None, show=False, folder=None):
