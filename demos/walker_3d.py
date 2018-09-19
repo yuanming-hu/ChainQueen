@@ -43,8 +43,7 @@ if config == 'B':
 
 #Robot C
 else:
-
-  num_leg_pairs = 3
+  num_leg_pairs = 2
 
   act_x = 0.5
   act_y = 0.7
@@ -223,7 +222,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=400,
+          num_steps=40,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
