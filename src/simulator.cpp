@@ -2,6 +2,7 @@
 #include <taichi/common/task.h>
 #include <taichi/testing.h>
 #include <taichi/io/optix.h>
+#include <taichi/visual/gui.h>
 #include <Partio.h>
 #include <taichi/system/profiler.h>
 #include <taichi/math/svd.h>
@@ -625,5 +626,31 @@ auto test_2d_differential = []() {
 };
 
 TC_REGISTER_TASK(test_2d_differential);
+
+auto view_txt = [](const std::vector<std::string> &parameters) {
+  std::FILE *f = std::fopen(parameters[0].c_str(), "r");
+  int window_size = 800;
+  int scale = 10;
+  GUI ui("particles", window_size, window_size);
+  while (true) {
+    char type[100];
+    if (std::feof(f)) {
+      break;
+    }
+    fscanf(f, "%s", type);
+    printf("reading...\n");
+    if (type[0] == 'p') {
+      real x, y, r, g, b, a00, a01, a10, a11;
+      fscanf(f, "%f %f %f %f %f  %f %f %f %f", &x, &y, &r, &g, &b, &a00, &a01,
+             &a10, &a11);
+      ui.get_canvas().img[Vector2i(x * scale, y * scale)] = Vector3f(r, g, a11 * 2);
+    }
+  }
+  while (1)
+    ui.update();
+};
+
+TC_REGISTER_TASK(view_txt);
+
 
 TC_NAMESPACE_END
