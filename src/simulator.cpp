@@ -12,8 +12,7 @@
 
 TC_NAMESPACE_BEGIN
 
-void write_tcb(std::vector<Vector3> positions,
-                  const std::string &file_name) {
+void write_tcb(std::vector<Vector3> positions, const std::string &file_name) {
   write_to_binary_file(positions, file_name);
 }
 
@@ -663,7 +662,8 @@ auto view_txt = [](const std::vector<std::string> &parameters) {
       real x, y, r, g, b, a00, a01, a10, a11;
       fscanf(f, "%f %f %f %f %f  %f %f %f %f", &x, &y, &r, &g, &b, &a00, &a01,
              &a10, &a11);
-      ui.get_canvas().img[Vector2i(x * scale, y * scale)] = Vector3f(r, g, a11 * 2);
+      ui.get_canvas().img[Vector2i(x * scale, y * scale)] =
+          Vector3f(r, g, a11 * 2);
     }
   }
   while (1)
@@ -672,5 +672,24 @@ auto view_txt = [](const std::vector<std::string> &parameters) {
 
 TC_REGISTER_TASK(view_txt);
 
+auto convert_obj = [](const std::vector<std::string> &parameters) {
+  for (auto fn : parameters) {
+    std::FILE *f = std::fopen(parameters[0].c_str(), "r");
+    char s[1000], type[100];
+    std::vector<Vector3> vec;
+    while (std::fgets(s, 1000, f)) {
+      real x, y, z;
+      sscanf(s, "%s %f %f %f", type, &x, &y, &z);
+      TC_P(s);
+      if (type[0] == 'v') {
+        vec.push_back(Vector3(x, y, z));
+      }
+    }
+    TC_P(vec.size());
+    write_to_binary_file(vec, fn + ".tcb");
+  }
+};
+
+TC_REGISTER_TASK(convert_obj);
 
 TC_NAMESPACE_END
