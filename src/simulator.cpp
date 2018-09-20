@@ -674,13 +674,12 @@ TC_REGISTER_TASK(view_txt);
 
 auto convert_obj = [](const std::vector<std::string> &parameters) {
   for (auto fn : parameters) {
-    std::FILE *f = std::fopen(parameters[0].c_str(), "r");
+    std::FILE *f = std::fopen(fn.c_str(), "r");
     char s[1000], type[100];
     std::vector<Vector3> vec;
     while (std::fgets(s, 1000, f)) {
       real x, y, z;
       sscanf(s, "%s %f %f %f", type, &x, &y, &z);
-      TC_P(s);
       if (type[0] == 'v') {
         vec.push_back(Vector3(x, y, z));
       }
