@@ -12,10 +12,6 @@
 
 TC_NAMESPACE_BEGIN
 
-void write_tcb(std::vector<Vector3> positions, const std::string &file_name) {
-  write_to_binary_file(positions, file_name);
-}
-
 void write_partio(std::vector<Vector3> positions,
                   const std::string &file_name) {
   Partio::ParticlesDataMutable *parts = Partio::create();
@@ -534,12 +530,12 @@ auto write_tcb_c = [](const std::vector<std::string> &parameters) {
   float *pos_ = reinterpret_cast<float *>(std::atol(parameters[1].c_str()));
   auto fn = parameters[2];
   using namespace taichi;
-  std::vector<Vector3> pos;
+  std::vector<Vector4> pos;
   for (int i = 0; i < n; i++) {
-    auto p = Vector3(pos_[i], pos_[i + n], pos_[i + 2 * n]);
+    auto p = Vector4(pos_[i], pos_[i + n], pos_[i + 2 * n], pos_[i + 3 * n]);
     pos.push_back(p);
   }
-  taichi::write_tcb(pos, fn);
+  write_to_binary_file(pos, fn);
 };
 
 TC_REGISTER_TASK(write_tcb_c);

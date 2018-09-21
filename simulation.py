@@ -7,7 +7,7 @@ from memo import Memo
 import IPython
 import os
 
-output_bgeo = True
+output_bgeo = False
 
 try:
   import taichi as tc
@@ -204,18 +204,22 @@ class Simulation:
     else:
       frame_count_delta = 0
     print("Warning: skipping the 0th frame..")
-    for i, (s, points, vectors) in enumerate(zip(memo.steps, memo.point_visualization, memo.vector_visualization)):
+    for i, (s, act, points, vectors) in enumerate(zip(memo.steps, memo.actuations, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0 or i == 0:
         continue
       pos = s[0][batch].copy()
       if output_bgeo:
         task = Task('write_partio_c')
+        #print(np.mean(pos, axis=(0)))
+        ptr = pos.ctypes.data_as(ctypes.c_void_p).value
         suffix = 'bgeo'
       else:
         task = Task('write_tcb_c')
+        #print(np.mean(pos, axis=(0)))
+        act = np.mean(act, axis=(1, 2), keepdims=True)[0, :, 0] * 9
+        pos = np.concatenate([pos, act], axis=0).copy()
+        ptr = pos.ctypes.data_as(ctypes.c_void_p).value
         suffix = 'tcb'
-      #print(np.mean(pos, axis=(0)))
-      ptr = pos.ctypes.data_as(ctypes.c_void_p).value
       task.run(str(self.num_particles),
                str(ptr), '{:04d}.{}'.format(i // interval + frame_count_delta, suffix))
       self.frame_counter += 1
