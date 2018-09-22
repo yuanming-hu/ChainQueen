@@ -50,25 +50,25 @@ else:
   x = 3
   z = 3
   act_x = 0.5
-  act_y = 0.7
-  act_z = 0.5
+  act_y = 0.35
+  act_z = 1
 
   group_offsets = []
   for x_i in np.linspace(0, x - 2*act_x, num_leg_pairs):
     
     group_offsets += [(x_i, 0, 0)]
     group_offsets += [(x_i + act_x, 0, 0)]
-    group_offsets += [(x_i, 0, act_z)]
-    group_offsets += [(x_i + act_x, 0, act_z)]
+    group_offsets += [(x_i, act_y, 0)]
+    group_offsets += [(x_i + act_x, act_y, 0)]
 
-    group_offsets += [(x_i + act_x, 0, z - act_z)]
-    group_offsets += [(x_i, 0, z - 2 * act_z)]
-    group_offsets += [(x_i + act_x, 0, z - 2 * act_z)]
-    group_offsets += [(x_i, 0, z - act_z)]
+    group_offsets += [(x_i + act_x, 0, act_z * 2)]
+    group_offsets += [(x_i, 0, act_z * 2)]
+    group_offsets += [(x_i + act_x, act_y, act_z * 2)]
+    group_offsets += [(x_i, act_y, act_z * 2)]
 
   
   for i in range(3):
-    group_offsets += [(i, 0, act_z * 2)]
+    group_offsets += [(i, 0, act_z)]
   num_groups = len(group_offsets)
       
   #group_offsets += [(0.0, 1.0, 0.0)]
