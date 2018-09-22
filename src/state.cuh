@@ -2,7 +2,7 @@
 
 #include "state_base.h"
 
-static constexpr int mpm_enalbe_apic = true;
+static constexpr int mpm_enalbe_apic = false;
 static constexpr int mpm_enalbe_force = true;
 static constexpr int particle_block_dim = 128;
 static constexpr int grid_block_dim = 128;

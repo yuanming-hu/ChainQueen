@@ -14,7 +14,7 @@ import export
 import IPython
 
 lr = 1
-gamma = 0.1
+gamma = 0.0
 
 sample_density = 15
 group_num_particles = sample_density**3
@@ -26,7 +26,6 @@ actuation_strength = 40
 
 
 config = 'C'
-num_leg_pairs = 1
 
 act_x = 0.5
 act_y = 1
@@ -186,7 +185,7 @@ def main(sess):
   random.shuffle(vis_id)
 
   # Optimization loop
-  for i in range(100000):
+  for e in range(100000):
     t = time.time()
     goal_train = [np.array(
       [[pos_x + (random.random() - 0.5) * gx,
@@ -195,7 +194,7 @@ def main(sess):
         ] for _ in range(batch_size)],
       dtype=np.float32) for __ in range(10)]
     print('goal', goal_train)
-    print('Epoch {:5d}, learning rate {}'.format(i, lr))
+    print('Epoch {:5d}, learning rate {}'.format(e, lr))
 
     loss_cal = 0.
     print('train...')
@@ -203,7 +202,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=300,
+          num_steps=200,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       tt = time.time()
@@ -221,8 +220,12 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
+      folder = 'arm3d_demo/{:04d}/'.format(e * len(goal_train) + it)
       sim.visualize(memo, batch=random.randrange(batch_size), export=None,
-                    show=True, interval=2)
+                    show=True, interval=3, folder=folder)
+      with open(os.path.join(folder, 'target.txt'), 'w') as f:
+        goal_input = goal_input[0]
+        print(goal_input[0], goal_input[1], goal_input[2], file=f)
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
