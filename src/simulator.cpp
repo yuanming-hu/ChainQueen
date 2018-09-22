@@ -688,21 +688,27 @@ auto convert_obj = [](const std::vector<std::string> &parameters) {
 TC_REGISTER_TASK(convert_obj);
 
 auto fuse_frames = [](const std::vector<std::string> &parameters) {
-  for (auto fn : parameters) {
-    std::FILE *f = std::fopen(fn.c_str(), "r");
-    char s[1000], type[100];
+  for (int i = 0; i < 41; i++) {
+    auto frame_fn = fmt::format("frame{:05d}.txt", i * 20);
     std::vector<Vector3> vec;
-    while (std::fgets(s, 1000, f)) {
-      real x, y, a, _;
-      sscanf(s, "%s %f %f %f %f %f %f %f %f %f", type, &x, &y, &_, &_, &_, &_, &_, &_, &a);
-      if (type[0] == 'p') {
-        x = x / 40;
-        y = y / 40;
-        vec.push_back(Vector3(x, y, 0, a));
+    for (int j = 0; j < 23; j++) {
+      auto iteration_fn = fmt::format("iteration{:04d}", j * 2);
+      std::FILE *f = std::fopen((iteration_fn + "/" + frame_fn).c_str(), "r");
+      char s[1000], type[100];
+      while (std::fgets(s, 1000, f)) {
+        real x, y, a, _;
+        sscanf(s, "%s %f %f %f %f %f %f %f %f %f", type, &x, &y, &_, &_, &_, &_,
+               &_, &_, &a);
+        if (type[0] == 'p') {
+          x = x / 40;
+          y = y / 40;
+          vec.push_back(Vector3(x, y, -j * 0.09, a));
+        }
       }
+      fclose(f);
     }
     TC_P(vec.size());
-    write_to_binary_file(vec, fn + ".tcb");
+    write_to_binary_file(vec, frame_fn + ".tcb");
   }
 };
 

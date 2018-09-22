@@ -200,7 +200,7 @@ def main(sess):
         save_path = saver.save(sess, "./models/walker_2d.ckpt")
         print("Model saved in path: %s" % save_path)
         sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                        show=True, interval=20, folder='walker_2d_txt/iteration{:04d}/'.format(e))
+                        show=True, interval=4, folder='walker_2d_txt/iteration{:04d}/'.format(e))
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
 if __name__ == '__main__':
