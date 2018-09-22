@@ -165,8 +165,10 @@ class UpdatedSimulationState(SimulationState):
     #for i in range(self.dim):
     #  assert self.sim.gravity[i] == 0, "Non-zero gravity not supported"
     if controller:
+      self.controller = controller
       self.actuation, self.debug = controller(self)
     else:
+      self.controller = None
       self.actuation = np.zeros(shape=(self.sim.batch_size, self.dim, self.dim, self.sim.num_particles))
 
     self.t = previous_state.t + self.sim.dt

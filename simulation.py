@@ -183,17 +183,18 @@ class Simulation:
       if export is not None:
         export(img)
 
-      with open(os.path.join(folder, 'frame{:05d}.txt'.format(i)), 'w') as f:
-        for p in particles:
-          print('part ', end=' ', file=f)
-          for x in p:
-            print(x, end=' ', file=f)
-          print(file=f)
-        for d in dots:
-          print('vis ', end=' ', file=f)
-          for x in d:
-            print(x, end=' ', file=f)
-          print(file=f)
+      if folder:
+        with open(os.path.join(folder, 'frame{:05d}.txt'.format(i)), 'w') as f:
+          for p in particles:
+            print('part ', end=' ', file=f)
+            for x in p:
+              print(x, end=' ', file=f)
+            print(file=f)
+          for d in dots:
+            print('vis ', end=' ', file=f)
+            for x in d:
+              print(x, end=' ', file=f)
+            print(file=f)
 
     if export is not None:
       export.wait()
@@ -290,15 +291,15 @@ class Simulation:
       feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}
       feed_dict.update(iteration_feed_dict)
 
-      if self.updated_state.actuation is not None:
+      if self.updated_state.controller is not None:
         ret_ph = [self.updated_state.to_tuple(), self.updated_state.actuation]
-      else:
-        ret_ph = [self.updated_state.to_tuple()]
-      ret  = self.sess.run(ret_ph, feed_dict=feed_dict)
-      memo.steps.append(ret[0])
-      if len(ret) >= 2:
+        ret = self.sess.run(ret_ph, feed_dict=feed_dict)
+        memo.steps.append(ret[0])
         memo.actuations.append(ret[1])
       else:
+        ret_ph = self.updated_state.to_tuple()
+        ret = self.sess.run(ret_ph, feed_dict=feed_dict)
+        memo.steps.append(ret)
         memo.actuations.append(None)
       memo.point_visualization.append(self.evaluate_points(memo.steps[-1], iteration_feed_dict))
       memo.vector_visualization.append(self.evaluate_vectors(memo.steps[-1], iteration_feed_dict))
