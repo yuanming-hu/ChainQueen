@@ -196,7 +196,7 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      if it % 5 == 0:
+      if e % 2 == 0:
         save_path = saver.save(sess, "./models/walker_2d.ckpt")
         print("Model saved in path: %s" % save_path)
         sim.visualize(memo, batch=random.randrange(batch_size), export=exp,

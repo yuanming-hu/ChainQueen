@@ -688,11 +688,17 @@ auto convert_obj = [](const std::vector<std::string> &parameters) {
 TC_REGISTER_TASK(convert_obj);
 
 auto fuse_frames = [](const std::vector<std::string> &parameters) {
-  for (int i = 0; i < 41; i++) {
-    auto frame_fn = fmt::format("frame{:05d}.txt", i * 20);
+  TC_ASSERT(parameters.size() == 4);
+  int iterations = std::atoi(parameters[0].c_str());
+  int iteration_interval = std::atoi(parameters[1].c_str());
+  int frames = std::atoi(parameters[2].c_str());
+  int frame_interval = std::atoi(parameters[3].c_str());
+  for (int i = 0; i < frames; i++) {
+    auto frame_fn = fmt::format("frame{:05d}.txt", i * frame_interval);
     std::vector<Vector3> vec;
-    for (int j = 0; j < 23; j++) {
-      auto iteration_fn = fmt::format("iteration{:04d}", j * 2);
+    for (int j = 0; j < iterations; j++) {
+      auto iteration_fn =
+          fmt::format("iteration{:04d}", j * iteration_interval);
       std::FILE *f = std::fopen((iteration_fn + "/" + frame_fn).c_str(), "r");
       char s[1000], type[100];
       while (std::fgets(s, 1000, f)) {
