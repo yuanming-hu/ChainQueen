@@ -14,6 +14,7 @@ from vector_math import *
 import export 
 import IPython
 
+evaluate = False
 lr = 10
 gamma = 0.0
 
@@ -108,7 +109,6 @@ def main(sess):
 
   goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 3], name='goal')
 
-  saver = tf.train.Saver()
   # Define your controller here
   def controller(state):
     controller_inputs = []
@@ -156,7 +156,8 @@ def main(sess):
       total_actuation = total_actuation + act
     return total_actuation, debug
   
-  res = (60, 30, 30)
+  
+  res = (60 + 100 * int(evaluate), 30, 30)
   bc = get_bounding_box_bc(res)
   
   sim = Simulation(
@@ -169,7 +170,7 @@ def main(sess):
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      E=25)
+      E=25, damping=0.001 * evaluate)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
@@ -222,6 +223,24 @@ def main(sess):
   random.shuffle(vis_id)
 
   # Optimization loop
+  saver = tf.train.Saver()
+  
+  if evaluate:
+    '''evaluate'''
+    saver.restore(sess, "crawler3d_demo/0014/data.ckpt")
+    tt = time.time()
+    memo = sim.run(
+      initial_state=initial_state,
+      num_steps=1800,
+      iteration_feed_dict={goal: goal_train[0]},
+      loss=loss)
+    print('forward', time.time() - tt)
+
+    fn = 'crawler3d_demo/eval'
+    sim.visualize(memo, batch=random.randrange(batch_size), export=None,
+                  show=True, interval=5, folder=fn)
+    return
+    
   for e in range(100000):
     t = time.time()
     print('Epoch {:5d}, learning rate {}'.format(e, lr))

@@ -185,6 +185,8 @@ class UpdatedSimulationState(SimulationState):
                 previous_state.deformation_gradient, previous_state.affine, dx=sim.dx,
                 dt=sim.dt, gravity=sim.gravity, resolution=sim.grid_res, E=sim.E, nu=sim.nu,
                 V_p=sim.V_p, m_p=sim.m_p, actuation=self.actuation, grid_bc=bc)
+  
+    self.velocity = self.velocity * (1 - self.sim.damping)
 
 
   def __init__(self, sim, previous_state, controller=None):
@@ -377,3 +379,4 @@ class UpdatedSimulationState(SimulationState):
     assert self.position.shape == previous_state.position.shape
     assert self.velocity.shape == previous_state.velocity.shape
     self.acceleration = (self.velocity - previous_state.velocity) * (1 / self.sim.dt)
+    self.velocity = self.velocity * (1 - self.sim.damping)

@@ -61,7 +61,8 @@ class Simulation:
                m_p=1,
                V_p=1,
                batch_size=1,
-               scale=None):
+               scale=None,
+               damping=0):
     self.dim = len(grid_res)
     self.InitialSimulationState = InitialSimulationState
     self.UpdatedSimulationState = UpdatedSimulationState
@@ -107,6 +108,7 @@ class Simulation:
     self.point_visualization = []
     self.vector_visualization = []
     self.frame_counter = 0
+    self.damping = damping
 
   def visualize_2d(self, memo, interval=1, batch=0, export=None, show=False, folder=None):
     import math
