@@ -3,7 +3,7 @@ import tensorflow as tf
 from vector_math import *
 
 
-use_cuda = True
+use_cuda = False
 use_apic = True
 
 if use_float64:
@@ -196,6 +196,7 @@ class UpdatedSimulationState(SimulationState):
       return
 
 
+    self.controller = controller
     # 2D time integration
     self.particle_mass = tf.identity(previous_state.particle_mass)
     self.particle_volume = tf.identity(previous_state.particle_volume)

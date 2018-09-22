@@ -84,13 +84,13 @@ def main(sess):
   for i in range(1000000):
     t = time.time()
     memo = sim.run(
-        initial_state = initial_state, 
+        initial_state = initial_state,
         num_steps = steps,
-        initial_feed_dict = {velocity_ph: [0.5, 0]}, 
+        initial_feed_dict = {velocity_ph: [0.5, 0]},
         iteration_feed_dict = {goal: goal_input},
         loss = loss)
     grad = sim.eval_gradients(sym, memo)
-    sim.visualize(memo, interval=5)
+    sim.visualize(memo, interval=5, folder='sysid_demo/iteration{:04d}'.format(i))
     print('mass', mass_ph.eval())
     gradient_descent = [
         v.assign(v - lr * g) for v, g in zip(trainables, grad)
