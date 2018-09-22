@@ -14,7 +14,7 @@ import export
 import IPython
 
 lr = 0.03
-gamma = 1.0
+gamma = 0.0
 
 sample_density = 20
 group_num_particles = sample_density**2
@@ -168,9 +168,9 @@ def main(sess):
   random.shuffle(vis_id)
 
   # Optimization loop
-  for i in range(100000):
+  for e in range(100000):
     t = time.time()
-    print('Epoch {:5d}, learning rate {}'.format(i, lr))
+    print('Epoch {:5d}, learning rate {}'.format(e, lr))
 
     loss_cal = 0.
     print('train...')
@@ -178,7 +178,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=600,
+          num_steps=800,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
@@ -200,7 +200,7 @@ def main(sess):
         save_path = saver.save(sess, "./models/walker_2d.ckpt")
         print("Model saved in path: %s" % save_path)
         sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                        show=True, interval=20, folder='walker_2d_txt/iteration{:04d}/'.format(it))
+                        show=True, interval=20, folder='walker_2d_txt/iteration{:04d}/'.format(e))
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
 if __name__ == '__main__':

@@ -13,7 +13,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 0.1
+lr = 0.3
 gamma = 0.0
 
 sample_density = 10
@@ -149,7 +149,7 @@ def main(sess):
   bc = get_bounding_box_bc(res)
   
   sim = Simulation(
-      dt=0.005,
+      dt=0.007,
       num_particles=num_particles,
       grid_res=res,
       dx=1.0 / 30,
@@ -158,7 +158,7 @@ def main(sess):
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      E=15)
+      E=10)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
@@ -222,7 +222,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=300,
+          num_steps=800,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)

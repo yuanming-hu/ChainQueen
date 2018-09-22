@@ -687,4 +687,25 @@ auto convert_obj = [](const std::vector<std::string> &parameters) {
 
 TC_REGISTER_TASK(convert_obj);
 
+auto fuse_frames = [](const std::vector<std::string> &parameters) {
+  for (auto fn : parameters) {
+    std::FILE *f = std::fopen(fn.c_str(), "r");
+    char s[1000], type[100];
+    std::vector<Vector3> vec;
+    while (std::fgets(s, 1000, f)) {
+      real x, y, a, _;
+      sscanf(s, "%s %f %f %f %f %f %f %f %f %f", type, &x, &y, &_, &_, &_, &_, &_, &_, &a);
+      if (type[0] == 'p') {
+        x = x / 40;
+        y = y / 40;
+        vec.push_back(Vector3(x, y, 0, a));
+      }
+    }
+    TC_P(vec.size());
+    write_to_binary_file(vec, fn + ".tcb");
+  }
+};
+
+TC_REGISTER_TASK(fuse_frames);
+
 TC_NAMESPACE_END
