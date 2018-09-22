@@ -203,6 +203,7 @@ class Simulation:
       frame_count_delta = self.frame_counter
     else:
       frame_count_delta = 0
+    print(folder)
     print("Warning: skipping the 0th frame..")
     for i, (s, act, points, vectors) in enumerate(zip(memo.steps, memo.actuations, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0 or i == 0:
@@ -220,8 +221,12 @@ class Simulation:
         pos = np.concatenate([pos, act], axis=0).copy()
         ptr = pos.ctypes.data_as(ctypes.c_void_p).value
         suffix = 'tcb'
+      if folder is not None:
+        os.makedirs(folder, exist_ok=True)
+      else:
+        folder = '.'
       task.run(str(self.num_particles),
-               str(ptr), '{:04d}.{}'.format(i // interval + frame_count_delta, suffix))
+               str(ptr), '{}/{:04d}.{}'.format(folder, i // interval + frame_count_delta, suffix))
       self.frame_counter += 1
 
   def visualize(self, memo, interval=1, batch=0, export=None, show=False, folder=None):

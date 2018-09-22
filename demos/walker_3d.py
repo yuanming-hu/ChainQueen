@@ -22,7 +22,7 @@ goal_pos = np.array([2.5, 0.4, 0.8])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
 
-actuation_strength = 2.4
+actuation_strength = 3.3
 
 
 config = 'C'
@@ -49,7 +49,7 @@ else:
   act_y = 0.7
   act_z = 0.5
 
-  x = 5
+  x = 3
   z = 3
   thick = 0.5
 
@@ -150,7 +150,7 @@ def main(sess):
   bc = get_bounding_box_bc(res)
   
   sim = Simulation(
-      dt=0.007,
+      dt=0.005,
       num_particles=num_particles,
       grid_res=res,
       dx=1.0 / 30,
@@ -212,9 +212,9 @@ def main(sess):
   random.shuffle(vis_id)
 
   # Optimization loop
-  for i in range(100000):
+  for e in range(100000):
     t = time.time()
-    print('Epoch {:5d}, learning rate {}'.format(i, lr))
+    print('Epoch {:5d}, learning rate {}'.format(e, lr))
 
     loss_cal = 0.
     print('train...')
@@ -222,7 +222,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=40,
+          num_steps=200,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
@@ -242,8 +242,9 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      sim.visualize(memo, batch=random.randrange(batch_size), export=None,
-                    show=True, interval=2)
+      if e % 10 == 0:
+        sim.visualize(memo, batch=random.randrange(batch_size), export=None,
+                      show=True, interval=10, folder='walker3d_demo/{:04d}/'.format(e))
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
