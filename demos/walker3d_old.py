@@ -18,7 +18,7 @@ gamma = 0.0
 
 sample_density = 15
 group_num_particles = sample_density**3
-goal_pos = np.array([2.5, 0.4, 0.72])
+goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
 
@@ -41,8 +41,10 @@ if config == 'B':
 
 
 
+#TODO: N-Ped
 #Robot C
 else:
+
   num_leg_pairs = 2
 
   act_x = 0.5
@@ -51,10 +53,11 @@ else:
 
   x = 3
   z = 3
+  thick = 0.5
 
 
   group_offsets = []
-  for x_i in np.linspace(0, x - 2 * act_x, num_leg_pairs):
+  for x_i in np.linspace(0, x - 2*act_x, num_leg_pairs):
     
     group_offsets += [(x_i, 0, 0)]
     group_offsets += [(x_i + act_x, 0, 0)]
@@ -66,18 +69,31 @@ else:
     group_offsets += [(x_i + act_x, 0, z - 2 * act_z)]
     group_offsets += [(x_i, 0, z - act_z)]
 
+  '''
+  group_offsets += [(x - 2 * act_x, 0, 0)]
+  group_offsets += [(x - act_x, 0, 0)]
+  group_offsets += [(x - 2 * act_x, 0, act_z)]
+  group_offsets += [(x - act_x, 0, act_z)]
+
+  group_offsets += [(x - 2 * act_x, 0, z - act_z)]
+  group_offsets += [(x - act_x, 0, z - 2 * act_z)]
+  group_offsets += [(x - 2 * act_x, 0, z - 2 * act_z)]
+  group_offsets += [(x - act_x, 0, z - act_z)]
+  '''
+
+
   
-  for i in range(int(x)):
-    for j in range(int(z)):
-      group_offsets += [(i, act_y, j)]
+  for i in range(int(z)):
+    for j in range(int(x)):
+      group_offsets += [(j, act_y, i)]
   num_groups = len(group_offsets)
       
   #group_offsets += [(0.0, 1.0, 0.0)]
   num_particles = group_num_particles * num_groups
   group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 1.0, 1.0)] * int(x) * int(z)
-  actuations = list(range(8 * num_leg_pairs))
+  actuations = list(range(16))
   fixed_groups = []
-  head = int(8 * num_leg_pairs + x * z - z // 2 - 1)
+  head = int(16 + x / 2 * z + z/2)
   gravity = (0, -2, 0)
 
 #IPython.embed()
@@ -145,20 +161,20 @@ def main(sess):
       total_actuation = total_actuation + act
     return total_actuation, debug
   
-  res = (120, 50, 50)
+  res = (60, 30, 30)
   bc = get_bounding_box_bc(res)
   
   sim = Simulation(
       dt=0.007,
       num_particles=num_particles,
       grid_res=res,
-      dx=1.0 / 30,
+      dx=1.0 / res[1],
       gravity=gravity,
       controller=controller,
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      E=10)
+      E=15)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
@@ -167,8 +183,7 @@ def main(sess):
   final_position = final_state[:, s:s+3]
   final_velocity = final_state[:, s + 3: s + 6]
   loss1 = tf.reduce_mean(tf.reduce_sum((final_position - goal) ** 2, axis = 1))
-  #loss1 = tf.reduce_mean(tf.reduce_sum((final_position - goal)[:, :1] ** 2, axis = 1))
-  loss2 = tf.reduce_mean(tf.reduce_sum(final_velocity ** 2, axis = 1))
+  loss2 = tf.reduce_mean(tf.reduce_sum(final_velocity ** 2, axis = 1)) 
 
   loss = loss1 + gamma * loss2
 
@@ -184,7 +199,7 @@ def main(sess):
             v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
                 ) * scale + 0.1
             w = ((z + 0.5) / sample_density * group_sizes[i][2] + offset[2]
-                 ) * scale * 0.8 + 0.5
+                 ) * scale + 0.1
             initial_positions[b].append([u, v, w])
   assert len(initial_positions[0]) == num_particles
   initial_positions = np.array(initial_positions).swapaxes(1, 2)
@@ -212,9 +227,9 @@ def main(sess):
   random.shuffle(vis_id)
 
   # Optimization loop
-  for e in range(100000):
+  for i in range(100000):
     t = time.time()
-    print('Epoch {:5d}, learning rate {}'.format(e, lr))
+    print('Epoch {:5d}, learning rate {}'.format(i, lr))
 
     loss_cal = 0.
     print('train...')
@@ -222,7 +237,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=800,
+          num_steps=400,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
@@ -242,9 +257,8 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      if e % 1 == 0:
-        sim.visualize(memo, batch=random.randrange(batch_size), export=None,
-                      show=True, interval=5, folder='walker3d_demo/{:04d}/'.format(e))
+      sim.visualize(memo, batch=random.randrange(batch_size), export=None,
+                    show=True, interval=2)
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
