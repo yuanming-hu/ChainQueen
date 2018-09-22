@@ -23,7 +23,7 @@ goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
 
-actuation_strength = 3
+actuation_strength = 5
 
 
 config = 'C'
@@ -74,7 +74,7 @@ else:
       
   #group_offsets += [(0.0, 1.0, 0.0)]
   num_particles = group_num_particles * num_groups
-  group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 1.0, 1.0)] * int(x)
+  group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 0.8, 1.0)] * int(x)
   actuations = list(range(8 * num_leg_pairs))
   fixed_groups = []
   head = 2 * 8 + 2
@@ -108,6 +108,7 @@ def main(sess):
 
   goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 3], name='goal')
 
+  saver = tf.train.Saver()
   # Define your controller here
   def controller(state):
     controller_inputs = []
@@ -159,7 +160,7 @@ def main(sess):
   bc = get_bounding_box_bc(res)
   
   sim = Simulation(
-      dt=0.007,
+      dt=0.005,
       num_particles=num_particles,
       grid_res=res,
       dx=1.0 / res[1],
@@ -168,7 +169,7 @@ def main(sess):
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      E=15)
+      E=25)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
@@ -251,9 +252,10 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      if e % 1 == 0:
-        sim.visualize(memo, batch=random.randrange(batch_size), export=None,
-                      show=True, interval=5, folder='crawler3d_demo/{:04d}/'.format(e))
+      fn = 'crawler3d_demo/{:04d}/'.format(e)
+      saver.save(sess, "{}/data.ckpt".format(fn))
+      sim.visualize(memo, batch=random.randrange(batch_size), export=None,
+                    show=True, interval=5, folder=fn)
 
 #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
