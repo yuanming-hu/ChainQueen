@@ -27,7 +27,7 @@ actuation_strength = 2
 
 config = 'C'
 
-exp = export.Export('crawler3d')
+exp = export.Export('walker3d')
 
 # Robot B
 if config == 'B':
@@ -47,11 +47,14 @@ else:
 
   num_leg_pairs = 2
 
-  x = 3
-  z = 3
   act_x = 0.5
   act_y = 0.7
   act_z = 0.5
+
+  x = 3
+  z = 3
+  thick = 0.5
+
 
   group_offsets = []
   for x_i in np.linspace(0, x - 2*act_x, num_leg_pairs):
@@ -66,17 +69,31 @@ else:
     group_offsets += [(x_i + act_x, 0, z - 2 * act_z)]
     group_offsets += [(x_i, 0, z - act_z)]
 
+  '''
+  group_offsets += [(x - 2 * act_x, 0, 0)]
+  group_offsets += [(x - act_x, 0, 0)]
+  group_offsets += [(x - 2 * act_x, 0, act_z)]
+  group_offsets += [(x - act_x, 0, act_z)]
+
+  group_offsets += [(x - 2 * act_x, 0, z - act_z)]
+  group_offsets += [(x - act_x, 0, z - 2 * act_z)]
+  group_offsets += [(x - 2 * act_x, 0, z - 2 * act_z)]
+  group_offsets += [(x - act_x, 0, z - act_z)]
+  '''
+
+
   
-  for i in range(3):
-    group_offsets += [(i, 0, act_z * 2)]
+  for i in range(int(z)):
+    for j in range(int(x)):
+      group_offsets += [(j, act_y, i)]
   num_groups = len(group_offsets)
       
   #group_offsets += [(0.0, 1.0, 0.0)]
   num_particles = group_num_particles * num_groups
-  group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 1.0, 1.0)] * int(x)
+  group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 1.0, 1.0)] * int(x) * int(z)
   actuations = list(range(8 * num_leg_pairs))
   fixed_groups = []
-  head = 2 * 8 + 2
+  head = int(8 * num_leg_pairs + x / 2 * z + z/2)
   gravity = (0, -2, 0)
 
 #IPython.embed()
@@ -140,7 +157,7 @@ def main(sess):
       assert len(act.shape) == 2
       mask = particle_mask_from_group(group)
       act = act * mask
-      act = make_matrix3d(zeros, zeros, zeros, zeros, zeros, zeros, zeros, zeros, act)
+      act = make_matrix3d(zeros, zeros, zeros, zeros, act, zeros, zeros, zeros, zeros)
       total_actuation = total_actuation + act
     return total_actuation, debug
   
@@ -242,7 +259,7 @@ def main(sess):
       loss_cal = loss_cal + memo.loss
       if e % 1 == 0:
         sim.visualize(memo, batch=random.randrange(batch_size), export=None,
-                      show=True, interval=5, folder='crawler3d_demo/{:04d}/'.format(e))
+                      show=True, interval=5, folder='walker3d_demo/{:04d}/'.format(e))
 
 #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
