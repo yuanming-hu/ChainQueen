@@ -22,7 +22,7 @@ goal_pos = np.array([2.5, 0.4, 0.8])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
 
-actuation_strength = 3.3
+actuation_strength = 2.4
 
 
 config = 'C'
