@@ -14,7 +14,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 15
+lr = 10
 gamma = 0.0
 
 sample_density = 15
@@ -23,7 +23,7 @@ goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
 
-actuation_strength = 5
+actuation_strength = 4
 
 
 config = 'C'
@@ -232,7 +232,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=200,
+          num_steps=400,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
