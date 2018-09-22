@@ -1,4 +1,5 @@
 import sys
+import math
 sys.path.append('..')
 
 import random
@@ -13,7 +14,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 1
+lr = 15
 gamma = 0.0
 
 sample_density = 15
@@ -22,7 +23,7 @@ goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
 batch_size = 1
 
-actuation_strength = 2
+actuation_strength = 3
 
 
 config = 'C'
@@ -93,10 +94,11 @@ def particle_mask(start, end):
 def particle_mask_from_group(g):
   return particle_mask(g * group_num_particles, (g + 1) * group_num_particles)
 
+K = 8
 
 # NN weights
 W1 = tf.Variable(
-    0.02 * tf.random_normal(shape=(len(actuations), 9 * len(group_sizes))),
+    0.02 * tf.random_normal(shape=(len(actuations), K)),
     trainable=True)
 b1 = tf.Variable([0.0] * len(actuations), trainable=True)
 
@@ -118,11 +120,16 @@ def main(sess):
       controller_inputs.append(pos)
       controller_inputs.append(vel)
       controller_inputs.append((goal - goal_pos) / np.maximum(goal_range, 1e-5))
+    controller_inputs_backup = controller_inputs
+    controller_inputs = []
+    t = tf.ones(shape=(1, 1)) * 0.06 * tf.cast(state.step_count, dtype=tf.float32)
+    for k in range(8):
+      controller_inputs.append(tf.sin(t + 2 / K * k * math.pi))
     # Batch, dim
     controller_inputs = tf.concat(controller_inputs, axis=1)
-    assert controller_inputs.shape == (batch_size, 9 * num_groups), controller_inputs.shape
+    assert controller_inputs.shape == (batch_size, K), controller_inputs.shape
     controller_inputs = controller_inputs[:, :, None]
-    assert controller_inputs.shape == (batch_size, 9 * num_groups, 1)
+    assert controller_inputs.shape == (batch_size, K, 1)
     # Batch, 6 * num_groups, 1
     intermediate = tf.matmul(W1[None, :, :] +
                              tf.zeros(shape=[batch_size, 1, 1]), controller_inputs)
@@ -132,7 +139,11 @@ def main(sess):
     intermediate = intermediate[:, :, 0]
     # Batch, #actuations
     actuation = tf.tanh(intermediate + b1[None, :]) * actuation_strength
-    debug = {'controller_inputs': controller_inputs[:, :, 0], 'actuation': actuation}
+    
+    controller_inputs_backup = tf.concat(controller_inputs_backup, axis=1)
+    controller_inputs_backup = controller_inputs_backup[:, :, None]
+    
+    debug = {'controller_inputs': controller_inputs_backup[:, :, 0], 'actuation': actuation}
     total_actuation = 0
     zeros = tf.zeros(shape=(batch_size, num_particles))
     for i, group in enumerate(actuations):
@@ -220,7 +231,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=400,
+          num_steps=200,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
