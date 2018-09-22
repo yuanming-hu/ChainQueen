@@ -53,7 +53,6 @@ class Simulation:
                controller=None,
                gravity=(0, -9.8),
                dt=0.01,
-               damping=0.0,
                dx=None,
                bc=None,
                E=10,
@@ -108,7 +107,6 @@ class Simulation:
     self.point_visualization = []
     self.vector_visualization = []
     self.frame_counter = 0
-    self.damping = damping
 
   def visualize_2d(self, memo, interval=1, batch=0, export=None, show=False, folder=None):
     import math

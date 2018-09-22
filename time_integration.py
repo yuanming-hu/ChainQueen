@@ -185,8 +185,9 @@ class UpdatedSimulationState(SimulationState):
                 previous_state.deformation_gradient, previous_state.affine, dx=sim.dx,
                 dt=sim.dt, gravity=sim.gravity, resolution=sim.grid_res, E=sim.E, nu=sim.nu,
                 V_p=sim.V_p, m_p=sim.m_p, actuation=self.actuation, grid_bc=bc)
-  
-    self.velocity = self.velocity * (1 - self.sim.damping)
+
+    if sim.damping != 0:
+      self.velocity *= np.exp(-sim.damping * sim.dt)
 
 
   def __init__(self, sim, previous_state, controller=None):
@@ -362,9 +363,6 @@ class UpdatedSimulationState(SimulationState):
         # weighted_node_velocity = tf.transpose(weighted_node_velocity, perm=[0, 2, 1])
         self.affine += outer_product(weighted_node_velocity, offset)
 
-    if sim.damping != 0:
-      self.velocity *= np.exp(-sim.damping * sim.dt)
-
     self.affine *= 4 * sim.inv_dx * sim.inv_dx
     dg_change = identity_matrix + self.sim.dt * self.affine
     if not use_apic:
@@ -379,4 +377,7 @@ class UpdatedSimulationState(SimulationState):
     assert self.position.shape == previous_state.position.shape
     assert self.velocity.shape == previous_state.velocity.shape
     self.acceleration = (self.velocity - previous_state.velocity) * (1 / self.sim.dt)
-    self.velocity = self.velocity * (1 - self.sim.damping)
+    
+    if sim.damping != 0:
+      self.velocity *= np.exp(-sim.damping * sim.dt)
+
