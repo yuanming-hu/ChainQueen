@@ -13,7 +13,7 @@ from vector_math import *
 import export 
 import IPython
 
-lr = 0.3
+lr = 0.1
 gamma = 0.0
 
 sample_density = 10
@@ -222,7 +222,7 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=400,
+          num_steps=800,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
       print('forward', time.time() - tt)
