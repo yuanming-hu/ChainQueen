@@ -16,7 +16,7 @@ import IPython
 lr = 0.3
 gamma = 0.0
 
-sample_density = 15
+sample_density = 10
 group_num_particles = sample_density**3
 goal_pos = np.array([2.5, 0.4, 0.8])
 goal_range = np.array([0.0, 0.0, 0.0])
