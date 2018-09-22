@@ -14,90 +14,53 @@ import export
 import IPython
 
 lr = 1
-gamma = 0.0
+gamma = 0.1
 
 sample_density = 15
 group_num_particles = sample_density**3
-goal_pos = np.array([1.4, 0.4, 0.5])
-goal_range = np.array([0.0, 0.0, 0.0])
+goal_pos = np.array([1, 1.17, 1])
+goal_range = np.array([0.6, 0.0, 0.6])
 batch_size = 1
 
-actuation_strength = 2
+actuation_strength = 40
 
 
 config = 'C'
+num_leg_pairs = 1
 
-exp = export.Export('walker3d')
+act_x = 0.5
+act_y = 1
+act_z = 0.5
 
-# Robot B
-if config == 'B':
-  num_groups = 7
-  group_offsets = [(0, 0, 0), (0.5, 0, 0), (0, 1, 0), (1, 1, 0), (2, 1, 0), (2, 0, 0), (2.5, 0, 0)]
-  group_sizes = [(0.5, 1, 1), (0.5, 1, 1), (1, 1, 1), (1, 1, 1), (1, 1, 1), (0.5, 1, 1), (0.5, 1, 1)]
-  actuations = [0, 1, 5, 6]
-  fixed_groups = []
-  head = 3
-  gravity = (0, -2, 0)
+x = 1
+z = 1
 
 
+group_offsets = []
+num_links = 3
 
-#TODO: N-Ped
-#Robot C
-else:
+for i in range(num_links):
+  y = act_y * 2 * i
+  group_offsets += [(0, y, 0)]
+  group_offsets += [(0 + act_x, y, 0)]
+  group_offsets += [(0, y, act_z)]
+  group_offsets += [(0 + act_x, y, act_z)]
 
-  num_leg_pairs = 2
-
-  act_x = 0.5
-  act_y = 0.7
-  act_z = 0.5
-
-  x = 3
-  z = 3
-  thick = 0.5
-
-
-  group_offsets = []
-  for x_i in np.linspace(0, x - 2*act_x, num_leg_pairs):
-    
-    group_offsets += [(x_i, 0, 0)]
-    group_offsets += [(x_i + act_x, 0, 0)]
-    group_offsets += [(x_i, 0, act_z)]
-    group_offsets += [(x_i + act_x, 0, act_z)]
-
-    group_offsets += [(x_i + act_x, 0, z - act_z)]
-    group_offsets += [(x_i, 0, z - 2 * act_z)]
-    group_offsets += [(x_i + act_x, 0, z - 2 * act_z)]
-    group_offsets += [(x_i, 0, z - act_z)]
-
-  '''
-  group_offsets += [(x - 2 * act_x, 0, 0)]
-  group_offsets += [(x - act_x, 0, 0)]
-  group_offsets += [(x - 2 * act_x, 0, act_z)]
-  group_offsets += [(x - act_x, 0, act_z)]
-
-  group_offsets += [(x - 2 * act_x, 0, z - act_z)]
-  group_offsets += [(x - act_x, 0, z - 2 * act_z)]
-  group_offsets += [(x - 2 * act_x, 0, z - 2 * act_z)]
-  group_offsets += [(x - act_x, 0, z - act_z)]
-  '''
-
-
+for i in range(num_links):
+  group_offsets += [(0, act_y * (2 * i + 1), 0)]
   
-  for i in range(int(z)):
-    for j in range(int(x)):
-      group_offsets += [(j, act_y, i)]
-  num_groups = len(group_offsets)
-      
-  #group_offsets += [(0.0, 1.0, 0.0)]
-  num_particles = group_num_particles * num_groups
-  group_sizes = [(act_x, act_y, act_z)] * num_leg_pairs * 2 * 4 + [(1.0, 1.0, 1.0)] * int(x) * int(z)
-  actuations = list(range(8 * num_leg_pairs))
-  fixed_groups = []
-  head = int(8 * num_leg_pairs + x / 2 * z + z/2)
-  gravity = (0, -2, 0)
+num_groups = len(group_offsets)
 
-#IPython.embed()
+num_particles = group_num_particles * num_groups
 
+group_sizes = [(act_x, act_y, act_z)] * 4 * num_links
+
+for i in range(num_links):
+  group_sizes += [(1, 1, 1)]
+  
+actuations = list(range(4 * num_links))
+gravity = (0, 0, 0)
+head = len(group_offsets) - 1
 
 num_particles = group_num_particles * num_groups
 
@@ -161,20 +124,22 @@ def main(sess):
       total_actuation = total_actuation + act
     return total_actuation, debug
   
-  res = (60, 30, 30)
+  res = (60, 90, 60)
   bc = get_bounding_box_bc(res)
+  # stick it to the ground
+  bc[0][:, :, :5, :] = -1
   
   sim = Simulation(
-      dt=0.007,
+      dt=0.0015,
       num_particles=num_particles,
       grid_res=res,
-      dx=1.0 / res[1],
+      dx=1.0 / 30,
       gravity=gravity,
       controller=controller,
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      E=15)
+      E=150)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
@@ -195,11 +160,11 @@ def main(sess):
           for z in range(sample_density):
             scale = 0.2
             u = ((x + 0.5) / sample_density * group_sizes[i][0] + offset[0]
-                ) * scale + 0.2
+                ) * scale + 0.9
             v = ((y + 0.5) / sample_density * group_sizes[i][1] + offset[1]
                 ) * scale + 0.1
             w = ((z + 0.5) / sample_density * group_sizes[i][2] + offset[2]
-                 ) * scale + 0.1
+                 ) * scale + 0.9
             initial_positions[b].append([u, v, w])
   assert len(initial_positions[0]) == num_particles
   initial_positions = np.array(initial_positions).swapaxes(1, 2)
@@ -216,20 +181,21 @@ def main(sess):
 
   gx, gy, gz = goal_range
   pos_x, pos_y, pos_z = goal_pos
-  goal_train = [np.array(
-    [[pos_x + (random.random() - 0.5) * gx,
-      pos_y + (random.random() - 0.5) * gy,
-      pos_z + (random.random() - 0.5) * gz
-      ] for _ in range(batch_size)],
-    dtype=np.float32) for __ in range(1)]
 
   vis_id = list(range(batch_size))
   random.shuffle(vis_id)
 
   # Optimization loop
-  for e in range(100000):
+  for i in range(100000):
     t = time.time()
-    print('Epoch {:5d}, learning rate {}'.format(e, lr))
+    goal_train = [np.array(
+      [[pos_x + (random.random() - 0.5) * gx,
+        pos_y + (random.random() - 0.5) * gy,
+        pos_z + (random.random() - 0.5) * gz
+        ] for _ in range(batch_size)],
+      dtype=np.float32) for __ in range(10)]
+    print('goal', goal_train)
+    print('Epoch {:5d}, learning rate {}'.format(i, lr))
 
     loss_cal = 0.
     print('train...')
@@ -237,13 +203,11 @@ def main(sess):
       tt = time.time()
       memo = sim.run(
           initial_state=initial_state,
-          num_steps=400,
+          num_steps=300,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
-      print('forward', time.time() - tt)
       tt = time.time()
       grad = sim.eval_gradients(sym=sym, memo=memo)
-      print('backward', time.time() - tt)
 
       for i, g in enumerate(grad):
         print(i, np.mean(np.abs(g)))
@@ -257,11 +221,9 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      if e % 1 == 0:
-        sim.visualize(memo, batch=random.randrange(batch_size), export=None,
-                      show=True, interval=5, folder='walker3d_demo/{:04d}/'.format(e))
-
-#exp.export()
+      sim.visualize(memo, batch=random.randrange(batch_size), export=None,
+                    show=True, interval=2)
+    #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
 if __name__ == '__main__':

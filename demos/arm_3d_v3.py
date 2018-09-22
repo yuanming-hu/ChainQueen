@@ -192,9 +192,9 @@ def main(sess):
   random.shuffle(vis_id)
 
   # Optimization loop
-  for i in range(100000):
+  for e in range(100000):
     t = time.time()
-    print('Epoch {:5d}, learning rate {}'.format(i, lr))
+    print('Epoch {:5d}, learning rate {}'.format(e, lr))
 
     loss_cal = 0.
     print('train...')
@@ -222,8 +222,12 @@ def main(sess):
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
+      folder = 'arm3d_demo/{:04d}/'.format(e)
       sim.visualize(memo, batch=random.randrange(batch_size), export=None,
-                    show=True, interval=2)
+                    show=True, interval=1, folder=folder)
+      with open(os.path.join(folder, 'target.txt'), 'w') as f:
+        goal_input = goal_input[0]
+        print(goal_input[0], goal_input[1], goal_input[2], file=f)
     #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
