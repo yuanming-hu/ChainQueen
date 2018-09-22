@@ -157,7 +157,7 @@ class Simulation:
           a = act[0, :, :, j]
         else:
           a = [[0, 0], [0, 0]]
-        particles.append((p[0], p[1]) + color + (a[0][0], a[0][1], a[1][0], a[1][1]))
+        particles.append((p[0], p[1]) + (young, color[1], color[2], a[0][0], a[0][1], a[1][0], a[1][1]))
 
       dots = []
       for dot in points:
