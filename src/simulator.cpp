@@ -741,20 +741,32 @@ auto fuse_frames_ppo = [](const std::vector<std::string> &parameters) {
 
   int frames = std::atoi(parameters[2].c_str());
   int frame_interval = std::atoi(parameters[3].c_str());
-  
+
+  /*
   auto fn = [&](int iteration, int frame) {
     auto frame_fn = fmt::format("frame{:05d}.txt", frame * frame_interval);
     auto iteration_fn =
         fmt::format("it{:04d}", iteration * iteration_interval + iteration_offset);
     return iteration_fn + "/" + frame_fn;
   };
+  */
+  auto fn = [&](int iteration, int frame) {
+    // PPO
+    auto frame_fn = fmt::format("it{:04d}/frame00001.txt", frame * frame_interval);
+    auto iteration_fn =
+        fmt::format("ep{:04d}", (iteration * iteration_interval + iteration_offset + 1) * 10);
+    return iteration_fn + "/" + frame_fn;
+  };
 
   for (int i = 0; i < frames; i++) {
     std::vector<Vector4> vec;
     for (int j = 0; j < iterations; j++) {
-      std::FILE *f = std::fopen(fn(j, i).c_str(), "r");
+      auto fname = fn(j, i).c_str();
+      // TC_P(fname);
+      std::FILE *f = std::fopen(fname, "r");
+      TC_ASSERT(f != nullptr);
       char s[1000], type[100];
-      real c = -20.7;
+      real c = -20.7_f;
       while (std::fgets(s, 1000, f)) {
         real x, y, a, _;
         sscanf(s, "%s %f %f %f %f %f %f %f %f %f", type, &x, &y, &_, &_, &_, &_,
