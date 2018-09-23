@@ -177,7 +177,7 @@ class Simulation:
       img = last_image.copy()
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
       
-      if export is None or show:
+      if show:
         cv2.imshow('Differentiable MPM Simulator', img)
         cv2.waitKey(1)
       if export is not None:

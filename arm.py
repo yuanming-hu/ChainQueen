@@ -30,6 +30,7 @@ use_pygmo = True
 
 num_steps = 800
 
+iter_ = 0
 
 # Finger
 num_links = 2
@@ -266,7 +267,9 @@ def main(sess):
       loss_pos_val, _, _ = eval_sim(loss_position, sym_pos, need_grad=False)
       loss_accel_val, _, _ = eval_sim(loss_accel, sym_accel, need_grad=False)
       c1, _, memo = eval_sim(loss_velocity, sym_vel, need_grad=False)        
-      sim.visualize(memo)
+      global iter_
+      sim.visualize(memo, show = False, folder = "arm_log/it{:04d}".format(iter_))
+      iter_ += 1
       print('loss pos', loss_pos_val)
       print('loss vel', c1)
       print('loss accel', loss_accel_val)
