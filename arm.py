@@ -316,7 +316,7 @@ def main(sess):
   
   algo.extract(pg.nlopt).maxeval = 50
   algo.set_verbosity(1)
-  udp = RobotProblem(True)
+  udp = RobotProblem(False)
   bounds = udp.get_bounds()
   mean = (np.array(bounds[0]) + np.array(bounds[1])) / 2.0
   num_vars = len(mean)
@@ -347,6 +347,7 @@ def main(sess):
   
   #IPython.embed() #We need to refactor this for real
   old_x = pop.champion_x
+  assert False
   udp = RobotProblem(True)
   prob = pg.problem(udp)
   pop = pg.population(prob, size = 1)   

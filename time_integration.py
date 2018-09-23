@@ -206,6 +206,8 @@ class UpdatedSimulationState(SimulationState):
     self.youngs_modulus = tf.identity(previous_state.youngs_modulus)
     self.poissons_ratio = tf.identity(previous_state.poissons_ratio)
     self.step_count = previous_state.step_count + 1
+    
+    self.actuation = previous_state.actuation
 
     self.t = previous_state.t + self.sim.dt
     self.grid_velocity = tf.zeros(
