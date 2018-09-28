@@ -61,7 +61,8 @@ class Simulation:
                V_p=1,
                batch_size=1,
                scale=None,
-               damping=0):
+               damping=0,
+               part_size=1):
     self.dim = len(grid_res)
     self.InitialSimulationState = InitialSimulationState
     self.UpdatedSimulationState = UpdatedSimulationState
@@ -92,7 +93,6 @@ class Simulation:
       self.bc_parameter, self.bc_normal = bc
     self.initial_state = self.InitialSimulationState(self, controller)
     self.grad_state = self.InitialSimulationState(self, controller)
-    self.updated_states = []
     self.gravity = gravity
     self.dx = dx
     self.dt = dt
@@ -101,7 +101,13 @@ class Simulation:
     self.m_p = m_p
     self.V_p = V_p
     self.inv_dx = 1.0 / dx
-    self.updated_state = self.UpdatedSimulationState(self, previous_state=self.initial_state, controller=controller)
+
+    self.part_size = part_size
+    self.states = [self.initial_state]
+    for i in range(part_size):
+        self.states.append(self.UpdatedSimulationState(self, previous_state = self.states[-1], controller = controller))
+
+    self.updated_state = self.states[-1]
     self.controller = controller
     self.parameterized_initial_state = None
     self.point_visualization = []
@@ -287,17 +293,21 @@ class Simulation:
     memo.point_visualization.append(self.evaluate_points(memo.steps[0], iteration_feed_dict))
     memo.vector_visualization.append(self.evaluate_vectors(memo.steps[0], iteration_feed_dict))
 
-    for i in range(num_steps):
+    rest_steps = num_steps
+    while rest_steps > 0:
+      now_step = min(rest_steps, self.part_size)
+      memo.last_step = now_step
+      rest_steps -= now_step
       feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}
       feed_dict.update(iteration_feed_dict)
 
       if self.updated_state.controller is not None:
-        ret_ph = [self.updated_state.to_tuple(), self.updated_state.actuation]
+        ret_ph = [self.states[now_step].to_tuple(), self.states[now_step].actuation]
         ret = self.sess.run(ret_ph, feed_dict=feed_dict)
         memo.steps.append(ret[0])
         memo.actuations.append(ret[1])
       else:
-        ret_ph = self.updated_state.to_tuple()
+        ret_ph = self.states[now_step].to_tuple()
         ret = self.sess.run(ret_ph, feed_dict=feed_dict)
         memo.steps.append(ret)
         memo.actuations.append(None)
@@ -322,6 +332,27 @@ class Simulation:
 
   def set_initial_state(self, initial_state):
     self.parameterized_initial_state = initial_state
+
+  '''
+  def gradients_step_sym(self, loss, variables, steps):
+    step_grad_variables = tf.gradients(
+        ys = self.states[steps].to_tuple(),
+        xs = self.initial_state.to_tuple(),
+        grad_ys = self.grad_state.to_tuple())
+
+    step_grad_variables = self.replace_none_with_zero(step_grad_variables,
+                                                      variables)
+
+    step_grad_states = tf.gradients(
+        ys=self.states[steps].to_tuple(),
+        xs=self.initial_state.to_tuple(),
+        grad_ys=self.grad_state.to_tuple())
+
+    step_grad_states = self.replace_none_with_zero(
+        step_grad_states, self.initial_state.to_tuple())
+
+    return {'steps_grad_variables': }
+  '''
 
   def gradients_sym(self, loss, variables):
     # loss = loss(initial_state)
@@ -396,18 +427,26 @@ class Simulation:
     feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}
     feed_dict.update(memo.iteration_feed_dict)
     last_grad_valid = self.sess.run(last_grad_sym_valid, feed_dict=feed_dict)
+    last_step_flag = memo.last_step != self.part_size
     for i in reversed(range(1, len(memo.steps))):
-      #print('backward step ', i)
-      if any(v is not None for v in step_grad_variables):
-        feed_dict = {
-            self.initial_state.to_tuple(): memo.steps[i - 1],
-            self.updated_state.to_tuple(): memo.steps[i],
-            self.grad_state.to_tuple(): last_grad_valid
-        }
-        feed_dict.update(memo.iteration_feed_dict)
-        grad_acc = self.sess.run(step_grad_variables, feed_dict=feed_dict)
-        for g, a in zip(grad, grad_acc):
-          g += a
+      if last_step_flag:
+        now_step = memo.last_step
+        last_step_flag = False
+      else:
+        now_step = self.part_size
+      if last_step_flag:
+          raise Exception("Unfinished step")
+      else:
+        if any(v is not None for v in step_grad_variables):
+          feed_dict = {
+              self.initial_state.to_tuple(): memo.steps[i - 1],
+              self.updated_state.to_tuple(): memo.steps[i],
+              self.grad_state.to_tuple(): last_grad_valid
+          }
+          feed_dict.update(memo.iteration_feed_dict)
+          grad_acc = self.sess.run(step_grad_variables, feed_dict=feed_dict)
+          for g, a in zip(grad, grad_acc):
+            g += a
       if i != 0:
         feed_dict = {
             self.initial_state.to_tuple(): memo.steps[i - 1],
