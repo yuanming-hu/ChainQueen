@@ -114,7 +114,8 @@ def main(sess):
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      scale=20)
+      scale=20,
+      part_size = 10)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
@@ -151,7 +152,9 @@ def main(sess):
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
   
+  tt = time.time()
   sym = sim.gradients_sym(loss, variables=trainables)
+  print('sym', time.time() - tt)
   #sim.add_point_visualization(pos=goal, color=(0, 1, 0), radius=3)
   sim.add_vector_visualization(pos=final_position, vector=final_velocity, color=(0, 0, 1), scale=50)
  
@@ -166,9 +169,15 @@ def main(sess):
 
   vis_id = list(range(batch_size))
   random.shuffle(vis_id)
+  grad_ph = [
+      tf.placeholder(shape = v.shape, dtype = tf.float32) for v in trainables
+  ]
+  gradient_descent = [
+      v.assign(v - lr * g) for v, g in zip(trainables, grad_ph)
+  ]
 
   # Optimization loop
-  for e in range(100000):
+  for e in range(2):
     t = time.time()
     print('Epoch {:5d}, learning rate {}'.format(e, lr))
 
@@ -184,23 +193,25 @@ def main(sess):
       print('forward', time.time() - tt)
       tt = time.time()
       grad = sim.eval_gradients(sym=sym, memo=memo)
-      print('backward', time.time() - tt)
+      print('eval_gradients', time.time() - tt)
+      tt = time.time()
 
-      for i, g in enumerate(grad):
-        print(i, np.mean(np.abs(g)))
-      
-      gradient_descent = [
-          v.assign(v - lr * g) for v, g in zip(trainables, grad)
-      ]
-      sess.run(gradient_descent)
+      grad_feed_dict = {}
+      for gp, g in zip(grad_ph, grad):
+        grad_feed_dict[gp] = g
+      sess.run(gradient_descent, feed_dict = grad_feed_dict)
+      print('gradient_descent', time.time() - tt)
+      # exit(0)
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
+      '''
       if e % 2 == 0:
         save_path = saver.save(sess, "./models/walker_2d.ckpt")
         print("Model saved in path: %s" % save_path)
         sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
                         show=True, interval=4, folder='walker_2d_txt/iteration{:04d}/'.format(e))
+      '''
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
 if __name__ == '__main__':

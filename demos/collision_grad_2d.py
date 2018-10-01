@@ -37,7 +37,8 @@ def main(sess):
     E=1,
     m_p=1,
     V_p=1,
-    sess=sess)
+    sess=sess,
+    part_size = 20)
   position = np.zeros(shape=(batch_size, 2, num_particles), dtype = np_precision)
   velocity_delta = np.zeros(shape=(batch_size, 2, num_particles), dtype = np_precision)
 
@@ -93,6 +94,7 @@ def main(sess):
       initial_feed_dict = {velocity_ph: v},
       iteration_feed_dict = {goal: goal_input},
       loss = loss)
+    print(memo.loss)
     sim.visualize(memo, interval=10)
     grad = sim.eval_gradients(sym, memo)
     print('grad', grad)

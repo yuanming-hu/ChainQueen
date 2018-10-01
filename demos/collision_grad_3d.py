@@ -35,7 +35,8 @@ def main(sess):
       bc=bc,
       gravity=gravity,
       E=1,
-      sess=sess)
+      sess=sess, 
+      part_size = 20)
   position = np.zeros(shape=(batch_size, 3, num_particles))
   velocity_delta = np.zeros(shape=(batch_size, 3, num_particles))
   
@@ -105,7 +106,7 @@ def main(sess):
         loss = loss)
     grad = sim.eval_gradients(sym, memo)
     print('grad', grad[0])
-    sim.visualize(memo, interval=3, export=True)
+    # sim.visualize(memo, interval=3, export=True)
     for d in range(3):
       v[:, d] += delta
       memo = sim.run(

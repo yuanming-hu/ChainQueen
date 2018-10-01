@@ -16,7 +16,7 @@ import IPython
 lr = 1
 gamma = 0.0
 
-sample_density = 15
+sample_density = 30
 group_num_particles = sample_density**3
 goal_pos = np.array([1.4, 0.4, 0.5])
 goal_range = np.array([0.0, 0.0, 0.0])
@@ -100,6 +100,7 @@ else:
 
 
 num_particles = group_num_particles * num_groups
+print(num_particles)
 
 
 def particle_mask(start, end):
@@ -170,12 +171,21 @@ def main(sess):
       grid_res=res,
       dx=1.0 / res[1],
       gravity=gravity,
-      controller=controller,
+      controller=None, #controller,
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      E=15)
+      E=15,
+      part_size = 10)
   print("Building time: {:.4f}s".format(time.time() - t))
+  tt = time.time()
+  memo = sim.run(
+      initial_state=initial_state,
+      num_steps=400,
+      iteration_feed_dict={goal: goal_input},
+      loss=loss)
+  print('forward', time.time() - tt)
+  tt = time.time()
 
   final_state = sim.initial_state['debug']['controller_inputs']
   s = head * 9
@@ -212,7 +222,9 @@ def main(sess):
   trainables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
   sim.set_initial_state(initial_state=initial_state)
   
+  tt = time.time()
   sym = sim.gradients_sym(loss, variables=trainables)
+  print('sym', time.time() - tt)
 
   gx, gy, gz = goal_range
   pos_x, pos_y, pos_z = goal_pos
@@ -225,9 +237,15 @@ def main(sess):
 
   vis_id = list(range(batch_size))
   random.shuffle(vis_id)
+  grad_ph = [
+      tf.placeholder(shape = v.shape, dtype = tf.float32) for v in trainables
+  ]
+  gradient_descent = [
+      v.assign(v - lr * g) for v, g in zip(trainables, grad_ph)
+  ]
 
   # Optimization loop
-  for e in range(100000):
+  for e in range(200):
     t = time.time()
     print('Epoch {:5d}, learning rate {}'.format(e, lr))
 
@@ -250,16 +268,18 @@ def main(sess):
       grad = [np.clip(g, -1, 1) for g in grad]
 
 
-      gradient_descent = [
-          v.assign(v - lr * g) for v, g in zip(trainables, grad)
-      ]
-      sess.run(gradient_descent)
+      grad_feed_dict = {}
+      for gp, g in zip(grad_ph, grad):
+        grad_feed_dict[gp] = g
+      sess.run(gradient_descent, feed_dict = grad_feed_dict)
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
+      '''
       if e % 1 == 0:
         sim.visualize(memo, batch=random.randrange(batch_size), export=None,
                       show=True, interval=5, folder='walker3d_demo/{:04d}/'.format(e))
+      '''
 
 #exp.export()
     print('train loss {}'.format(loss_cal / len(goal_train)))
