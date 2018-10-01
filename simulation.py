@@ -51,6 +51,7 @@ class Simulation:
                grid_res,
                num_particles,
                controller=None,
+               F_controller=None,
                gravity=(0, -9.8),
                dt=0.01,
                dx=None,
@@ -62,7 +63,8 @@ class Simulation:
                batch_size=1,
                scale=None,
                damping=0,
-               part_size=1):
+               part_size=1,
+               use_visualize = False):
     self.dim = len(grid_res)
     self.InitialSimulationState = InitialSimulationState
     self.UpdatedSimulationState = UpdatedSimulationState
@@ -91,8 +93,8 @@ class Simulation:
       
     if bc is not None:
       self.bc_parameter, self.bc_normal = bc
-    self.initial_state = self.InitialSimulationState(self, controller)
-    self.grad_state = self.InitialSimulationState(self, controller)
+    self.initial_state = self.InitialSimulationState(self, controller, F_controller)
+    self.grad_state = self.InitialSimulationState(self, controller, F_controller)
     self.gravity = gravity
     self.dx = dx
     self.dt = dt
@@ -105,7 +107,7 @@ class Simulation:
     self.part_size = part_size
     self.states = [self.initial_state]
     for i in range(part_size):
-        self.states.append(self.UpdatedSimulationState(self, previous_state = self.states[-1], controller = controller))
+        self.states.append(self.UpdatedSimulationState(self, previous_state = self.states[-1], controller = controller, F_controller = F_controller))
 
     self.updated_state = self.states[-1]
     self.controller = controller
@@ -113,6 +115,7 @@ class Simulation:
     self.point_visualization = []
     self.vector_visualization = []
     self.frame_counter = 0
+    self.use_visualize = use_visualize
 
   def visualize_2d(self, memo, interval=1, batch=0, export=None, show=False, folder=None):
     import math
@@ -136,12 +139,12 @@ class Simulation:
     background = cv2.resize(
       background, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
     
-    alpha = 0.15
+    alpha = 0.50
     last_image = background
 
     if folder:
       os.makedirs(folder, exist_ok=True)
-
+    
     for i, (s, act, points, vectors) in enumerate(zip(memo.steps, memo.actuations, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0:
         continue
@@ -290,8 +293,9 @@ class Simulation:
 
     memo.steps = [initial_evaluated]
     memo.actuations = [None]
-    memo.point_visualization.append(self.evaluate_points(memo.steps[0], iteration_feed_dict))
-    memo.vector_visualization.append(self.evaluate_vectors(memo.steps[0], iteration_feed_dict))
+    if self.use_visualize:
+      memo.point_visualization.append(self.evaluate_points(memo.steps[0], iteration_feed_dict))
+      memo.vector_visualization.append(self.evaluate_vectors(memo.steps[0], iteration_feed_dict))
 
     rest_steps = num_steps
     while rest_steps > 0:
@@ -311,8 +315,9 @@ class Simulation:
         ret = self.sess.run(ret_ph, feed_dict=feed_dict)
         memo.steps.append(ret)
         memo.actuations.append(None)
-      memo.point_visualization.append(self.evaluate_points(memo.steps[-1], iteration_feed_dict))
-      memo.vector_visualization.append(self.evaluate_vectors(memo.steps[-1], iteration_feed_dict))
+        if self.use_visualize:
+          memo.point_visualization.append(self.evaluate_points(memo.steps[-1], iteration_feed_dict))
+          memo.vector_visualization.append(self.evaluate_vectors(memo.steps[-1], iteration_feed_dict))
       
     if loss is not None:
       feed_dict = {self.initial_state.to_tuple(): memo.steps[-1]}

@@ -114,7 +114,7 @@ class SimulationState:
 
 class InitialSimulationState(SimulationState):
 
-  def __init__(self, sim, controller=None):
+  def __init__(self, sim, controller=None, F_controller = None):
     super().__init__(sim)
     dim = self.dim
     self.t = 0
@@ -146,13 +146,14 @@ class InitialSimulationState(SimulationState):
     self.step_count = tf.zeros(shape=(), dtype=np.int32)
 
     self.controller = controller
+    self.F_controller = F_controller
     if controller is not None:
       self.actuation, self.debug = controller(self)
       self.actuation = matmatmul(self.deformation_gradient, matmatmul(self.actuation, transpose(self.deformation_gradient)))
 
 
 class UpdatedSimulationState(SimulationState):
-  def cuda(self, sim, previous_state, controller):
+  def cuda(self, sim, previous_state, controller, F_controller):
     self.position = previous_state.position
     self.velocity = previous_state.velocity
     self.deformation_gradient = previous_state.deformation_gradient
@@ -189,14 +190,20 @@ class UpdatedSimulationState(SimulationState):
     if sim.damping != 0:
       self.velocity *= np.exp(-sim.damping * sim.dt)
 
+    if F_controller:
+      self.velocity += F_controller(self) * sim.dt
 
-  def __init__(self, sim, previous_state, controller=None):
+
+  def __init__(self, sim, previous_state, controller=None, F_controller = None):
     super().__init__(sim)
     dim = self.dim
     if dim == 3 or use_cuda:
       # print("Running with cuda")
-      self.cuda(sim, previous_state, controller=controller)
+      self.cuda(sim, previous_state, controller=controller, F_controller = F_controller)
       return
+    
+    if F_controller is not None:
+      raise Exception('F_controller is not defined with out cuda')
 
 
     self.controller = controller
