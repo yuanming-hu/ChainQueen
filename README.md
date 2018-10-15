@@ -1,5 +1,5 @@
 # Differentiable MPM for TensorFlow / PyTorch
-## Installing CUDA solver
+## Installing the CUDA solver
 
 - Install `taichi` by executing:
   ```
