@@ -8,17 +8,23 @@ from time_integration import UpdatedSimulationState
 import tensorflow as tf
 import numpy as np
 from IPython import embed
+import export
+
+exp = export.Export('rolling_acc')
 
 def main(sess):
   batch_size = 1
   gravity = (0, -1)
   # gravity = (0, 0)
-  N = 9
-  num_particles = N * N
+  N = 5
+  dR = 0.2
+  R = (N - 1) * dR
+  dC = 1.6
+  num_particles = int(((N - 1) * dC + 1) ** 2)
   steps = 1000
-  dt = 1e-2
+  dt = 5e-3
   goal_range = 0.15
-  res = (30, 30)
+  res = (45, 30)
   bc = get_bounding_box_bc(res)
 
   lr = 1e-2
@@ -28,8 +34,8 @@ def main(sess):
   def F_controller(state):
     F = state.position - state.center_of_mass()[:, :, None]
     F = tf.stack([F[:, 1], -F[:, 0]], axis = 1)
-    T = tf.cast(state.step_count < 2, dtype = tf.float32)
-    return F * 10
+    # T = tf.cast(state.step_count // 100 % 2, dtype = tf.float32) * 2 - 1
+    return F * 10#  * T
 
   sim = Simulation(
       dt=dt,
@@ -50,11 +56,24 @@ def main(sess):
   velocity_ph = tf.constant([0, 0], dtype = tf.float32)
   velocity = velocity_ph[None, :, None] + tf.zeros(
       shape=[batch_size, 2, num_particles], dtype=tf.float32)
+  random.seed(123)
   for b in range(batch_size):
+    dx, dy = 5, 4
+    cnt = 0
+    las = 0
     for i in range(N):
-      for j in range(N):
-        position[b, i * N + j] = ((i * 0.5 + 3) / 30,
-                                  (j * 0.5 + 3) / 30)
+      l = int((dC * i + 1) ** 2)
+      l, las = l - las, l
+      print(l)
+      dth = 2 * np.pi / l
+      dr = R / (N - 1) * i
+      theta = np.pi * 2 * np.random.random()
+      for j in range(l):
+        theta += dth
+        x, y = np.cos(theta) * dr, np.sin(theta) * dr
+        position[b, cnt] = ((dx + x) / 30, (dy + y) / 30)
+        cnt += 1
+
   position = np.array(position).swapaxes(1, 2)
 
   sess.run(tf.global_variables_initializer())
@@ -81,7 +100,10 @@ def main(sess):
       iteration_feed_dict = {goal: goal_input},
       loss = loss)
 
-  sim.visualize(memo, show = True, interval = 2)
+  if True:
+    sim.visualize(memo, show = True, interval = 2)
+  else:
+    sim.visualize(memo, show = False, interval = 1, export = exp)
     
 if __name__ == '__main__':
   sess_config = tf.ConfigProto(allow_soft_placement=True)
