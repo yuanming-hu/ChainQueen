@@ -177,7 +177,7 @@ def main(sess):
   ]
 
   # Optimization loop
-  for e in range(2):
+  for e in range(200):
     t = time.time()
     print('Epoch {:5d}, learning rate {}'.format(e, lr))
 
@@ -201,17 +201,13 @@ def main(sess):
         grad_feed_dict[gp] = g
       sess.run(gradient_descent, feed_dict = grad_feed_dict)
       print('gradient_descent', time.time() - tt)
-      # exit(0)
       print('Iter {:5d} time {:.3f} loss {}'.format(
           it, time.time() - t, memo.loss))
       loss_cal = loss_cal + memo.loss
-      '''
-      if e % 2 == 0:
-        save_path = saver.save(sess, "./models/walker_2d.ckpt")
-        print("Model saved in path: %s" % save_path)
-        sim.visualize(memo, batch=random.randrange(batch_size), export=exp,
-                        show=True, interval=4, folder='walker_2d_txt/iteration{:04d}/'.format(e))
-      '''
+    save_path = saver.save(sess, "./models/walker_2d.ckpt")
+    print("Model saved in path: %s" % save_path)
+    sim.visualize(memo, batch=random.randrange(batch_size), export=None,
+                    show=True, interval=4)
     print('train loss {}'.format(loss_cal / len(goal_train)))
     
 if __name__ == '__main__':

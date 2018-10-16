@@ -64,7 +64,7 @@ class Simulation:
                scale=None,
                damping=0,
                part_size=1,
-               use_visualize = False):
+               use_visualize = True):
     self.dim = len(grid_res)
     self.InitialSimulationState = InitialSimulationState
     self.UpdatedSimulationState = UpdatedSimulationState
@@ -144,7 +144,7 @@ class Simulation:
 
     if folder:
       os.makedirs(folder, exist_ok=True)
-    
+
     for i, (s, act, points, vectors) in enumerate(zip(memo.steps, memo.actuations, memo.point_visualization, memo.vector_visualization)):
       if i % interval != 0:
         continue
@@ -185,7 +185,7 @@ class Simulation:
       last_image = np.minimum(last_image, img)
       img = last_image.copy()
       img = img.swapaxes(0, 1)[::-1, :, ::-1]
-      
+
       if show:
         cv2.imshow('Differentiable MPM Simulator', img)
         cv2.waitKey(1)
@@ -310,6 +310,9 @@ class Simulation:
         ret = self.sess.run(ret_ph, feed_dict=feed_dict)
         memo.steps.append(ret[0])
         memo.actuations.append(ret[1])
+        if self.use_visualize:
+          memo.point_visualization.append(self.evaluate_points(memo.steps[-1], iteration_feed_dict))
+          memo.vector_visualization.append(self.evaluate_vectors(memo.steps[-1], iteration_feed_dict))
       else:
         ret_ph = self.states[now_step].to_tuple()
         ret = self.sess.run(ret_ph, feed_dict=feed_dict)
