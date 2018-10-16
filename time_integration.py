@@ -41,6 +41,7 @@ class SimulationState:
     self.kernels = None
     self.debug = None
     self.actuation = None
+    self.F = None
 
   def center_of_mass(self, left = None, right = None):
     return tf.reduce_sum(self.position[:, :, left:right] * self.particle_mass[:, :, left:right], axis=2) *\
@@ -191,7 +192,8 @@ class UpdatedSimulationState(SimulationState):
       self.velocity *= np.exp(-sim.damping * sim.dt)
 
     if F_controller:
-      self.velocity += F_controller(self) * sim.dt
+      self.F = F_controller(self)
+      self.velocity += self.F * sim.dt
 
 
   def __init__(self, sim, previous_state, controller=None, F_controller = None):

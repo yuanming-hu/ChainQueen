@@ -16,11 +16,33 @@ try:
 except:
   print("Warning: cannot import taichi or CUDA solver.")
 
+def get_new_bc(res, boundary_thickness=4, boundary = None, boundary_ = None):
+  if len(res) == 2:
+    bc_parameter = np.zeros(
+      shape=(1,) + res + (1,), dtype=np_precision)
+    bc_parameter += 0.0  # Coefficient of friction
+    bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np_precision)
+    bc_normal[:, :boundary_thickness] = (1, 0)
+    bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0)
+    bc_normal[:, :, :boundary_thickness] = (0, 1)
+    bc_normal[:, :, res[1] - boundary_thickness - 1:] = (0, -1)
+    for i in range(res[0]):
+      ry = boundary(i)
+      x, iy = i, int(np.round(ry))
+      k = boundary_(i)
+      L = (k ** 2 + 1) ** 0.5
+      dx, dy = (-k / L, 1 / L)
+      print(i, dx, dy)
+      for y in range(iy - 5, iy + 1):
+        bc_normal[:, x, y] = (dx, dy)
+        bc_parameter[:, x, y] = 0
+  return bc_parameter, bc_normal
+
 def get_bounding_box_bc(res, boundary_thickness=3):
   if len(res) == 2:
     bc_parameter = np.zeros(
       shape=(1,) + res + (1,), dtype=np_precision)
-    bc_parameter += 0.5  # Coefficient of friction
+    bc_parameter += 0 # Coefficient of friction
     bc_normal = np.zeros(shape=(1,) + res + (len(res),), dtype=np_precision)
     bc_normal[:, :boundary_thickness] = (1, 0)
     bc_normal[:, res[0] - boundary_thickness - 1:] = (-1, 0)
@@ -161,7 +183,7 @@ class Simulation:
         x, y = tuple(map(lambda t: math.ceil(t * scale), p))
         intensity = (young) / 50.0
         color = (0.2, 0.2, 0.2)
-        cv2.circle(img, (y, x), radius=3, color=color, thickness=-1)
+        cv2.circle(img, (y, x), radius=0, color=color, thickness=-1)
         if act is not None:
           a = act[0, :, :, j]
         else:
