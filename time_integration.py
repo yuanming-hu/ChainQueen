@@ -2,19 +2,14 @@ import numpy as np
 import tensorflow as tf
 from vector_math import *
 
-
-use_cuda = False
 use_apic = True
 
-if use_float64:
-  use_cuda = False
 
 try:
   import mpm3d
+  cuda_imported = True
 except:
-  use_cuda = False
-if not use_cuda:
-  print("***Warning: NOT using CUDA")
+  cuda_imported = False
 
 kernel_size = 3
 
@@ -42,6 +37,11 @@ class SimulationState:
     self.debug = None
     self.actuation = None
     self.F = None
+    self.use_cuda = sim.use_cuda
+    if use_float64 or not cuda_imported:
+      self.use_cuda = False
+    if not self.use_cuda:
+      print("***Warning: NOT using CUDA")
 
   def center_of_mass(self, left = None, right = None):
     return tf.reduce_sum(self.position[:, :, left:right] * self.particle_mass[:, :, left:right], axis=2) *\
@@ -199,7 +199,7 @@ class UpdatedSimulationState(SimulationState):
   def __init__(self, sim, previous_state, controller=None, F_controller = None):
     super().__init__(sim)
     dim = self.dim
-    if dim == 3 or use_cuda:
+    if dim == 3 or self.use_cuda:
       # print("Running with cuda")
       self.cuda(sim, previous_state, controller=controller, F_controller = F_controller)
       return

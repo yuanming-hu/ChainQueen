@@ -33,7 +33,8 @@ def main(sess):
       grid_res=res,
       bc=bc,
       gravity=gravity,
-      sess=sess)
+      sess=sess,
+      use_cuda=False)
 
   '''
   youngs_modulus = np.ones(shape=(batch_size, num_particles, 1))

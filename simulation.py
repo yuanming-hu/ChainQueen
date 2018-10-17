@@ -85,7 +85,9 @@ class Simulation:
                scale=None,
                damping=0,
                part_size=1,
-               use_visualize = True):
+               use_visualize=True,
+               use_cuda=True):
+    self.use_cuda = use_cuda
     self.dim = len(grid_res)
     self.InitialSimulationState = InitialSimulationState
     self.UpdatedSimulationState = UpdatedSimulationState
