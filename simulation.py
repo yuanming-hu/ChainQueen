@@ -32,7 +32,6 @@ def get_new_bc(res, boundary_thickness=4, boundary = None, boundary_ = None):
       k = boundary_(i)
       L = (k ** 2 + 1) ** 0.5
       dx, dy = (-k / L, 1 / L)
-      print(i, dx, dy)
       for y in range(iy - 5, iy + 1):
         bc_normal[:, x, y] = (dx, dy)
         bc_parameter[:, x, y] = 0
@@ -138,6 +137,10 @@ class Simulation:
     self.vector_visualization = []
     self.frame_counter = 0
     self.use_visualize = use_visualize
+
+  def stepwise_sym(self, expr):
+    temp = tf.stack([expr(state) for state in self.states[:-1]], axis = 0)
+    return tf.reduce_sum(temp, axis = 0)
 
   def visualize_2d(self, memo, interval=1, batch=0, export=None, show=False, folder=None):
     import math
@@ -298,7 +301,8 @@ class Simulation:
           initial_state=None,
           initial_feed_dict={},
           iteration_feed_dict={},
-          loss=None):
+          loss=None,
+          stepwise_loss = None):
     memo = Memo()
     memo.initial_feed_dict = initial_feed_dict
     memo.iteration_feed_dict = iteration_feed_dict
@@ -329,7 +333,8 @@ class Simulation:
 
       if self.updated_state.controller is not None:
         ret_ph = [self.states[now_step].to_tuple(), self.states[now_step].actuation]
-        ret = self.sess.run(ret_ph, feed_dict=feed_dict)
+        ret, swl = self.sess.run([ret_ph, stepwise_loss], feed_dict=feed_dict)
+        memo.update_stepwise_loss(swl)
         memo.steps.append(ret[0])
         memo.actuations.append(ret[1])
         if self.use_visualize:
@@ -337,7 +342,8 @@ class Simulation:
           memo.vector_visualization.append(self.evaluate_vectors(memo.steps[-1], iteration_feed_dict))
       else:
         ret_ph = self.states[now_step].to_tuple()
-        ret = self.sess.run(ret_ph, feed_dict=feed_dict)
+        ret, swl = self.sess.run([ret_ph, stepwise_loss], feed_dict=feed_dict)
+        memo.update_stepwise_loss(swl)
         memo.steps.append(ret)
         memo.actuations.append(None)
         if self.use_visualize:

@@ -13,10 +13,11 @@ import export
 
 difficulty = 0.6
 
-# tf.set_random_seed(1234)
+tf.set_random_seed(1234)
+np.random.seed(0)
 # NN
 W1 = tf.Variable(
-    0.2 * tf.random_normal(shape=(4, 16)),
+    0.2 * tf.random_normal(shape=(8, 16)),
     trainable=True)
 b1 = tf.Variable(np.random.random(16) * 0.2, trainable=True, dtype = tf.float32)
 
@@ -66,6 +67,19 @@ def main(sess):
   
   goal = tf.placeholder(dtype=tf.float32, shape=[batch_size, 2], name='goal')
 
+  def state_tensor(state):
+    cm = state.center_of_mass()
+    mv = tf.reduce_mean(state.velocity, axis = 2)
+    time1 = tf.sin(tf.cast(state.step_count, dtype = tf.float32) / 100)
+    time2 = tf.sin(tf.cast(state.step_count, dtype = tf.float32) / 31)
+    time3 = tf.sin(tf.cast(state.step_count, dtype = tf.float32) / 57)
+    time4 = tf.sin(tf.cast(state.step_count, dtype = tf.float32) / 7)
+    lis = [mv, cm, time1, time2, time3, time4]
+    tensor = tf.concat([tf.reshape(t, shape = [batch_size, -1])
+                        for t in lis],
+                       axis = 1)
+    return tensor
+
   def F_controller(state):
     # F = state.position - state.center_of_mass()[:, :, None]
     # F = tf.stack([F[:, 1], -F[:, 0]], axis = 1)
@@ -80,15 +94,7 @@ def main(sess):
     F = tf.stack([dx, dy], axis = 1) * max_speed
 
     # inputs
-    mv = tf.reduce_mean(state.velocity, axis = 2)
-    time1 = tf.sin(tf.cast(state.step_count, dtype = tf.float32) / 100)
-    time2 = tf.sin(tf.cast(state.step_count, dtype = tf.float32) / 31)
-    time3 = tf.sin(tf.cast(state.step_count, dtype = tf.float32) / 57)
-    time4 = tf.sin(tf.cast(state.step_count, dtype = tf.float32) / 7)
-    input_list = [time1, time2, time3, time4]
-    inputs = tf.concat([tf.reshape(t, shape = [batch_size, -1])
-                        for t in input_list],
-                       axis = 1)
+    inputs = state_tensor(state)
     
     # network
     outputs1 = tf.tanh(tf.matmul(inputs, W1) + b1[None, :])
@@ -151,6 +157,7 @@ def main(sess):
 
   initial_state = sim.get_initial_state(
       position=position, velocity=velocity)
+  state_sum = sim.stepwise_sym(state_tensor)
 
   final_position = sim.initial_state.center_of_mass()
   final_velocity = tf.reduce_mean(sim.initial_state.velocity, axis = 2)
@@ -200,7 +207,10 @@ def main(sess):
         initial_state = initial_state, 
         num_steps = steps,
         iteration_feed_dict = {goal: goal_input},
-        loss = loss)
+        loss = loss,
+        stepwise_loss = state_sum)
+    print(memo.stepwise_loss)
+    break
     print('forward', time.time() - tt)
 
     if False:# i % 10 == 0:
