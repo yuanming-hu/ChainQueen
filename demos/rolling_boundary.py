@@ -9,6 +9,7 @@ import tensorflow as tf
 import numpy as np
 from IPython import embed
 import export
+from model import SimpleModel
 
 
 difficulty = 0.6
@@ -16,20 +17,8 @@ difficulty = 0.6
 tf.set_random_seed(1234)
 np.random.seed(0)
 # NN
-W1 = tf.Variable(
-    0.2 * tf.random_normal(shape=(8, 16)),
-    trainable=True)
-b1 = tf.Variable(np.random.random(16) * 0.2, trainable=True, dtype = tf.float32)
 
-W2 = tf.Variable(
-    0.2 * tf.random_normal(shape=(16, 1)),
-    trainable=True)
-b2 = tf.Variable(np.random.random(1) * 0.2, trainable=True, dtype = tf.float32)
-
-'''
-b = tf.Variable(np.random.random(2000) - 0.5, trainable = True, dtype = tf.float32)
-thb = tf.tanh(b)
-'''
+model = SimpleModel(8, 1, batch_normalize = True)
 
 def main(sess):
   batch_size = 1
@@ -79,6 +68,9 @@ def main(sess):
                         for t in lis],
                        axis = 1)
     return tensor
+  
+  def norm_tensor(state):
+    return (state_tensor(state) - model.get_bn_mean()) ** 2
 
   def F_controller(state):
     # F = state.position - state.center_of_mass()[:, :, None]
@@ -97,9 +89,7 @@ def main(sess):
     inputs = state_tensor(state)
     
     # network
-    outputs1 = tf.tanh(tf.matmul(inputs, W1) + b1[None, :])
-    outputs2 = tf.tanh(tf.matmul(outputs1, W2) + b2[None, :])
-    direction = outputs2
+    direction = model(inputs)
     '''
     direction = thb[state.step_count]
     '''
@@ -134,7 +124,6 @@ def main(sess):
   velocity_ph = tf.constant([0, 0], dtype = tf.float32)
   velocity = velocity_ph[None, :, None] + tf.zeros(
       shape=[batch_size, 2, num_particles], dtype=tf.float32)
-  random.seed(123)
   for b in range(batch_size):
     dx, dy = 15.81, 7.2
     cnt = 0
@@ -157,7 +146,8 @@ def main(sess):
 
   initial_state = sim.get_initial_state(
       position=position, velocity=velocity)
-  state_sum = sim.stepwise_sym(state_tensor)
+  state_sum = tf.reduce_mean(sim.stepwise_sym(state_tensor), axis = 0)
+  state_norm = tf.reduce_mean(sim.stepwise_sym(norm_tensor), axis = 0)
 
   final_position = sim.initial_state.center_of_mass()
   final_velocity = tf.reduce_mean(sim.initial_state.velocity, axis = 2)
@@ -179,7 +169,7 @@ def main(sess):
   ]
   velocity = [
       tf.Variable(np.zeros(shape = v.shape, dtype = np.float32),
-      trainable=True) for v in trainables
+      trainable=False) for v in trainables
   ]
   
   gradient_descent = [
@@ -208,10 +198,9 @@ def main(sess):
         num_steps = steps,
         iteration_feed_dict = {goal: goal_input},
         loss = loss,
-        stepwise_loss = state_sum)
-    print(memo.stepwise_loss)
-    break
+        stepwise_loss = [state_sum, state_norm])
     print('forward', time.time() - tt)
+
 
     if False:# i % 10 == 0:
       tt = time.time()
@@ -239,6 +228,11 @@ def main(sess):
     # log2 = tf.Print(b1, [b1], 'b1:')
     # sess.run(log1)
     # sess.run(log2)
+
+    mean, norm = memo.stepwise_loss
+    mean /= steps
+    norm /= steps
+    model.update_bn(mean, norm, sess)
 
     # if i % 10 == 0:
     if tot ** 0.5 > 100:# i % 10 == 0:

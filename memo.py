@@ -11,6 +11,7 @@ class Memo:
     self.stepwise_loss = None
 
   def update_stepwise_loss(self, step):
+    from IPython import embed
     if step is None:
       return
     if self.stepwise_loss is None:
@@ -18,7 +19,7 @@ class Memo:
       return
 
     def add(a, b):
-      if a is list:
+      if isinstance(a, list):
         for x, y in zip(a, b):
           add(x, y)
       else:
