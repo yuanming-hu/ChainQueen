@@ -34,6 +34,7 @@ def main(sess):
       bc=bc,
       gravity=gravity,
       sess=sess)
+
   '''
   youngs_modulus = np.ones(shape=(batch_size, num_particles, 1))
   youngs_modulus[:, : 400] = 100
@@ -41,15 +42,15 @@ def main(sess):
   youngs_modulus[:, -100: ] = 10
   '''
   ym_var = tf.Variable([5.], trainable = True)
-  ym_1 = tf.constant(100., shape = [1, 400, 1], dtype = tf.float32)
-  ym_2 = ym_var + tf.zeros(shape = [1, 900, 1], dtype = tf.float32)
-  ym_3 = tf.constant(10., shape = [1, 100, 1], dtype = tf.float32)
-  youngs_modulus = tf.concat([ym_1, ym_2, ym_3], axis = 1)
+  ym_1 = tf.constant(100., shape = [1, 1, 400], dtype = tf.float32)
+  ym_2 = ym_var + tf.zeros(shape = [1, 1, 900], dtype = tf.float32)
+  ym_3 = tf.constant(10., shape = [1, 1, 100], dtype = tf.float32)
+  youngs_modulus = tf.concat([ym_1, ym_2, ym_3], axis = 2)
 
 
-  velocity = np.zeros(shape = (batch_size, num_particles, 2))
+  velocity = np.zeros(shape = (batch_size, 2, num_particles))
+  position = np.zeros(shape = (batch_size, num_particles, 2)) #swap axis later
 
-  position = np.zeros(shape = (batch_size, num_particles, 2))
   for b in range(batch_size):
     cnt = 0
     for group, pos in zip(group_size, group_position):
@@ -60,15 +61,16 @@ def main(sess):
           position[b][cnt] = ((i * 0.25 + x) / res[0],
                               (j * 0.25 + y) / res[1])
           cnt += 1
+  position = np.swapaxes(position, 1, 2)
 
-  mass = np.ones(shape = (batch_size, num_particles, 1))
-  mass[:, : 400] = 20
+  mass = np.ones(shape = (batch_size, 1, num_particles))
+  mass[:, :, :400] = 20
 
   sess.run(tf.global_variables_initializer())
 
   initial_state = sim.get_initial_state(
       position=position, velocity=velocity, 
-      particle_mass = mass, youngs_modulus = youngs_modulus)
+      particle_mass=mass, youngs_modulus=youngs_modulus)
 
   final_position = sim.initial_state.center_of_mass(-100, None)
   loss = tf.reduce_sum(tf.abs(final_position - goal)[:, 1])
@@ -95,8 +97,8 @@ def main(sess):
         iteration_feed_dict = {goal: goal_input},
         loss = loss)
     grad = sim.eval_gradients(sym, memo)
-    if i % 5 == 0: # True: # memo.loss < 0.01: 
-      sim.visualize(memo, interval = 2)
+    #if i % 5 == 0: # True: # memo.loss < 0.01:
+    sim.visualize(memo, interval = 2)
     gradient_descent = [
         v.assign(v - lr * g) for v, g in zip(trainables, grad)
     ]

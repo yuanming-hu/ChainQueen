@@ -333,7 +333,10 @@ class Simulation:
 
       if self.updated_state.controller is not None:
         ret_ph = [self.states[now_step].to_tuple(), self.states[now_step].actuation]
-        ret, swl = self.sess.run([ret_ph, stepwise_loss], feed_dict=feed_dict)
+        if stepwise_loss is None:
+          ret, swl = self.sess.run(ret_ph, feed_dict=feed_dict), []
+        else:
+          ret, swl = self.sess.run([ret_ph, stepwise_loss], feed_dict=feed_dict)
         memo.update_stepwise_loss(swl)
         memo.steps.append(ret[0])
         memo.actuations.append(ret[1])
@@ -342,7 +345,10 @@ class Simulation:
           memo.vector_visualization.append(self.evaluate_vectors(memo.steps[-1], iteration_feed_dict))
       else:
         ret_ph = self.states[now_step].to_tuple()
-        ret, swl = self.sess.run([ret_ph, stepwise_loss], feed_dict=feed_dict)
+        if stepwise_loss is None:
+          ret, swl = self.sess.run(ret_ph, feed_dict=feed_dict), []
+        else:
+          ret, swl = self.sess.run([ret_ph, stepwise_loss], feed_dict=feed_dict)
         memo.update_stepwise_loss(swl)
         memo.steps.append(ret)
         memo.actuations.append(None)
