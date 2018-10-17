@@ -12,6 +12,8 @@ from simulation import Simulation
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 sess = tf.Session()
+import mpm3d
+
 
 # Memory bandwidth of 1070 = 256 GB/s
 
@@ -26,7 +28,8 @@ def main():
   sess.run(tf.global_variables_initializer())
   # op = tf.reduce_max(tf.assign(a, a + b))
   # op = tf.assign(a, b)
-  op = tf.reduce_max(a + b)
+  op = mpm3d.inc(a)
+  # op = tf.reduce_max(a + b)
   #op = tf.assign(a, a)
 
   total_time = 0

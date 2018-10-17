@@ -155,6 +155,20 @@ void advance(TState<dim> &state, TState<dim> &new_state) {
   }
 }
 
+__global__ void inc(int n, const real *inx, real *outx) {
+  int id = blockDim.x * blockIdx.x + threadIdx.x;
+  if (id < n) {
+    outx[id] = inx[id] + 1;
+  }
+}
+
+void IncKernelLauncher(const real *inx,
+                       real *outx) {
+  int n = 256 * 256 * 1024;
+  int block_size = 1024;
+  inc<<<n / block_size, block_size>>>(n, inx, outx);
+}
+
 // compability
 void MPMKernelLauncher(int dim_,
                        int *res,
