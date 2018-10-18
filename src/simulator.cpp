@@ -6,6 +6,7 @@
 #include <Partio.h>
 #include <taichi/system/profiler.h>
 #include <taichi/math/svd.h>
+#include <cuda_runtime.h>
 #include "config.h"
 #include "kernels.h"
 #include "state_base.h"
@@ -667,6 +668,28 @@ auto view_txt = [](const std::vector<std::string> &parameters) {
 };
 
 TC_REGISTER_TASK(view_txt);
+
+auto benchmark_inc = []() {
+  int N = 1000;
+  int n = 256 * 256 * 1024;
+  real *a, *b;
+  cudaMalloc(&a, n * sizeof(real));
+  cudaMalloc(&b, n * sizeof(real));
+  cudaMemset(a, 0, sizeof(real) * n);
+  for (int i = 0; i < N; i++) {
+    TC_PROFILER("inc");
+    IncKernelLauncher(a, b);
+    auto err = cudaGetLastError();
+    cudaDeviceSynchronize();
+    if (err) {
+      printf("Launch: %s\n", cudaGetErrorString(err));
+      exit(-1);
+    }
+  }
+  print_profile_info();
+};
+
+TC_REGISTER_TASK(benchmark_inc);
 
 auto convert_obj = [](const std::vector<std::string> &parameters) {
   for (auto fn : parameters) {

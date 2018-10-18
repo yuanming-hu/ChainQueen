@@ -28,7 +28,8 @@ def main():
   sess.run(tf.global_variables_initializer())
   # op = tf.reduce_max(tf.assign(a, a + b))
   # op = tf.assign(a, b)
-  op = mpm3d.inc(a)
+  # op = tf.assign(a, mpm3d.inc(a))[0, 0, 0]
+  op = mpm3d.inc(a)[0, 0, 0]
   # op = tf.reduce_max(a + b)
   #op = tf.assign(a, a)
 
@@ -48,4 +49,7 @@ if __name__ == '__main__':
 
 # Reduce max a (1)    : 1.61 ms
 # Reduce max a + b (4): 5.57 ms
+# op = tf.assign(a, mpm3d.inc(a))[0, 0, 0] : 5.85 ms
+# op = mpm3d.inc(a)[0, 0, 0] : 3.13 ms
+# (C++) cuda inc : 2.614ms
 # a=b, fetch          : 23 ms

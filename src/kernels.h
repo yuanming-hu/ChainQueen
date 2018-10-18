@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 
+void IncKernelLauncher(const float *inx, float *outx);
 void saxpy_cuda(int n, float alpha, float *x, float *y);
 void test_svd_cuda(int n, float *, float *, float *, float *);
 template <int dim>

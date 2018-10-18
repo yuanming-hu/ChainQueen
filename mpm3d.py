@@ -4,6 +4,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import sparse_ops
 import os
 import numpy as np
+import taichi as tc
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 MPM_module = tf.load_op_library(os.path.join(file_dir, '../../build/libtaichi_tf_differentiable_mpm.so'))
