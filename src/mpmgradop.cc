@@ -187,21 +187,17 @@ class MPMGradOpGPU : public OpKernel {
     auto f_grad_inA = grad_inA->template flat<float>();
     auto f_grad_ingrid = grad_ingrid->template flat<float>();
 
-    {
-      TC_PROFILER("Kernel");
-      MPMGradKernelLauncher(
-          dim, res, particles, dx_, dt_, E_, nu_, m_p_, V_p_, gravity,
-          f_inx.data(), f_inv.data(), f_inF.data(), f_inC.data(), f_inA.data(),
-          f_ingrid.data(), f_outx.data(), f_outv.data(), f_outF.data(),
-          f_outC.data(), f_outP.data(), f_outgrid.data(), f_outgrid_star.data(),
-          f_grad_inx.data(), f_grad_inv.data(), f_grad_inF.data(),
-          f_grad_inC.data(), f_grad_inA.data(), f_grad_ingrid.data(),
-          f_grad_outx.data(), f_grad_outv.data(), f_grad_outF.data(),
-          f_grad_outC.data(), f_grad_outP.data(), f_grad_outgrid.data(),
-          f_grad_outgrid_star.data());
-      cudaDeviceSynchronize();
-    }
-    taichi::print_profile_info();
+    MPMGradKernelLauncher(
+        dim, res, particles, dx_, dt_, E_, nu_, m_p_, V_p_, gravity,
+        f_inx.data(), f_inv.data(), f_inF.data(), f_inC.data(), f_inA.data(),
+        f_ingrid.data(), f_outx.data(), f_outv.data(), f_outF.data(),
+        f_outC.data(), f_outP.data(), f_outgrid.data(), f_outgrid_star.data(),
+        f_grad_inx.data(), f_grad_inv.data(), f_grad_inF.data(),
+        f_grad_inC.data(), f_grad_inA.data(), f_grad_ingrid.data(),
+        f_grad_outx.data(), f_grad_outv.data(), f_grad_outF.data(),
+        f_grad_outC.data(), f_grad_outP.data(), f_grad_outgrid.data(),
+        f_grad_outgrid_star.data());
+    cudaDeviceSynchronize();
   }
 };
 
