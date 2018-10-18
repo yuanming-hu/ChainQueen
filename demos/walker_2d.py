@@ -111,7 +111,6 @@ def main(sess):
       assert len(act.shape) == 2
       mask = particle_mask_from_group(group)
       act = act * mask
-      # First PK stress here
       total_actuation = total_actuation + act
     total_actuation = make_matrix2d(zeros, zeros, zeros, total_actuation)
     return total_actuation, debug
