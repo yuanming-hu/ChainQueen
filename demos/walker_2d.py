@@ -14,6 +14,11 @@
 # *** forward 0.45941948890686035
 # *** eval_gradients 1.8227229118347168
 
+# removed goal_feature for simplicity
+# *** forward 0.4663090705871582
+# *** eval_gradients 1.8663885593414307
+
+
 import sys
 sys.path.append('..')
 
@@ -63,10 +68,10 @@ def particle_mask(start, end):
 def particle_mask_from_group(g):
   return particle_mask(g * group_num_particles, (g + 1) * group_num_particles)
 
-
+feature_dim_per_group = 4
 # NN weights
 W1 = tf.Variable(
-    0.02 * tf.random_normal(shape=(len(actuations), 6 * len(group_sizes))),
+    0.02 * tf.random_normal(shape=(len(actuations), feature_dim_per_group * len(group_sizes))),
     trainable=True)
 b1 = tf.Variable([0.0] * len(actuations), trainable=True)
 
@@ -88,12 +93,12 @@ def main(sess):
       vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
-      controller_inputs.append(goal_feature)
+      #controller_inputs.append(goal_feature)
     # Batch, dim
     controller_inputs = tf.concat(controller_inputs, axis=1)
-    assert controller_inputs.shape == (batch_size, 6 * num_groups), controller_inputs.shape
+    assert controller_inputs.shape == (batch_size, feature_dim_per_group * num_groups), controller_inputs.shape
     controller_inputs = controller_inputs[:, :, None]
-    assert controller_inputs.shape == (batch_size, 6 * num_groups, 1)
+    assert controller_inputs.shape == (batch_size, feature_dim_per_group * num_groups, 1)
     # Batch, 6 * num_groups, 1
     intermediate = tf.matmul(W1[None, :, :] +
                              tf.zeros(shape=[batch_size, 1, 1]), controller_inputs)
@@ -133,7 +138,7 @@ def main(sess):
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
-  s = head * 6
+  s = head * feature_dim_per_group
   
   final_position = final_state[:, s:s+2]
   final_velocity = final_state[:, s + 2: s + 4]
@@ -204,10 +209,10 @@ def main(sess):
           num_steps=800,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
-      print('*** forward', time.time() - tt)
+      print('# *** forward', time.time() - tt)
       tt = time.time()
       grad = sim.eval_gradients(sym=sym, memo=memo)
-      print('*** eval_gradients', time.time() - tt)
+      print('# *** eval_gradients', time.time() - tt)
       tt = time.time()
 
       grad_feed_dict = {}
