@@ -6,6 +6,11 @@
 # *** forward 0.7795238494873047
 # *** eval_gradients 2.3976681232452393
 
+# replaced tf particle mask as precomputed np array
+# *** forward 0.4802134037017822
+# *** eval_gradients 1.8936614990234375
+
+
 
 import sys
 sys.path.append('..')
@@ -49,8 +54,8 @@ num_particles = group_num_particles * num_groups
 
 
 def particle_mask(start, end):
-  r = tf.range(0, num_particles)
-  return tf.cast(tf.logical_and(start <= r, r < end), tf.float32)[None, :]
+  r = np.array(range(0, num_particles))
+  return (np.logical_and(start <= r, r < end)).astype(np.float32)[None, :]
 
 
 def particle_mask_from_group(g):
