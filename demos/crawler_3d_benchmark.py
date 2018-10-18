@@ -129,7 +129,7 @@ def main(sess):
       batch_size=batch_size,
       bc=bc,
       sess=sess,
-      E=25, damping=0.001 * evaluate)
+      E=25, damping=0.001 * evaluate, part_size=10)
   print("Building time: {:.4f}s".format(time.time() - t))
 
   final_state = sim.initial_state['debug']['controller_inputs']
