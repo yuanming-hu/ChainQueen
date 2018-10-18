@@ -10,7 +10,9 @@
 # *** forward 0.4802134037017822
 # *** eval_gradients 1.8936614990234375
 
-
+# avoided goal feature recomputation
+# *** forward 0.45941948890686035
+# *** eval_gradients 1.8227229118347168
 
 import sys
 sys.path.append('..')
@@ -77,6 +79,7 @@ def main(sess):
   # Define your controller here
   def controller(state):
     controller_inputs = []
+    goal_feature = (goal - goal_pos) / np.maximum(goal_range, 1e-5)
     for i in range(num_groups):
       mask = particle_mask(i * group_num_particles,
                            (i + 1) * group_num_particles)[:, None, :] * (
@@ -85,7 +88,7 @@ def main(sess):
       vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
       controller_inputs.append(pos)
       controller_inputs.append(vel)
-      controller_inputs.append((goal - goal_pos) / np.maximum(goal_range, 1e-5))
+      controller_inputs.append(goal_feature)
     # Batch, dim
     controller_inputs = tf.concat(controller_inputs, axis=1)
     assert controller_inputs.shape == (batch_size, 6 * num_groups), controller_inputs.shape
