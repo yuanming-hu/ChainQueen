@@ -1,0 +1,1451 @@
+{
+    "traceEvents": [
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 0,
+            "args": {
+                "name": "Allocators"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 1,
+            "args": {
+                "name": "/device:GPU:0/stream:14 Compute"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 2,
+            "args": {
+                "name": "/device:GPU:0/stream:14 Tensors"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 3,
+            "args": {
+                "name": "/device:GPU:0/stream:15 Compute"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 4,
+            "args": {
+                "name": "/device:GPU:0/stream:15 Tensors"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 5,
+            "args": {
+                "name": "/device:GPU:0/stream:7 Compute"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 6,
+            "args": {
+                "name": "/device:GPU:0/stream:7 Tensors"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 7,
+            "args": {
+                "name": "/device:GPU:0/memcpy Compute"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 8,
+            "args": {
+                "name": "/device:GPU:0/memcpy Tensors"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 9,
+            "args": {
+                "name": "/device:GPU:0/stream:all Compute"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 10,
+            "args": {
+                "name": "/device:GPU:0/stream:all Tensors"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 11,
+            "args": {
+                "name": "/job:localhost/replica:0/task:0/device:GPU:0 Compute"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 12,
+            "args": {
+                "name": "/job:localhost/replica:0/task:0/device:GPU:0 Tensors"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 13,
+            "args": {
+                "name": "/job:localhost/replica:0/task:0/device:CPU:0 Compute"
+            }
+        },
+        {
+            "name": "process_name",
+            "ph": "M",
+            "pid": 14,
+            "args": {
+                "name": "/job:localhost/replica:0/task:0/device:CPU:0 Tensors"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1539823454829452,
+            "dur": 61,
+            "args": {
+                "name": "edge_31__arg_position_0_5",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1539823454829515,
+            "dur": 21,
+            "args": {
+                "name": "edge_35__arg_youngs_modulus_0_7",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1539823454829538,
+            "dur": 21,
+            "args": {
+                "name": "edge_27__arg_particle_volume_0_3",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1539823454829561,
+            "dur": 190,
+            "args": {
+                "name": "edge_37__arg_zeros_0_8",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1539823454829756,
+            "dur": 23,
+            "args": {
+                "name": "edge_29__arg_poissons_ratio_0_4",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1539823454829782,
+            "dur": 201,
+            "args": {
+                "name": "edge_23__arg_dg_0_0",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1539823454829986,
+            "dur": 23,
+            "args": {
+                "name": "edge_25__arg_particle_mass_0_2",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 1,
+            "tid": 0,
+            "ts": 1539823454830010,
+            "dur": 61,
+            "args": {
+                "name": "edge_33__arg_velocity_0_6",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454829582,
+            "dur": 67,
+            "args": {
+                "name": "edge_58_zeros_15",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454829734,
+            "dur": 195,
+            "args": {
+                "name": "edge_60_zeros_16",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454829938,
+            "dur": 23,
+            "args": {
+                "name": "edge_44_Identity_2",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454829966,
+            "dur": 23,
+            "args": {
+                "name": "edge_42_Identity_1",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454830139,
+            "dur": 19,
+            "args": {
+                "name": "edge_46_Identity_3",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454830878,
+            "dur": 19,
+            "args": {
+                "name": "edge_40_Identity",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454831064,
+            "dur": 56,
+            "args": {
+                "name": "edge_48_Mpm",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454831123,
+            "dur": 57,
+            "args": {
+                "name": "edge_50_Mpm",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454831182,
+            "dur": 170,
+            "args": {
+                "name": "edge_52_Mpm",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 3,
+            "tid": 0,
+            "ts": 1539823454831356,
+            "dur": 169,
+            "args": {
+                "name": "edge_54_Mpm",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Mpm",
+            "pid": 5,
+            "tid": 0,
+            "ts": 1539823454830172,
+            "dur": 698,
+            "args": {
+                "name": "Mpm",
+                "op": "Mpm"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Mpm",
+            "pid": 5,
+            "tid": 0,
+            "ts": 1539823454830901,
+            "dur": 9,
+            "args": {
+                "name": "Mpm",
+                "op": "Mpm"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Mpm",
+            "pid": 5,
+            "tid": 0,
+            "ts": 1539823454830913,
+            "dur": 109,
+            "args": {
+                "name": "Mpm",
+                "op": "Mpm"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454829452,
+            "dur": 61,
+            "args": {
+                "name": "edge_31__arg_position_0_5",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454829515,
+            "dur": 21,
+            "args": {
+                "name": "edge_35__arg_youngs_modulus_0_7",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454829538,
+            "dur": 21,
+            "args": {
+                "name": "edge_27__arg_particle_volume_0_3",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454829561,
+            "dur": 190,
+            "args": {
+                "name": "edge_37__arg_zeros_0_8",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 1,
+            "ts": 1539823454829582,
+            "dur": 67,
+            "args": {
+                "name": "edge_58_zeros_15",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454829756,
+            "dur": 23,
+            "args": {
+                "name": "edge_29__arg_poissons_ratio_0_4",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454829782,
+            "dur": 201,
+            "args": {
+                "name": "edge_23__arg_dg_0_0",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454829986,
+            "dur": 23,
+            "args": {
+                "name": "edge_25__arg_particle_mass_0_2",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYHtoD",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454830010,
+            "dur": 61,
+            "args": {
+                "name": "edge_33__arg_velocity_0_6",
+                "op": "MEMCPYHtoD"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 1,
+            "ts": 1539823454829734,
+            "dur": 195,
+            "args": {
+                "name": "edge_60_zeros_16",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 1,
+            "ts": 1539823454829938,
+            "dur": 23,
+            "args": {
+                "name": "edge_44_Identity_2",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 1,
+            "ts": 1539823454829966,
+            "dur": 23,
+            "args": {
+                "name": "edge_42_Identity_1",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454830139,
+            "dur": 19,
+            "args": {
+                "name": "edge_46_Identity_3",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454830878,
+            "dur": 19,
+            "args": {
+                "name": "edge_40_Identity",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454831064,
+            "dur": 56,
+            "args": {
+                "name": "edge_48_Mpm",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454831123,
+            "dur": 57,
+            "args": {
+                "name": "edge_50_Mpm",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454831182,
+            "dur": 170,
+            "args": {
+                "name": "edge_52_Mpm",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "MEMCPYDtoH",
+            "pid": 7,
+            "tid": 0,
+            "ts": 1539823454831356,
+            "dur": 169,
+            "args": {
+                "name": "edge_54_Mpm",
+                "op": "MEMCPYDtoH"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Mpm",
+            "pid": 9,
+            "tid": 0,
+            "ts": 1539823454830172,
+            "dur": 698,
+            "args": {
+                "name": "Mpm",
+                "op": "Mpm"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Mpm",
+            "pid": 9,
+            "tid": 0,
+            "ts": 1539823454830901,
+            "dur": 9,
+            "args": {
+                "name": "Mpm",
+                "op": "Mpm"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Mpm",
+            "pid": 9,
+            "tid": 0,
+            "ts": 1539823454830913,
+            "dur": 109,
+            "args": {
+                "name": "Mpm",
+                "op": "Mpm"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "NoOp",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829324,
+            "dur": 7,
+            "args": {
+                "name": "_SOURCE",
+                "op": "NoOp"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829358,
+            "dur": 9,
+            "args": {
+                "name": "add_16/y",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829370,
+            "dur": 10,
+            "args": {
+                "name": "Const",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829381,
+            "dur": 8,
+            "args": {
+                "name": "zeros_15/_0__cf__0",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Const",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829391,
+            "dur": 10,
+            "args": {
+                "name": "zeros_16/_1__cf__1",
+                "op": "Const"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Add",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829443,
+            "dur": 27,
+            "args": {
+                "name": "add_16",
+                "op": "Add",
+                "input0": "_arg_zeros_4_0_10/_9",
+                "input1": "add_16/y"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "_arg_zeros_4_0_10",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829378,
+            "id": 0
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "_arg_zeros_4_0_10",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829443,
+            "id": 0
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Identity",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829803,
+            "dur": 7,
+            "args": {
+                "name": "Identity_2",
+                "op": "Identity",
+                "input0": "_arg_youngs_modulus_0_7/_5"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "_arg_youngs_modulus_0_7",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829375,
+            "id": 1
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "_arg_youngs_modulus_0_7",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829803,
+            "id": 1
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Identity",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829812,
+            "dur": 12,
+            "args": {
+                "name": "Identity_1",
+                "op": "Identity",
+                "input0": "_arg_particle_volume_0_3/_3"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "_arg_particle_volume_0_3",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829366,
+            "id": 2
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "_arg_particle_volume_0_3",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829812,
+            "id": 2
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Identity",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454830073,
+            "dur": 7,
+            "args": {
+                "name": "Identity_3",
+                "op": "Identity",
+                "input0": "_arg_poissons_ratio_0_4/_7"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "_arg_poissons_ratio_0_4",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829368,
+            "id": 3
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "_arg_poissons_ratio_0_4",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454830073,
+            "id": 3
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Identity",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454830088,
+            "dur": 8,
+            "args": {
+                "name": "Identity",
+                "op": "Identity",
+                "input0": "_arg_particle_mass_0_2/_1"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "_arg_particle_mass_0_2",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829363,
+            "id": 4
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "_arg_particle_mass_0_2",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454830088,
+            "id": 4
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "Mpm",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454830095,
+            "dur": 910,
+            "args": {
+                "name": "Mpm",
+                "op": "Mpm",
+                "input0": "_arg_position_0_5/_11",
+                "input1": "_arg_velocity_0_6/_13",
+                "input2": "_arg_dg_0_0/_15",
+                "input3": "_arg_zeros_0_8/_17",
+                "input4": "zeros_16",
+                "input5": "Const"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "_arg_position_0_5",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829370,
+            "id": 5
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "_arg_position_0_5",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454830095,
+            "id": 5
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "_arg_velocity_0_6",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829373,
+            "id": 6
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "_arg_velocity_0_6",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454830095,
+            "id": 6
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "_arg_dg_0_0",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829359,
+            "id": 7
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "_arg_dg_0_0",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454830095,
+            "id": 7
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "_arg_zeros_0_8",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829377,
+            "id": 8
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "_arg_zeros_0_8",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454830095,
+            "id": 8
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "Const",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829380,
+            "id": 9
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "Const",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454830095,
+            "id": 9
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "NoOp",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829321,
+            "dur": 4,
+            "args": {
+                "name": "_SOURCE",
+                "op": "NoOp"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Arg",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829353,
+            "dur": 6,
+            "args": {
+                "name": "_arg_dg_0_0",
+                "op": "_Arg"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Arg",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829361,
+            "dur": 2,
+            "args": {
+                "name": "_arg_particle_mass_0_2",
+                "op": "_Arg"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Arg",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829364,
+            "dur": 2,
+            "args": {
+                "name": "_arg_particle_volume_0_3",
+                "op": "_Arg"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Arg",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829367,
+            "dur": 1,
+            "args": {
+                "name": "_arg_poissons_ratio_0_4",
+                "op": "_Arg"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Arg",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829369,
+            "dur": 1,
+            "args": {
+                "name": "_arg_position_0_5",
+                "op": "_Arg"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Arg",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829372,
+            "dur": 1,
+            "args": {
+                "name": "_arg_velocity_0_6",
+                "op": "_Arg"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Arg",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829374,
+            "dur": 1,
+            "args": {
+                "name": "_arg_youngs_modulus_0_7",
+                "op": "_Arg"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Arg",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829376,
+            "dur": 1,
+            "args": {
+                "name": "_arg_zeros_0_8",
+                "op": "_Arg"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Arg",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829378,
+            "dur": 0,
+            "args": {
+                "name": "_arg_zeros_4_0_10",
+                "op": "_Arg"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829499,
+            "dur": 2,
+            "args": {
+                "name": "_retval_add_16_0_8",
+                "op": "_Retval",
+                "input0": "add_16/_35"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "add_16",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829470,
+            "id": 10
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "add_16",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829499,
+            "id": 10
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829735,
+            "dur": 4,
+            "args": {
+                "name": "_retval_zeros_15_0_9",
+                "op": "_Retval",
+                "input0": "zeros_15/_37"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454829937,
+            "dur": 2,
+            "args": {
+                "name": "_retval_zeros_16_0_10",
+                "op": "_Retval",
+                "input0": "zeros_16/_39"
+            }
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454830011,
+            "dur": 1,
+            "args": {
+                "name": "_retval_Identity_2_0_2",
+                "op": "_Retval",
+                "input0": "Identity_2/_23"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "Identity_2",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829810,
+            "id": 11
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "Identity_2",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454830011,
+            "id": 11
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454830014,
+            "dur": 1,
+            "args": {
+                "name": "_retval_Identity_1_0_1",
+                "op": "_Retval",
+                "input0": "Identity_1/_21"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "Identity_1",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454829824,
+            "id": 12
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "Identity_1",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454830014,
+            "id": 12
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454830882,
+            "dur": 2,
+            "args": {
+                "name": "_retval_Identity_3_0_3",
+                "op": "_Retval",
+                "input0": "Identity_3/_25"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "Identity_3",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454830080,
+            "id": 13
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "Identity_3",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454830882,
+            "id": 13
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454830942,
+            "dur": 1,
+            "args": {
+                "name": "_retval_Identity_0_0",
+                "op": "_Retval",
+                "input0": "Identity/_19"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "Identity",
+            "pid": 11,
+            "tid": 0,
+            "ts": 1539823454830096,
+            "id": 14
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "Identity",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454830942,
+            "id": 14
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454831125,
+            "dur": 1,
+            "args": {
+                "name": "_retval_Mpm_0_4",
+                "op": "_Retval",
+                "input0": "Mpm/_27"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "Mpm",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454831005,
+            "id": 15
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "Mpm",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454831125,
+            "id": 15
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454831185,
+            "dur": 2,
+            "args": {
+                "name": "_retval_Mpm_1_5",
+                "op": "_Retval",
+                "input0": "Mpm/_29"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "Mpm",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454831005,
+            "id": 16
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "Mpm",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454831185,
+            "id": 16
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454831383,
+            "dur": 2,
+            "args": {
+                "name": "_retval_Mpm_2_6",
+                "op": "_Retval",
+                "input0": "Mpm/_31"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "Mpm",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454831005,
+            "id": 17
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "Mpm",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454831383,
+            "id": 17
+        },
+        {
+            "ph": "X",
+            "cat": "Op",
+            "name": "_Retval",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454831509,
+            "dur": 3,
+            "args": {
+                "name": "_retval_Mpm_3_7",
+                "op": "_Retval",
+                "input0": "Mpm/_33"
+            }
+        },
+        {
+            "ph": "s",
+            "cat": "DataFlow",
+            "name": "Mpm",
+            "pid": 11,
+            "tid": 1,
+            "ts": 1539823454831005,
+            "id": 18
+        },
+        {
+            "ph": "t",
+            "cat": "DataFlow",
+            "name": "Mpm",
+            "pid": 13,
+            "tid": 0,
+            "ts": 1539823454831509,
+            "id": 18
+        }
+    ]
+}
