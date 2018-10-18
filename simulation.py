@@ -337,19 +337,20 @@ class Simulation:
       if self.updated_state.controller is not None:
         ret_ph = [self.states[now_step].to_tuple(), self.states[now_step].actuation]
 
-        options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-        run_metadata = tf.RunMetadata()
+        #options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+        #run_metadata = tf.RunMetadata()
 
         if stepwise_loss is None:
-          ret, swl = self.sess.run(ret_ph, feed_dict=feed_dict, options=options, run_metadata=run_metadata), []
+          # ret, swl = self.sess.run(ret_ph, feed_dict=feed_dict, options=options, run_metadata=run_metadata), []
+          ret, swl = self.sess.run(ret_ph, feed_dict=feed_dict), []
         else:
           ret, swl = self.sess.run([ret_ph, stepwise_loss], feed_dict=feed_dict)
 
         # Create the Timeline object, and write it to a json file
-        fetched_timeline = timeline.Timeline(run_metadata.step_stats)
-        chrome_trace = fetched_timeline.generate_chrome_trace_format()
-        with open('timeline_01.json', 'w') as f:
-          f.write(chrome_trace)
+        # fetched_timeline = timeline.Timeline(run_metadata.step_stats)
+        # chrome_trace = fetched_timeline.generate_chrome_trace_format()
+        #with open('timeline_01.json', 'w') as f:
+        #  f.write(chrome_trace)
 
         memo.update_stepwise_loss(swl)
         memo.steps.append(ret[0])
