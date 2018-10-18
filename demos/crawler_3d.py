@@ -111,9 +111,50 @@ def main(sess):
 
   # Define your controller here
   def controller(state):
-    actuations =tf.zeros(shape=(1, 3, 3, num_particles))
-    debug = {'controller_inputs': tf.zeros(shape=(1, 10, 10)), 'actuation': actuations}
-    return actuations, debug
+    controller_inputs = []
+    for i in range(num_groups):
+      mask = particle_mask(i * group_num_particles,
+                           (i + 1) * group_num_particles)[:, None, :] * (
+                               1.0 / group_num_particles)
+      pos = tf.reduce_sum(mask * state.position, axis=2, keepdims=False)
+      vel = tf.reduce_sum(mask * state.velocity, axis=2, keepdims=False)
+      controller_inputs.append(pos)
+      controller_inputs.append(vel)
+      controller_inputs.append((goal - goal_pos) / np.maximum(goal_range, 1e-5))
+    controller_inputs_backup = controller_inputs
+    controller_inputs = []
+    t = tf.ones(shape=(1, 1)) * 0.06 * tf.cast(state.step_count, dtype=tf.float32)
+    for k in range(8):
+      controller_inputs.append(tf.sin(t + 2 / K * k * math.pi))
+    # Batch, dim
+    controller_inputs = tf.concat(controller_inputs, axis=1)
+    assert controller_inputs.shape == (batch_size, K), controller_inputs.shape
+    controller_inputs = controller_inputs[:, :, None]
+    assert controller_inputs.shape == (batch_size, K, 1)
+    # Batch, 6 * num_groups, 1
+    intermediate = tf.matmul(W1[None, :, :] +
+                             tf.zeros(shape=[batch_size, 1, 1]), controller_inputs)
+    # Batch, #actuations, 1
+    assert intermediate.shape == (batch_size, len(actuations), 1)
+    assert intermediate.shape[2] == 1
+    intermediate = intermediate[:, :, 0]
+    # Batch, #actuations
+    actuation = tf.tanh(intermediate + b1[None, :]) * actuation_strength
+    
+    controller_inputs_backup = tf.concat(controller_inputs_backup, axis=1)
+    controller_inputs_backup = controller_inputs_backup[:, :, None]
+    
+    debug = {'controller_inputs': controller_inputs_backup[:, :, 0], 'actuation': actuation}
+    total_actuation = 0
+    zeros = tf.zeros(shape=(batch_size, num_particles))
+    for i, group in enumerate(actuations):
+      act = actuation[:, i:i+1]
+      assert len(act.shape) == 2
+      mask = particle_mask_from_group(group)
+      act = act * mask
+      act = make_matrix3d(zeros, zeros, zeros, zeros, zeros, zeros, zeros, zeros, act)
+      total_actuation = total_actuation + act
+    return total_actuation, debug
   
   
   res = (60 + 100 * int(evaluate), 30, 30)
@@ -135,9 +176,12 @@ def main(sess):
   final_state = sim.initial_state['debug']['controller_inputs']
   s = head * 9
   
-  loss1 = tf.reduce_mean(tf.reduce_sum((goal) ** 2, axis = 1))
+  final_position = final_state[:, s:s+3]
+  final_velocity = final_state[:, s + 3: s + 6]
+  loss1 = tf.reduce_mean(tf.reduce_sum((final_position - goal) ** 2, axis = 1))
+  loss2 = tf.reduce_mean(tf.reduce_sum(final_velocity ** 2, axis = 1)) 
 
-  loss = loss1
+  loss = loss1 + gamma * loss2
 
   initial_positions = [[] for _ in range(batch_size)]
   for b in range(batch_size):
