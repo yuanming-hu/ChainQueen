@@ -48,7 +48,7 @@ add_library(taichi_tf_${TAICHI_PROJECT_NAME} SHARED ${PROJECT_OP_SOURCES})
 add_library(taichi_${TAICHI_PROJECT_NAME} SHARED ${PROJECT_SOURCES})
 
 target_link_libraries(taichi_${TAICHI_PROJECT_NAME} ${SHARED_LIBS} partio cudmpm)
-target_link_libraries(taichi_tf_${TAICHI_PROJECT_NAME} cudmpm ${TF_LIBRARY_DIR}/libtensorflow_framework.so)
+target_link_libraries(taichi_tf_${TAICHI_PROJECT_NAME} ${CORE_LIBRARY_NAME} cudmpm ${TF_LIBRARY_DIR}/libtensorflow_framework.so)
 find_package(ZLIB)
 if (ZLIB_FOUND)
     target_link_libraries(taichi_${TAICHI_PROJECT_NAME} z)

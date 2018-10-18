@@ -1,3 +1,12 @@
+# baseline
+# *** forward 0.9585404396057129
+# *** eval_gradients 2.6700315475463867
+
+# reduced calls to make_matrix2d
+# *** forward 0.7795238494873047
+# *** eval_gradients 2.3976681232452393
+
+
 import sys
 sys.path.append('..')
 
@@ -95,10 +104,8 @@ def main(sess):
       mask = particle_mask_from_group(group)
       act = act * mask
       # First PK stress here
-      act = make_matrix2d(zeros, zeros, zeros, act)
-      # Convert to Kirchhoff stress
-      F = state['deformation_gradient']
       total_actuation = total_actuation + act
+    total_actuation = make_matrix2d(zeros, zeros, zeros, total_actuation)
     return total_actuation, debug
   
   res = (80, 40)
@@ -190,10 +197,10 @@ def main(sess):
           num_steps=800,
           iteration_feed_dict={goal: goal_input},
           loss=loss)
-      print('forward', time.time() - tt)
+      print('*** forward', time.time() - tt)
       tt = time.time()
       grad = sim.eval_gradients(sym=sym, memo=memo)
-      print('eval_gradients', time.time() - tt)
+      print('*** eval_gradients', time.time() - tt)
       tt = time.time()
 
       grad_feed_dict = {}
