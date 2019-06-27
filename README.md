@@ -1,4 +1,7 @@
-# Differentiable MPM for TensorFlow / PyTorch
+# The (Legacy) ChainQueen Differentiable MPM Solver
+
+## Note: this is an old (Oct 2018) version of ChainQueen.
+
 ## Installing the CUDA solver
 
 - Install `taichi` by executing:
@@ -6,11 +9,9 @@
   wget https://raw.githubusercontent.com/yuanming-hu/taichi/master/install.py
   python3 install.py
   ```
-- Make sure you are using `gcc-6`. If not, `export CXX=g++-6 CC=gcc-6`.
+- Make sure you are using `gcc-6`. If not, please install `export CXX=g++-6 CC=gcc-6`.
 - Put this repo in `taichi/projects/`
-- ```ti build```
-- Email Yuanming when you run into any problems!
-
+- execute ```ti build```
 
 ## Discretization Cheatsheet
 (Assuming quadratic B-spline)

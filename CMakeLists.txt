@@ -27,9 +27,9 @@ include_directories(${TF_INCLUDE_DIRS})
 include_directories(external/partio/include)
 
 if (NOT $ENV{CUDA_ARCH})
-    set(${CUDA_ARCH} 61)
+    set(CUDA_ARCH 61)
 else()
-    set(${CUDA_ARCH} $ENV{CUDA_ARCH})
+    set(CUDA_ARCH $ENV{CUDA_ARCH})
 endif()
 
 message("CUDA Arch: ${CUDA_ARCH}")
