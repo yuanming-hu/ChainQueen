@@ -5,7 +5,6 @@ from time_integration import InitialSimulationState, UpdatedSimulationState
 from time_integration import tf_precision, np_precision
 from tensorflow.python.client import timeline
 from memo import Memo
-import IPython
 import os
 
 output_bgeo = False

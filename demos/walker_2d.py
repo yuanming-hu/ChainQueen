@@ -32,7 +32,6 @@ import tensorflow as tf
 import tensorflow.contrib.layers as ly
 from vector_math import *
 import export 
-import IPython
 
 lr = 0.03
 gamma = 0.0
