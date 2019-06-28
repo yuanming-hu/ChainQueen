@@ -1,16 +1,16 @@
 # The (Legacy) ChainQueen Differentiable MPM Solver (v1)
 
-Note: this is an old (Oct 2018) version of ChainQueen that we build for the ICRA 2019 paper. We have several unpublished projects based on our latest version of ChainQueen, however, it is too difficult to peel off the private code. Meanwhile, we are actively building ChainQueen v2, which has a better-designed software architecture and higher performance. Therefore, we decide to put our limited efforts on developing ChainQueen v2 instead of cleaning up the latest ChainQueen v1. We release the legacy ChainQueen v1 without unpublished results for now.
+Note: This is an old (Oct 2018) version of ChainQueen that we built for the ICRA 2019 paper. We have several unpublished projects based on our latest version of ChainQueen, and it is too time-consuming to peel off our private code to release the latest version. Meanwhile, we are actively building ChainQueen v2, which has a better-designed software architecture and higher performance. Therefore, we decide to put our limited effort on developing ChainQueen v2 instead of cleaning up the latest ChainQueen v1. We release the legacy ChainQueen v1 without unpublished results for now.
 
 You are welcome to investigate the internal implementation in this legacy codebase, but we recommend to wait for ChainQueen v2 to build your own research project.
 
 ## Installation (Tested on Arch Linux/Ubuntu 16.04/18.04)
-- Install `taichi` by executing:
+- Install `taichi` by executing
   ```
   wget https://raw.githubusercontent.com/yuanming-hu/taichi/master/install.py
   python3 install.py
   ```
-- Install CUDA 8.0+ if you don't have one
+- Install CUDA 8.0+ if you don't have it.
 - Install `tensorflow-gpu`.
 - Make sure you are using `gcc-6`. If not, please install `export CXX=g++-6 CC=gcc-6`.
 - Put this repo in `taichi/projects/`
