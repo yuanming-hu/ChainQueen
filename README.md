@@ -14,5 +14,5 @@ You are welcome to investigate the internal implementation in this legacy codeba
 - Install `tensorflow-gpu`.
 - Make sure you are using `gcc-6`. If not, please install `export CXX=g++-6 CC=gcc-6`.
 - Put this repo in `taichi/projects/`
-- execute ```ti build```
+- Execute ```ti build```
 - Runnable demos are in `demos/`.
