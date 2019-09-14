@@ -16,3 +16,14 @@ You are welcome to investigate the internal implementation in this legacy codeba
 - Put this repo in `taichi/projects/`
 - Execute ```ti build```
 - Runnable demos are in `demos/`.
+
+
+## BibTex
+```
+@article{hu2019chainqueen,
+  title={ChainQueen: A Real-Time Differentiable Physical Simulator for Soft Robotics},
+  author={Hu, Yuanming and Liu, Jiancheng and Spielberg, Andrew and Tenenbaum, Joshua B and Freeman, William T and Wu, Jiajun and Rus, Daniela and Matusik, Wojciech},
+  journal={Proceedings of IEEE International Conference on Robotics and Automation (ICRA)},
+  year={2019}
+}
+```
