@@ -1,3 +1,4 @@
+## Note: ChainQueen is now part of [DiffTaichi](https://github.com/yuanming-hu/difftaichi), where we implemented 10 differentiable physical simulators: 
 # The (Legacy) ChainQueen Differentiable MPM Solver (v1)
 
 Note: This is an old (Oct 2018) version of ChainQueen that we built for the ICRA 2019 paper. We have several unpublished projects based on our latest version of ChainQueen, and it is too time-consuming to peel off our private code to release the latest version. Meanwhile, we are actively building ChainQueen v2, which has a better-designed software architecture and higher performance. Therefore, we decide to put our limited effort on developing ChainQueen v2 instead of cleaning up the latest ChainQueen v1. We release the legacy ChainQueen v1 without unpublished results for now.
